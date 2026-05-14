@@ -25,18 +25,6 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
-from trade_functions import (
-    trade_menu,
-    select_trade_partner,
-    process_partner_selection,
-    trade_callback,
-    trade_button_callback,
-    trade_offer_callback,
-    trade_return_callback,
-    trade_final_callback,
-    trade_search_callback,
-    search_creatures_for_trade,
-)
 from telegram.error import NetworkError, TimedOut
 from dotenv import load_dotenv
 load_dotenv()
