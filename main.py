@@ -53,7 +53,6 @@ DATA_FILE = "/data/bot_data.json"
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 AUTO_ANIMATED_RARITIES = ["Animated!"]
 SUPER_ADMIN_ID = "881692999"
-_gold_digger_last_check = None
 
 FORT_IMAGE_URL = "https://ibb.co/gZwy5v0G"
 FOREST_IMAGE_URL = "https://ibb.co/DgTPVmTr"
@@ -1522,11 +1521,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-
-         # ⭐ ПРОВЕРКА ЗОЛОТОИСКАТЕЛЕЙ (как с казино) ⭐
-        if user_data:
-            await check_gold_digger_reset(user_id, user_data, data, context)
-            save_data(data)
 
         text = update.message.text
         
