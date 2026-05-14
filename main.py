@@ -313,7 +313,7 @@ def generate_card_caption(
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n\n💰 +{bonus['cents']} золота\n💥 +{bonus['points']} опыта"
+        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} опыта"
     
     # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО, ЕСЛИ ЕСТЬ ДУБЛИКАТЫ ⭐
     if count > 1:
@@ -389,7 +389,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
     try:
         keyboard = [
-            [KeyboardButton("⚔️ Нанять существо")],
+            [KeyboardButton("Устроить допрос")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🦇 Подземелье")]
@@ -414,33 +414,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         except Exception as e:
             logger.error(f"Ошибка проверки админа: {e}")
             admin = False
-        
-        response = "📜 Доступные команды:\n\n"
-        
-        # Основные команды
-        response += "🎮 Основные команды:\n"
-        response += "⚔️ Нанять существо - нанять существо\n"
-        response += "🛡 Казарма - посмотреть нанятых существ\n"
-        response += "👑 Мой герой - статистика героя\n"
-        response += "🏆 Топ героев - рейтинг по опыту\n"
-        response += "🎲 Бросить кубик - получить бесплатные наймы\n"
-        response += "🍺 Таверна - казино, трейд и другие игры\n"
-        response += "🔨 Крафт - скрафтить новое существо из 2 дубликатов\n"
-        response += "🔄 Трейд - обмен картами с героями\n"
-        response += "🏆 Достижения - награды за сбор карт фракций\n\n"
-        
-        # Команды для всех
-        response += "📝 Команды:\n"
-        response += "/start - начать работу с ботом\n"
-        response += "/help - показать это сообщение\n"
-        response += "/profile - мой профиль\n"
-        response += "/dice - бросить кубик\n"
-        response += "/craft - крафт существ\n"
-        response += "/top - топ героев\n"
-        response += "/trade - трейд существ\n"
-        response += "/trade_accept - принять трейд\n"
-        response += "/trade_decline - отклонить трейд\n"
-        response += "/promo [КОД] - активировать промокод\n\n"
         
         # Админ-команды
         if admin:
@@ -983,7 +956,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         profile_text = (
             f"👤 Профиль героя\n\n"
             f"🆔 ID: `{user_id}`\n"
-            f"💰 Золото: {user_data.get('cents', 0)}\n"
+            f"💰 Бэт-коины: {user_data.get('cents', 0)}\n"
             f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
             f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n\n"
             f"🐦‍🔥 Коллекция:\n"
@@ -1262,7 +1235,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         logger.info(f"Сброшен поиск противника для пользователя {user_id}")
             # Возврат в главное меню
             keyboard = [
-                [KeyboardButton("⚔️ Нанять существо")],
+                [KeyboardButton("Устроить допрос")],
                 [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🦇 Подземелье")]
@@ -1283,7 +1256,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await refugee_camp(update, context)
             return
 
-        elif text.startswith("💰 Купить за ") and "золота" in text:
+        elif text.startswith("💰 Купить за ") and "бэт-коинов" in text:
             await buy_refugee_creature(update, context)
             return
 
@@ -1320,7 +1293,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await craft(update, context)
             return
 
-        if text == "⚔️ Нанять существо":
+        if text == "Устроить допрос":
 
             user_data = data["users"].get(user_id)
 
@@ -2607,7 +2580,7 @@ async def process_craft(
             f"✅ **Улучшение прошло успешно!**\n\n"
             f"🔨 **Использовано:** 2x {card['title']} ({card['rarity']})\n"
             f"🎁 **Получено:** {new_card['title']}\n"
-            f"💰 **+{bonus['cents']} золота**\n"
+            f"💰 **+{bonus['cents']} бэт-коинов**\n"
             f"💥 **+{bonus['points']} опыта**"
         )
         
@@ -2859,7 +2832,7 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         cents = user_data.get("cents", 0)
 
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (3000 золота)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Играть (3000 бэт-коинов)", callback_data="casino_play")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2867,12 +2840,12 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 3000 золота\n"
+            f"• Стоимость игры: 3000 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n\n"
-            f"💰 Ваш баланс: {cents} золота\n"
+            f"💰 Ваш баланс: {cents} бэт-коинов\n"
             f"🎲 Осталось попыток: {attempts}",
             reply_markup=reply_markup,
             parse_mode="Markdown",
@@ -2937,9 +2910,9 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if cents < 3000:
 
                 await query.edit_message_text(
-                    f"❌ **Недостаточно золота!**\n\n"
-                    f"Нужно: 3000 золота\n"
-                    f"У вас: {cents} золота\n\n"
+                    f"❌ **Недостаточно бэт-коинов!**\n\n"
+                    f"Нужно: 3000 бэт-коинов\n"
+                    f"У вас: {cents} бэт-коинов\n\n"
                     f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
                 )
@@ -2993,9 +2966,9 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
-                f"💰 Списано: 3000 золота\n"
+                f"💰 Списано: 3000 бэт-коинов\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
-                f"💰 Ваш баланс: {user_data['cents']} золота",
+                f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 parse_mode="Markdown",
             )
 
@@ -3753,7 +3726,7 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             except:
                 pass
             keyboard = [
-                [KeyboardButton("⚔️ Нанять существо")],
+                [KeyboardButton("Устроить допрос")],
                 [KeyboardButton("🎲 Бросить кубик")],
                 [
                     KeyboardButton("🛡 Казарма"),
@@ -3790,19 +3763,19 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         cents = user_data.get("cents", 0) if user_data else 0
         
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (3000 золота)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Играть (3000 бэт-коинов)", callback_data="casino_play")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 3000 золота\n"
+            f"• Стоимость игры: 3000 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n"
-            f"💰 Ваш баланс: {cents} золота\n",
+            f"💰 Ваш баланс: {cents} бэт-коинов\n",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
@@ -3987,7 +3960,7 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "🩸 Жертвенный алтарь\n\n"
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 Награды:\n"
-                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT1-T4: бэт-коинов (50% от награды за крафт)\n"
                     "• UpgradeT5: 3 найма\n"
                     "• UpgradeT6: 7 наймов\n"
                     "• UpgradeT7: 15 наймов\n"
@@ -4004,7 +3977,7 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "🩸 Жертвенный алтарь\n\n"
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 Награды:\n"
-                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT1-T4: бэт-коинов (50% от награды за крафт)\n"
                     "• UpgradeT5: 3 найма\n"
                     "• UpgradeT6: 7 наймов\n"
                     "• UpgradeT7: 15 наймов\n"
@@ -4118,7 +4091,7 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
                 reward = SACRIFICE_REWARDS.get(card["rarity"], {})
                 reward_text = ""
                 if reward.get("cents", 0) > 0:
-                    reward_text = f"💰 {reward['cents']} золота"
+                    reward_text = f"💰 {reward['cents']} бэт-коинов"
                 if reward.get("free_rolls", 0) > 0:
                     reward_text += f" 🎲 {reward['free_rolls']} наймов"
                 
@@ -4186,7 +4159,7 @@ async def sacrifice_all_creatures(update: Update, context: ContextTypes.DEFAULT_
                 reward = SACRIFICE_REWARDS.get(card["rarity"], {})
                 reward_text = ""
                 if reward.get("cents", 0) > 0:
-                    reward_text = f"💰 {reward['cents']} золота"
+                    reward_text = f"💰 {reward['cents']} бэт-коинов"
                 if reward.get("free_rolls", 0) > 0:
                     reward_text += f" 🎲 {reward['free_rolls']} наймов"
                 
@@ -4267,7 +4240,7 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reward = SACRIFICE_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
             reward_text = []
             if reward["cents"] > 0:
-                reward_text.append(f"💰 +{reward['cents']} золота")
+                reward_text.append(f"💰 +{reward['cents']} бэт-коинов")
             if reward["free_rolls"] > 0:
                 reward_text.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
             
@@ -4318,7 +4291,7 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # ⭐ СООБЩЕНИЕ О НАГРАДЕ ⭐
             reward_text = []
             if reward["cents"] > 0:
-                reward_text.append(f"💰 +{reward['cents']} золота")
+                reward_text.append(f"💰 +{reward['cents']} бэт-коинов")
             if reward["free_rolls"] > 0:
                 reward_text.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
             
@@ -4428,7 +4401,7 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             keyboard = [[KeyboardButton("🔙 Назад в Лес")]]
         else:
             keyboard = [
-                [KeyboardButton(f"💰 Купить за {price} золота")],
+                [KeyboardButton(f"💰 Купить за {price} бэт-коинов")],
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -4445,7 +4418,7 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "🏕️ Лагерь Беженцев\n\n"
                 f"🃏 Существо дня: {offered_card['title']}\n"
                 f"🌟 Редкость: {offered_card['rarity']}\n"
-                f"💰 Цена: {price} золота\n\n"
+                f"💰 Цена: {price} бэт-коинов\n\n"
                 f"✅ Вы уже купили это существо сегодня!\n"
                 f"⏰ Следующее предложение завтра в 00:00 МСК"
             )
@@ -4454,10 +4427,10 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "🏕️ Лагерь Беженцев\n\n"
                 f"🃏 Существо дня: {offered_card['title']}\n"
                 f"🌟 Редкость: {offered_card['rarity']}\n"
-                f"💰 Цена: {price} золота (2x от награды за найм)\n\n"
+                f"💰 Цена: {price} бэт-коинов (2x от награды за найм)\n\n"
                 f"⚠️ Можно купить только 1 раз в день!\n"
                 f"⏰ Обновляется в 00:00 МСК\n\n"
-                f"💳 Ваш баланс: {user_data.get('cents', 0)} золота"
+                f"💳 Ваш баланс: {user_data.get('cents', 0)} бэт-коинов"
             )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -4530,14 +4503,13 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         # ⭐ ПРОВЕРЯЕМ БАЛАНС ⭐
         if user_data.get("cents", 0) < price:
             await update.message.reply_text(
-                f"❌ Недостаточно золота!\n"
-                f"💰 Нужно: {price} золота\n"
-                f"💳 У вас: {user_data.get('cents', 0)} золота\n\n"
+                f"❌ Недостаточно бэт-коинов!\n"
+                f"💰 Нужно: {price} бэт-коинов\n"
+                f"💳 У вас: {user_data.get('cents', 0)} бэт-коинов\n\n"
                 f"Нанимайте существ и получайте больше наград!",
             )
             return
         
-        # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
         user_data["cents"] -= price
         
         # ⭐ ДОБАВЛЯЕМ КАРТУ ⭐
@@ -4555,13 +4527,13 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
             f"🏕️ Покупка успешна!\n\n"
             f"🃏 Вы получили: {offered_card['title']}\n"
             f"🌟 Редкость: {offered_card['rarity']}\n"
-            f"💰 Списано: {price} золота\n\n"
+            f"💰 Списано: {price} бэт-коинов\n\n"
             f"⏰ Следующее предложение завтра в 00:00 МСК"
         )
         
         await send_card(update, offered_card, context, caption=caption)
         
-        logger.info(f"Игрок {user_id} купил существо #{offered_card_id} в Лагере Беженцев за {price} золота")
+        logger.info(f"Игрок {user_id} купил существо #{offered_card_id} в Лагере Беженцев за {price} бэт-коинов")
         
     except Exception as e:
         logger.error(f"Ошибка buy_refugee_creature: {e}")
@@ -4580,9 +4552,9 @@ async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if not context.args or len(context.args) < 2:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
-                "/mercenary_add [ID_карты] [цена_в_золоте]\n\n"
+                "/mercenary_add [ID_карты] [цена_в_бэт-коинах]\n\n"
                 "**Пример:**\n"
-                "/mercenary_add 45 5000 - добавить карту #45 за 5000 золота",
+                "/mercenary_add 45 5000 - добавить карту #45 за 5000 бэт-коинов",
                 parse_mode="Markdown"
             )
             return
@@ -4627,11 +4599,11 @@ async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"✅ Существо добавлено в Гильдию Наёмников!\n\n"
             f"🃏 Карта: {card['title']} (#{card_id})\n"
             f"🌟 Редкость: {card['rarity']}\n"
-            f"💰 Цена: {price} золота\n"
+            f"💰 Цена: {price} бэт-коинов\n"
             f"📊 Всего существ в Гильдии: {len(guild['creatures'])}/{guild['max_slots']}",
         )
         
-        logger.info(f"Админ добавил существо #{card_id} за {price} золота в Гильдию Наёмников")
+        logger.info(f"Админ добавил существо #{card_id} за {price} бэт-коинов в Гильдию Наёмников")
         
     except ValueError:
         await update.message.reply_text("⚠️ ID и цена должны быть числами!")
@@ -4674,7 +4646,7 @@ async def mercenary_remove(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await update.message.reply_text(
                     f"✅ Существо удалено из Гильдии!\n\n"
                     f"🃏 Карта: {card_name}\n"
-                    f"💰 Цена была: {removed['price']} золота\n"
+                    f"💰 Цена была: {removed['price']} бэт-коинов\n"
                     f"📊 Осталось существ: {len(guild['creatures'])}/{guild['max_slots']}",
                 )
                 return
@@ -4715,7 +4687,7 @@ async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             
             message_text += (
                 f"{i}. {card_name} ({rarity})\n"
-                f"   💰 Цена: {creature['price']} золота\n"
+                f"   💰 Цена: {creature['price']} бэт-коинов\n"
                 f"   🆔 ID: {creature['card_id']}\n\n"
             )
         
@@ -4761,8 +4733,8 @@ async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_T
                 await update.message.reply_text(
                     f"✅ Цена обновлена!\n\n"
                     f"🃏 Карта: {card_name}\n"
-                    f"💰 Было: {old_price} золота\n"
-                    f"💰 Стало: {new_price} золота",
+                    f"💰 Было: {old_price} бэт-коинов\n"
+                    f"💰 Стало: {new_price} бэт-коинов",
                 )
                 return
         
@@ -4874,14 +4846,14 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Кнопка "Купить"
         if is_rolls_package:
-            buy_text = f"💰 Купить за {item['price']} золота"
+            buy_text = f"💰 Купить за {item['price']} бэт-коинов"
             callback_data = f"mercenary_buy_rolls"
         else:
-            buy_text = f"💰 Купить за {item['price']} золота"
+            buy_text = f"💰 Купить за {item['price']} бэт-коинов"
             callback_data = f"mercenary_buy_{item['card_id']}"
         
         if not can_afford:
-            buy_text += " ❌ (Недостаточно золота)"
+            buy_text += " ❌ (Недостаточно бэт-коинов)"
         
         inline_keyboard.append([
             InlineKeyboardButton(buy_text, callback_data=callback_data)
@@ -4903,8 +4875,8 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         if is_rolls_package:
             caption = (
                 f"🎁 Товар: {item['title']}\n"
-                f"💰 Цена: {item['price']} золота\n"
-                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"💰 Цена: {item['price']} бэт-коинов\n"
+                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} бэт-коинов\n"
                 f"📊 Страница {page + 1}/{total_pages}"
             )
             # ⭐ ОТПРАВЛЯЕМ БЕЗ ФОТО (текстовое сообщение) ⭐
@@ -4945,8 +4917,8 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
             caption = (
                 f"🃏 Существо: {card['title']}\n"
                 f"🌟 Редкость: {card['rarity']}\n"
-                f"💰 Цена: {item['price']} золота\n"
-                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"💰 Цена: {item['price']} бэт-коинов\n"
+                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} бэт-коинов\n"
                 f"📊 Страница {page + 1}/{total_pages}"
             )
             
@@ -5006,7 +4978,7 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # ⭐ ИНФОРМАЦИЯ ⭐
         if query.data == "mercenary_info":
-            await query.answer("🪓 Гильдия Наёмников - покупайте существ и наймы за золото!", show_alert=False)
+            await query.answer("🪓 Гильдия Наёмников - покупайте существ и наймы за бэт-коины!", show_alert=False)
             return
         
         # ⭐ НАЗАД ⭐
@@ -5021,10 +4993,9 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             # Проверяем баланс
             if not user_data or user_data.get("cents", 0) < price:
-                await query.answer(f"❌ Недостаточно золота! Нужно {price}", show_alert=True)
+                await query.answer(f"❌ Недостаточно бэт-коинов! Нужно {price}", show_alert=True)
                 return
             
-            # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
             user_data["cents"] -= price
             
             # ⭐ ДОБАВЛЯЕМ НАЙМЫ ⭐
@@ -5044,8 +5015,8 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 text=(
                     f"✅ Покупка успешна!\n\n"
                     f"🎁 Вы получили: {package['title']}\n"
-                    f"💰 Списано: {price} золота\n"
-                    f"💳 Остаток: {user_data['cents']} золота"
+                    f"💰 Списано: {price} бэт-коинов\n"
+                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
                 ),
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад в Гильдию", callback_data="mercenary_back_to_guild")
@@ -5076,10 +5047,9 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Проверяем баланс
             price = creature["price"]
             if not user_data or user_data.get("cents", 0) < price:
-                await query.answer(f"❌ Недостаточно золота! Нужно {price}", show_alert=True)
+                await query.answer(f"❌ Недостаточно бэт-коинов! Нужно {price}", show_alert=True)
                 return
             
-            # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
             user_data["cents"] -= price
             
             # ⭐ ДОБАВЛЯЕМ КАРТУ ⭐
@@ -5094,8 +5064,8 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     f"✅ Покупка успешна!\n"
                     f"🃏 Вы получили: {card['title']}\n"
                     f"🌟 Редкость: {card['rarity']}\n"
-                    f"💰 Списано: {price} золота\n"
-                    f"💳 Остаток: {user_data['cents']} золота"
+                    f"💰 Списано: {price} бэт-коинов\n"
+                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
                 )
                 
                 # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
@@ -5109,7 +5079,7 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await asyncio.sleep(2)
                 await show_mercenary_page(update, context, context.user_data.get(user_id, {}).get("mercenary_page", 0))
             
-            logger.info(f"Игрок {user_id} купил существо #{card_id} за {price} золота в Гильдии Наёмников")
+            logger.info(f"Игрок {user_id} купил существо #{card_id} за {price} бэт-коинов в Гильдии Наёмников")
             return
         
         # ⭐ КНОПКА "НАЗАД В ГИЛЬДИЮ" (после покупки) ⭐
