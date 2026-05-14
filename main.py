@@ -5891,7 +5891,7 @@ def main() -> None:
             CommandHandler("mercenary_add", mercenary_add),
             CommandHandler("mercenary_remove", mercenary_remove),
             CommandHandler("mercenary_list", mercenary_list),
-            CommandHandler("mercenary_price", mercenary_update_price)
+            CommandHandler("mercenary_price", mercenary_update_price),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
