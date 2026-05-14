@@ -72,43 +72,14 @@ FREE_ROLLS_PACKAGE = {
 }
 
 SACRIFICE_REWARDS = {
-    "UpgradeT1": {"cents": 100, "free_rolls": 0},  # 200/2 = 100
-    "UpgradeT2": {"cents": 250, "free_rolls": 0},  # 500/2 = 250
-    "UpgradeT3": {"cents": 500, "free_rolls": 0},  # 1000/2 = 500
-    "UpgradeT4": {"cents": 1000, "free_rolls": 0},  # 2000/2 = 1000
-    "UpgradeT5": {"cents": 0, "free_rolls": 3},
-    "UpgradeT6": {"cents": 0, "free_rolls": 7},
-    "UpgradeT7": {"cents": 0, "free_rolls": 15},
-    "T8": {"cents": 0, "free_rolls": 25}
+    "Classic": {"cents": 100, "free_rolls": 0},
 }
 
 # Бонусы по редкостям
 
 
 RARITY_BONUSES = {
-    "T1": {"cents": 100, "points": 100, "probability": 53.16},
-    "T2": {"cents": 250, "points": 250, "probability": 20.8},
-    "T3": {"cents": 500, "points": 500, "probability": 11.8},
-    "T4": {"cents": 1000, "points": 1000, "probability": 6.91},
-    "T5": {"cents": 2000, "points": 2000, "probability": 4.51},
-    "T6": {"cents": 5000, "points": 5000, "probability": 1.96},
-    "T7": {"cents": 10000, "points": 10000, "probability": 0.78},
-    "T8": {"cents": 50000, "points": 50000, "probability": 0.08},
-    "UpgradeT1": {"cents": 200, "points": 200, "probability": 100},
-    "UpgradeT2": {"cents": 500, "points": 500, "probability": 100},
-    "UpgradeT3": {"cents": 1000, "points": 1000, "probability": 100},
-    "UpgradeT4": {"cents": 2000, "points": 2000, "probability": 100},
-    "UpgradeT5": {"cents": 4000, "points": 4000, "probability": 100},
-    "UpgradeT6": {"cents": 10000, "points": 10000, "probability": 100},
-    "UpgradeT7": {"cents": 20000, "points": 20000, "probability": 100},
-    "T3 special": {"cents": 0, "points": 0, "probability": 0},
-    "T1 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T3 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T5 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T7 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T8 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T4 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
-    "T4 (Olden era)": {"cents": 0, "points": 0, "probability": 0},
+    "Classic": {"cents": 100, "points": 100, "probability": 100},
 }
 
 
@@ -476,7 +447,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         for card_id in unique_card_ids:
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                rarity = card.get("rarity", "T1")
+                rarity = card.get("rarity", "Classic")
                 if rarity not in rarity_cards:
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
@@ -677,7 +648,7 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         for card_id in unique_card_ids:
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                rarity = card.get("rarity", "T1")
+                rarity = card.get("rarity", "Classic")
                 if rarity not in rarity_cards:
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
@@ -687,7 +658,7 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
         
         keyboard = []
-        for rarity in ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]:
+        for rarity in ["Classic"]:
             if rarity in rarity_cards:
                 keyboard.append([
                     InlineKeyboardButton(rarity, callback_data=f"barracks_rarity_select_{rarity}")
@@ -936,15 +907,13 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         for card_id in set(user_card_ids):
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                rarity = card.get("rarity", "T1")
+                rarity = card.get("rarity", "Classic")
                 rarity_stats[rarity] = rarity_stats.get(rarity, 0) + 1
         
         # Формируем статистику по редкостям
         rarity_text = ""
         for rarity in [
-            "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8",
-            "UpgradeT1", "UpgradeT2", "UpgradeT3", "UpgradeT4",
-            "UpgradeT5", "UpgradeT6", "UpgradeT7",
+            "Classic", 
         ]:
             if rarity in rarity_stats:
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
@@ -1151,7 +1120,7 @@ def get_card_with_fixed_rarity(cards: List[Dict]) -> Optional[Dict]:
 
     for card in cards:
 
-        rarity = card.get("rarity", "T1")
+        rarity = card.get("rarity", "Classic")
 
         if rarity not in cards_by_rarity:
 
@@ -1360,16 +1329,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 card
                 for card in data["cards"]
                 if card["available"]
-                and card.get("rarity")
-                not in [
-                    "UpgradeT1",
-                    "UpgradeT2",
-                    "UpgradeT3",
-                    "UpgradeT4",
-                    "UpgradeT5",
-                    "UpgradeT6",
-                    "UpgradeT7",
-                ]
             ]
 
             if not available_cards:
