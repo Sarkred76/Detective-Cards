@@ -1952,10 +1952,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Сохраняем старое значение
         old_value = card.get(param, "не задано")
         
-        # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
-        elif param == "available":
-            new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
-            card[param] = new_value
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
                 await update.message.reply_text(
