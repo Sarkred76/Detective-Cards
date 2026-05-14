@@ -313,7 +313,7 @@ def generate_card_caption(
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} опыта"
+        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} очков репутации"
     
     # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО, ЕСЛИ ЕСТЬ ДУБЛИКАТЫ ⭐
     if count > 1:
@@ -322,8 +322,8 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ОПЫТ ТОЛЬКО ЕСЛИ ЕСТЬ user_data ⭐
     if user_data is not None:
         caption += (
-            f"\n\nОпыта в этом сезоне: {user_data.get('season_points', 0)}"
-            f"\nОпыта за все время: {user_data.get('total_points', 0)}"
+            f"\n\nОчков репутации в этом сезоне: {user_data.get('season_points', 0)}"
+            f"\nОчков репутации за все время: {user_data.get('total_points', 0)}"
         )
     
     return caption
@@ -957,8 +957,8 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"👤 Профиль героя\n\n"
             f"🆔 ID: `{user_id}`\n"
             f"💰 Бэт-коины: {user_data.get('cents', 0)}\n"
-            f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
-            f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n\n"
+            f"💥 Очков репутации (сезон): {user_data.get('season_points', 0)}\n"
+            f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n\n"
             f"🐦‍🔥 Коллекция:\n"
             f"📦 Собрано существ: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
@@ -2581,7 +2581,7 @@ async def process_craft(
             f"🔨 **Использовано:** 2x {card['title']} ({card['rarity']})\n"
             f"🎁 **Получено:** {new_card['title']}\n"
             f"💰 **+{bonus['cents']} бэт-коинов**\n"
-            f"💥 **+{bonus['points']} опыта**"
+            f"💥 **+{bonus['points']} очков репутации**"
         )
         
         if query:
@@ -3185,7 +3185,7 @@ async def add_rolls_to_player(
         await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает топ-10 героев по опыту игроков по поинтам в сезоне (админы исключены)."""
+    """Показывает топ-10 героев по очков репутации игроков по поинтам в сезоне (админы исключены)."""
     try:
         data = load_data()
         users = data.get("users", {})
@@ -3236,7 +3236,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 else:
                     medal = f"{rank}."
                 
-                message_text += f"{medal} **{username}** — {points} опыта\n"
+                message_text += f"{medal} **{username}** — {points} очков репутации\n"
         
         # ⭐ ПОКАЗЫВАЕМ МЕСТО ТОЛЬКО ЕСЛИ ПОЛЬЗОВАТЕЛЬ НЕ АДМИН ⭐
         current_user_id = str(update.effective_user.id)
@@ -3264,7 +3264,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             else:
                 message_text += f"📍 **Ваше место:** {user_rank}\n"
             
-            message_text += f"💥 **Ваш опыт:** {current_points}"
+            message_text += f"💥 **Ваши очки репутации:** {current_points}"
         else:
             # ⭐ ДЛЯ АДМИНОВ - СООБЩЕНИЕ ЧТО ОНИ НЕ УЧАСТВУЮТ ⭐
             message_text += "\n" + "─" * 30 + "\n"
@@ -3337,16 +3337,16 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
             player_name += f" {player_data['last_name']}"
         
         await update.message.reply_text(
-            f"✅ **Сезонный опыт сброшен!**\n\n"
+            f"✅ **Сезонные очки репутации сброшены!**\n\n"
             f"👤 Герой: {player_name}\n"
             f"🆔 ID: {target_user_id}\n"
-            f"📊 Было опыта: {old_points}\n"
-            f"📈 Стало опыта: 0\n\n"
-            f"⚠️ Общий опыт (total_points) не изменен.",
+            f"📊 Было очков репутации: {old_points}\n"
+            f"📈 Стало очков репутации: 0\n\n"
+            f"⚠️ Общие очки репутации (total_points) не изменены.",
             parse_mode="HTML"
         )
         
-        logger.info(f"Админ {user_id} сбросил сезонный опыт герою {target_user_id} ({old_points} → 0)")
+        logger.info(f"Админ {user_id} сбросил сезонный очков репутации герою {target_user_id} ({old_points} → 0)")
         
     except Exception as e:
         logger.error(f"Ошибка reset_season_points: {e}")
