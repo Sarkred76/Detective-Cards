@@ -63,7 +63,6 @@ ALTAR_IMAGE_URL = "https://ibb.co/S7c5NL6v"
 REFUGEE_CAMP_IMAGE_URL = "https://ibb.co/qY2W2TpR"
 MERCENARY_GUILD_IMAGE_URL = "https://ibb.co/dwV8jyks"
 FREE_ROLLS_IMAGE_URL = "https://ibb.co/Zpc9ntMB"
-BATTLES_IMAGE_URL = "https://ibb.co/Zpc9ntMB"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -143,21 +142,6 @@ def load_data() -> Dict[str, Any]:
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
 
-            if "achievements" not in data:
-                data["achievements"] = {
-                    "Замок": {"cards": [], "reward_claimed": False},
-                    "Оплот": {"cards": [], "reward_claimed": False},
-                    "Башня": {"cards": [], "reward_claimed": False},
-                    "Инферно": {"cards": [], "reward_claimed": False},
-                    "Некрополис": {"cards": [], "reward_claimed": False},
-                    "Темница": {"cards": [], "reward_claimed": False},
-                    "Цитадель": {"cards": [], "reward_claimed": False},
-                    "Крепость": {"cards": [], "reward_claimed": False},
-                    "Сопряжение": {"cards": [], "reward_claimed": False},
-                    "Фабрика": {"cards": [], "reward_claimed": False},
-                    "Могущество_царя_драконов": {"cards": [], "reward_claimed": False},
-                }
-
             if "mercenary_guild" not in data:
                 data["mercenary_guild"] = {
                     "creatures": [],  # Список существ для продажи
@@ -169,19 +153,6 @@ def load_data() -> Dict[str, Any]:
 
             if "active_battles" not in data:
                 data["active_battles"] = {}
-
-            # Добавьте в load_data() после загрузки данных:
-            for card in data.get("cards", []):
-                if "attack" not in card:
-                    card["attack"] = 0
-                if "defense" not in card:
-                    card["defense"] = 0
-                if "damage" not in card:
-                    card["damage"] = 0
-                if "health" not in card:
-                    card["health"] = 0
-                if "speed" not in card:
-                    card["speed"] = 0
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -194,11 +165,6 @@ def load_data() -> Dict[str, Any]:
                     user_data["casino_attempts"] = 10
                 if "last_casino_reset" not in user_data:
                     user_data["last_casino_reset"] = 0
-                # ⭐ ДОБАВЛЯЕМ ОТСЛЕЖИВАНИЕ ДОСТИЖЕНИЙ ⭐
-                if "claimed_achievements" not in user_data:
-                    user_data["claimed_achievements"] = []
-                if "notification_sent" not in user_data:
-                    user_data["notification_sent"] = False
                 if "used_promo_codes" not in user_data:
                     user_data["used_promo_codes"] = []
                 if "refugee_camp_last_reset" not in user_data:
@@ -221,17 +187,6 @@ def load_data() -> Dict[str, Any]:
                     "creatures": [],
                     "max_slots": 4
                 },
-                "achievements": {
-                    "Замок": {"cards": [], "reward_claimed": False},
-                    "Оплот": {"cards": [], "reward_claimed": False},
-                    "Башня": {"cards": [], "reward_claimed": False},
-                    "Инферно": {"cards": [], "reward_claimed": False},
-                    "Некрополис": {"cards": [], "reward_claimed": False},
-                    "Темница": {"cards": [], "reward_claimed": False},
-                    "Цитадель": {"cards": [], "reward_claimed": False},
-                    "Крепость": {"cards": [], "reward_claimed": False},
-                    "Сопряжение": {"cards": [], "reward_claimed": False},
-                }
             }
     
     return {
@@ -244,17 +199,6 @@ def load_data() -> Dict[str, Any]:
             "creatures": [],
             "max_slots": 4
         },
-        "achievements": {
-            "Замок": {"cards": [], "reward_claimed": False},
-            "Оплот": {"cards": [], "reward_claimed": False},
-            "Башня": {"cards": [], "reward_claimed": False},
-            "Инферно": {"cards": [], "reward_claimed": False},
-            "Некрополис": {"cards": [], "reward_claimed": False},
-            "Темница": {"cards": [], "reward_claimed": False},
-            "Цитадель": {"cards": [], "reward_claimed": False},
-            "Крепость": {"cards": [], "reward_claimed": False},
-            "Сопряжение": {"cards": [], "reward_claimed": False},
-        }
     }
 
 def check_casino_reset(user_data: Dict) -> None:
@@ -365,22 +309,6 @@ def generate_card_caption(
         # Если есть данные пользователя — показываем полную информацию
         caption = f"⚔️ Вы наняли существо\n{card['title']}\nРедкость: {card['rarity']}"
     
-    # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
-    if card.get("faction"):
-        caption += f"\nФракция: {card['faction']}"
-    
-    # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
-    if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
-        if card.get("attack"):
-            caption += f"\n⚔️ {card['attack']}"
-        if card.get("defense"):
-            caption += f"\n🛡️ {card['defense']}"
-        if card.get("damage"):
-            caption += f"\n💥 {format_damage_display(card['damage'])}"
-        if card.get("health"):
-            caption += f"\n❤️ {card['health']}"
-        if card.get("speed"):
-            caption += f"\n👟 {card['speed']}"
     
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -537,7 +465,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/create_promo [КОД] [ID/random] [лимит] - создать промокод\n"
             response += "/delete_promo [КОД] - удалить промокод\n"
             response += "/list_promo - список всех промокодов\n"
-            response += "/set_achievement_cards [Фракция] [ID...] - настроить достижение\n"
             response += "/mercenary_add [ID] [цена] - добавить в Гильдию Наёмников\n"
             response += "/mercenary_remove [ID] - удалить из Гильдии\n"
             response += "/mercenary_list - список Гильдии\n"
@@ -581,16 +508,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
         
-        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
-        faction_cards = {}
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction"):
-                faction = card["faction"]
-                if faction not in faction_cards:
-                    faction_cards[faction] = set()
-                faction_cards[faction].add(card_id)
-        
         if not rarity_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("У вас пока нет существ!")
@@ -601,7 +518,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ СОЗДАЁМ МЕНЮ ВЫБОРА СПОСОБА ПРОСМОТРА ⭐
         keyboard = [
             [InlineKeyboardButton("📊 По редкости", callback_data="barracks_rarity")],
-            [InlineKeyboardButton("⚔️ По фракции", callback_data="barracks_faction")],
             [InlineKeyboardButton("📋 Все существа", callback_data="barracks_all")],
         ]
         
@@ -646,168 +562,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         else:
             await update.message.reply_text("Произошла ошибка")
             
-async def show_cards_by_faction(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    faction: str,
-    start_index: int = 0
-) -> None:
-    """Показывает существ конкретной фракции."""
-    try:
-        query = update.callback_query if hasattr(update, 'callback_query') else None
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data or not user_data.get("cards"):
-            if query:
-                await query.edit_message_text("У вас нет существ!")
-            else:
-                await update.message.reply_text("У вас нет существ!")
-            return
-        
-        user_card_ids = user_data["cards"]
-        card_counts = Counter(user_card_ids)
-        
-        faction_cards = []
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction") == faction:
-                faction_cards.append((card_id, count))
-        
-        if not faction_cards:
-            if query:
-                await query.edit_message_text(f"У вас нет существ фракции {faction}!")
-            else:
-                await update.message.reply_text(f"У вас нет существ фракции {faction}!")
-            return
-        
-        faction_cards.sort(key=lambda x: x[0])
-        total_cards = len(faction_cards)
-        
-        if start_index < 0:
-            start_index = 0
-        elif start_index >= total_cards:
-            start_index = total_cards - 1
-        
-        card_id, count = faction_cards[start_index]
-        card = find_card_by_id(card_id, data["cards"])
-        
-        if not card:
-            if query:
-                await query.edit_message_text("Ошибка: существо не найдено")
-            else:
-                await update.message.reply_text("Ошибка: существо не найдено")
-            return
-        
-        nav_buttons = []
-        if start_index > 0:
-            nav_buttons.append(InlineKeyboardButton("<", callback_data=f"barracks_faction_nav_{faction}_{start_index - 1}"))
-        nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
-        if start_index < total_cards - 1:
-            nav_buttons.append(InlineKeyboardButton(">", callback_data=f"barracks_faction_nav_{faction}_{start_index + 1}"))
-        
-        keyboard = [nav_buttons]
-        keyboard.append([
-            InlineKeyboardButton("⚔️ Назад в казарму", callback_data="mycards_back_to_rarities")
-        ])
-        
-        caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
-        
-        if query:
-            try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-        else:
-            await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
-        
-    except Exception as e:
-        logger.error(f"Ошибка при показе существ фракции {faction}: {e}")
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("Произошла ошибка", show_alert=True)
-        else:
-            await update.message.reply_text("Произошла ошибка")
-
-async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню выбора фракции."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-
-        if not user_data or not user_data.get("cards"):
-            await query.edit_message_text("❌ У вас пока нет существ!")
-            return
-        
-        user_card_ids = user_data["cards"]
-        
-        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
-        faction_cards = {}
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction"):
-                faction = card["faction"]
-                if faction not in faction_cards:
-                    faction_cards[faction] = set()
-                faction_cards[faction].add(card_id)
-
-        if not faction_cards:
-            await query.edit_message_text("❌ У вас нет существ с фракциями!")
-            return
-        
-        # Список всех фракций
-        all_factions = [
-            "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Причал", "Фабрика", "Кронверк","Нейтральный"
-        ]
-        
-        # Создаём клавиатуру
-        keyboard = []
-        for faction in all_factions:
-            if faction in faction_cards:
-                count = len(faction_cards[faction])
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"⚔️ {faction} ({count} шт.)",
-                        callback_data=f"barracks_faction_select_{faction}"
-                    )
-                ])
-        
-        # Кнопка "Назад"
-        keyboard.append([
-            InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
-        ])
-        
-        try:
-            await query.message.delete()
-        except:
-            pass
-        
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="⚔️ Выберите фракцию:\nПросмотрите существ по принадлежности к фракции:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка в show_faction_menu: {e}")
-        await query.answer("Произошла ошибка", show_alert=True)
-
-
 async def show_cards_by_rarity(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -1011,11 +765,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_rarity_menu(update, context)
             return
         
-        # Кнопка "По фракции" → показать меню фракций
-        elif query.data == "barracks_faction":
-            await show_faction_menu(update, context)
-            return
-        
         # Кнопка "Все существа" → показать все карты с навигацией
         elif query.data == "barracks_all":
             if not user_data or not user_data.get("cards"):
@@ -1150,23 +899,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_cards_by_rarity(update, context, rarity, start_index=index)
             return
         
-        # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ (barracks_) ⭐
-        elif query.data.startswith("barracks_faction_"):
-            if query.data.startswith("barracks_faction_nav_"):
-                # Навигация внутри фракции
-                parts = query.data.replace("barracks_faction_nav_", "").split("_")
-                faction = parts[0]
-                index = int(parts[1]) if len(parts) > 1 else 0
-                await show_cards_by_faction(update, context, faction, start_index=index)
-            elif query.data.startswith("barracks_faction_select_"):
-                # Выбор фракции
-                faction = query.data.replace("barracks_faction_select_", "")
-                await show_cards_by_faction(update, context, faction, start_index=0)
-            elif query.data == "barracks_back_to_factions":
-                # Назад к списку фракций
-                await show_faction_menu(update, context)
-            return
-        
         # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_) ⭐
         elif query.data.startswith("barracks_rarity_"):
             if query.data.startswith("barracks_rarity_nav_"):
@@ -1247,7 +979,6 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if not rarity_text:
             rarity_text = "Пока нет существ\n"
         
-        claimed_count = len(user_data.get("claimed_achievements", []))
         
         profile_text = (
             f"👤 Профиль героя\n\n"
@@ -1262,10 +993,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
             f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
-            f"🏆 Достижения: {claimed_count}/9\n"
         )
-        
-        keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
         
         # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
         if is_callback:
@@ -1300,17 +1028,9 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
-        
-        if query.data == "achievements_menu":
-            await achievements_menu(update, context)
-        elif query.data == "profile_back":
-            await my_profile(update, context)  # ← Вызывает универсальную my_profile
-        elif query.data.startswith("achievement_claim_"):
-            await claim_achievement(update, context)
-        elif query.data == "achievement_claimed":
-            await query.answer("✅ Вы уже получили эту награду!", show_alert=True)
-        elif query.data == "achievement_progress":
-            await query.answer("📊 Собирайте существ для завершения!", show_alert=True)
+       
+        if query.data == "profile_back":
+            await my_profile(update, context)
         
     except Exception as e:
         logger.error(f"Ошибка profile_callback: {e}")
@@ -1756,43 +1476,19 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         full_text = update.message.text
         lines = full_text.split("\n")
         
-        # ⭐ НОВЫЙ ФОРМАТ: 6 строк (с уроном) ⭐
-        if len(lines) < 6:
+        if len(lines) < 4 :
             await update.message.reply_text(
                 "ℹ️ Формат:\n"
                 "/add_card\n"
                 "URL\n"
                 "Название\n"
                 "Редкость\n"
-                "Фракция (или 'нет')\n"
-                "Урон (число или диапазон, например: 15 или 10-20)"
             )
             return
         
         url = lines[1].strip()
         title = lines[2].strip()
         rarity = lines[3].strip()
-        faction = lines[4].strip()
-        damage = lines[5].strip()  # ⭐ УРОН ⭐
-        
-        # ⭐ ПРОВЕРКА ФОРМАТА УРОНА ⭐
-        if "-" in damage:
-            # Диапазон
-            try:
-                min_dmg, max_dmg = map(int, damage.split("-"))
-                if min_dmg > max_dmg:
-                    await update.message.reply_text("⚠️ Минимальный урон не может быть больше максимального!")
-                    return
-            except ValueError:
-                await update.message.reply_text("⚠️ Некорректный формат урона! Пример: 15 или 10-20")
-                return
-        else:
-            # Число
-            try:
-                int(damage)
-            except ValueError:
-                await update.message.reply_text("⚠️ Урон должен быть числом или диапазоном! Пример: 15 или 10-20")
-                return
         
         if rarity not in RARITY_BONUSES:
             await update.message.reply_text(
@@ -1816,28 +1512,17 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "image_url": url,
             "title": title,
             "rarity": rarity,
-            "faction": faction if faction.lower() != "нет" else None,
             "available": True,
             "media_type": media_type,
-            # ⭐ АТРИБУТЫ ⭐
-            "attack": 0,
-            "defense": 0,
-            "damage": damage,  # ← МОЖЕТ БЫТЬ "10-20" ИЛИ "15"
-            "health": 0,
-            "speed": 0,
         }
         
         data["cards"].append(new_card)
         save_data(data)
         
-        faction_text = f"\n⚔️ {faction}" if faction.lower() != "нет" else ""
-        damage_display = format_damage_display(damage)
-        
         await update.message.reply_text(
             f"✅ Карточка #{new_id} добавлена!\n"
             f"🏷 {title}\n"
-            f"🌟 {rarity}{faction_text}\n"
-            f"💥 Урон: {damage_display}\n"
+            f"🌟 {rarity}\n"
             f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}"
         )
         
@@ -1860,14 +1545,12 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         cards_list = []
         for card in data["cards"]:
             status = "✅" if card["available"] else "❌"
-            faction_text = f"⚔️ {card.get('faction', '—')}" if card.get('faction') else "⚔️ —"
             
             card_info = (
                 f"{status} ID: {card['id']}\n"
                 f"📺 Тип: {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
                 f"🏷 {card['title']}\n"
                 f"🌟 {card['rarity']}\n"
-                f"{faction_text}\n"  # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
                 f"🔗 {card['image_url'][:30]}...\n"
             )
             cards_list.append(card_info)
@@ -2241,20 +1924,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "• title - название карты\n"
                 "• url - URL изображения\n"
                 "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
-                "• faction - фракция (текст)\n"
-                "• available - статус (true/false)\n"
-                "• attack - атака (число или диапазон, например: 15 или 10-20)\n"
-                "• defense - защита (число или диапазон)\n"
-                "• damage - урон (число или диапазон)\n"
-                "• health - здоровье (число или диапазон)\n"
-                "• speed - скорость (число или диапазон)\n"
-                "• stats - ВСЕ характеристики сразу (атака защита урон здоровье скорость)\n"
-                "**Примеры:**\n"
-                "/edit_card 45 title Новая карта\n"
-                "/edit_card 45 damage 15\n"
-                "/edit_card 45 damage 10-20\n"
-                "/edit_card 45 attack 100\n"
-                "/edit_card 45 stats 100 50 75 200 30",
+                "• available - статус (true/false)\n",
                 parse_mode="HTML",
             )
             return
@@ -2271,8 +1941,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Обновляем параметр
         valid_params = [
-            "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability", "hates", "resistant_to"
+            "title", "url", "rarity", "available",
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2283,91 +1952,9 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Сохраняем старое значение
         old_value = card.get(param, "не задано")
         
-        # ⭐ ОБРАБОТКА ВСЕХ ХАРАКТЕРИСТИК СРАЗУ ⭐
-        if param == "stats":
-            # Ожидаем 5 чисел или диапазонов: атака защита урон здоровье скорость
-            stats_parts = new_value.split()
-            if len(stats_parts) != 5:
-                await update.message.reply_text(
-                    "⚠️ **Неверный формат!**\n"
-                    "Нужно указать 5 значений:\n"
-                    "/edit_card [ID] stats [атака] [защита] [урон] [здоровье] [скорость]\n"
-                    "Пример: /edit_card 45 stats 100 50 10-20 200 30",
-                    parse_mode="HTML"
-                )
-                return
-            
-            try:
-                # Проверяем и сохраняем каждое значение (может быть числом или диапазоном)
-                for i, stat_name in enumerate(["attack", "defense", "damage", "health", "speed"]):
-                    value = stats_parts[i]
-                    # Проверяем, является ли диапазоном
-                    if "-" in value:
-                        parts = value.split("-")
-                        if len(parts) != 2:
-                            raise ValueError(f"Неверный формат диапазона: {value}")
-                        min_val, max_val = int(parts[0]), int(parts[1])
-                        if min_val > max_val:
-                            raise ValueError(f"Минимальное значение больше максимального: {value}")
-                        card[stat_name] = value  # Сохраняем как строку "10-20"
-                    else:
-                        # Обычное число
-                        card[stat_name] = int(value)
-                
-                old_value = (
-                    f"⚔️{card.get('attack', 0)} 🛡️{card.get('defense', 0)} "
-                    f"💥{card.get('damage', 0)} ❤️{card.get('health', 0)} "
-                    f"👟{card.get('speed', 0)}"
-                )
-                new_value = (
-                    f"⚔️{stats_parts[0]} 🛡️{stats_parts[1]} 💥{stats_parts[2]} "
-                    f"❤️{stats_parts[3]} 👟{stats_parts[4]}"
-                )
-            except ValueError as e:
-                await update.message.reply_text(f"⚠️ Ошибка: {e}")
-                return
-        
-        # ⭐ ОБРАБОТКА ОТДЕЛЬНЫХ ХАРАКТЕРИСТИК ⭐
-        elif param in ["attack", "defense", "damage", "health", "speed"]:
-            # Проверяем, является ли значение диапазоном
-            if "-" in new_value:
-                parts = new_value.split("-")
-                if len(parts) != 2:
-                    await update.message.reply_text(
-                        "⚠️ Неверный формат диапазона! Пример: 10-20"
-                    )
-                    return
-                try:
-                    min_val, max_val = int(parts[0]), int(parts[1])
-                    if min_val > max_val:
-                        await update.message.reply_text(
-                            "⚠️ Минимальное значение не может быть больше максимального!"
-                        )
-                        return
-                    card[param] = new_value  # Сохраняем как строку "10-20"
-                except ValueError:
-                    await update.message.reply_text("⚠️ Значение должно быть числом или диапазоном!")
-                    return
-            else:
-                # Обычное число
-                try:
-                    card[param] = int(new_value)
-                except ValueError:
-                    await update.message.reply_text(f"⚠️ {param} должно быть числом!")
-                    return
-        
         # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         elif param == "available":
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
-            card[param] = new_value
-        elif param == "shooter":  # ← ДОБАВЛЕНО
-            new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
-            card[param] = new_value
-        elif param == "ability":
-            card[param] = new_value
-        elif param == "hates":
-            card[param] = new_value
-        elif param == "resistant_to":
             card[param] = new_value
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
@@ -2382,7 +1969,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             card["image_url"] = new_value
             card["media_type"] = determine_media_type(new_value, card.get("rarity", ""))
         else:
-            # title или faction
             card[param] = new_value
         
         save_data(data)
@@ -2396,18 +1982,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🏷 {card.get('title')}\n"
             f"🌟 {card.get('rarity')}"
         )
-        
-        # Добавляем фракцию в ответ, если она есть
-        if card.get("faction"):
-            response += f"\n⚔️ {card['faction']}"
-        
-        # ⭐ ОТОБРАЖАЕМ ВСЕ ХАРАКТЕРИСТИКИ ⭐
-        response += f"\n\n**Характеристики:**"
-        response += f"\n⚔️ Атака: {card.get('attack', 0)}"
-        response += f"\n🛡️ Защита: {card.get('defense', 0)}"
-        response += f"\n💥 Урон: {card.get('damage', 0)}"
-        response += f"\n❤️ Здоровье: {card.get('health', 0)}"
-        response += f"\n👟 Скорость: {card.get('speed', 0)}"
         
         response += f"\n\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         
@@ -2445,18 +2019,6 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🏷 **Название:** {card.get('title')}\n"
             f"🌟 **Редкость:** {card.get('rarity')}\n"
         )
-        
-        # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
-        if card.get("faction"):
-            info_text += f"⚔️ **Фракция:** {card['faction']}\n"
-        
-        # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
-        info_text += "\n**Характеристики:**\n"
-        info_text += f"⚔️ Атака: {card.get('attack', 0)}\n"
-        info_text += f"🛡️ Защита: {card.get('defense', 0)}\n"
-        info_text += f"💥 Урон: {format_damage_display(card.get('damage', 0))}\n"  # ← ФОРМАТИРОВАНИЕ
-        info_text += f"❤️ Здоровье: {card.get('health', 0)}\n"
-        info_text += f"👟 Скорость: {card.get('speed', 0)}\n"
         
         info_text += (
             f"📺 **Тип:** {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
@@ -3707,384 +3269,6 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Ошибка reset_season_points: {e}")
         await update.message.reply_text("❌ Ошибка при сбросе поинтов")
-
-
-async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Меню достижений."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            await query.edit_message_text("❌ Вы ещё не начали игру!")
-            return
-
-        # Получаем карты пользователя
-        user_card_ids = user_data.get("cards", [])
-        claimed_achievements = user_data.get("claimed_achievements", [])
-
-        # Считаем карты по фракциям
-        faction_cards = {}
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction"):
-                faction = card["faction"]
-                if faction not in faction_cards:
-                    faction_cards[faction] = set()
-                faction_cards[faction].add(card_id)
-
-        # ⭐ СЧИТАЕМ КАРТЫ РЕДКОСТИ T8 ⭐
-        t8_cards_user = set()
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("rarity") == "T8":
-                t8_cards_user.add(card_id)
-
-        # Список фракций
-        factions = [
-            "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
-        ]
-
-        # Создаём клавиатуру
-        keyboard = []
-        
-        # ⭐ ДОБАВЛЯЕМ ФРАКЦИОННЫЕ ДОСТИЖЕНИЯ ⭐
-        for i, faction in enumerate(factions, 1):
-            faction_data = data["achievements"].get(faction, {"cards": []})
-            total_cards = len(faction_data.get("cards", []))
-            user_cards_count = len(faction_cards.get(faction, set()))
-
-            # Проверяем, собрано ли достижение
-            is_complete = user_cards_count >= total_cards and total_cards > 0
-            is_claimed = faction in claimed_achievements
-
-            if is_complete and not is_claimed:
-                status = "🎁 ЗАБРАТЬ"
-                callback = f"achievement_claim_{i}"
-            elif is_claimed:
-                status = "✅ Получено"
-                callback = "achievement_claimed"
-            else:
-                status = f"📊 {user_cards_count}/{total_cards}"
-                callback = "achievement_progress"
-
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"{i}. {faction} - {status}",
-                    callback_data=callback
-                )
-            ])
-
-        # ⭐ ДОБАВЛЯЕМ ДОСТИЖЕНИЕ "МОГУЩЕСТВО ЦАРЯ ДРАКОНОВ" ⭐
-        # Находим всех существ T8 в системе
-        all_t8_cards = set()
-        for card in data["cards"]:
-            if card.get("rarity") == "T8" and card.get("available", True):
-                all_t8_cards.add(card["id"])
-
-        total_t8 = len(all_t8_cards)
-        user_t8_count = len(t8_cards_user)
-        dragon_king_achievement = "Могущество_царя_драконов"
-        is_dragon_complete = user_t8_count >= total_t8 and total_t8 > 0
-        is_dragon_claimed = dragon_king_achievement in claimed_achievements
-
-        if is_dragon_complete and not is_dragon_claimed:
-            dragon_status = "🎁 ЗАБРАТЬ"
-            dragon_callback = "achievement_claim_dragon"
-        elif is_dragon_claimed:
-            dragon_status = "✅ Получено"
-            dragon_callback = "achievement_claimed"
-        else:
-            dragon_status = f"📊 {user_t8_count}/{total_t8}"
-            dragon_callback = "achievement_progress"
-
-        keyboard.append([
-            InlineKeyboardButton(
-                f"10. Могущество царя драконов - {dragon_status}",
-                callback_data=dragon_callback
-            )
-        ])
-
-        # ⭐ КНОПКА НАЗАД ⭐
-        keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
-
-        await query.edit_message_text(
-            "🏆 **Достижения**\n"
-            "Соберите всех существ отдельной фракции или редкости,\n"
-            "чтобы получить награду!\n"
-            "\n"
-            "🎁 **Награда за фракционное достижение:**\n"
-            "• 30 бесплатных наймов\n"
-            "• 30000 золота\n"
-            "\n"
-            "🎁 **Награда за T8 достижение:**\n"
-            "• special существо\n"
-            "\n"
-            "Выберите достижение:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Ошибка в achievements_menu: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
-async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Получение награды за достижение."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            await query.edit_message_text("❌ Вы ещё не начали игру!")
-            return
-
-        # ⭐ СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "МОГУЩЕСТВО ЦАРЯ ДРАКОНОВ" ⭐
-        if query.data == "achievement_claim_dragon":
-            dragon_king_achievement = "Могущество_царя_драконов"
-            claimed_achievements = user_data.get("claimed_achievements", [])
-
-            # Проверяем, не получена ли уже награда
-            if dragon_king_achievement in claimed_achievements:
-                await query.edit_message_text("❌ Вы уже получили награду за это достижение!")
-                return
-
-            # Получаем карты пользователя
-            user_card_ids = user_data.get("cards", [])
-
-            # ⭐ СЧИТАЕМ КАРТЫ РЕДКОСТИ T8 ⭐
-            t8_cards_user = set()
-            for card_id in user_card_ids:
-                card = find_card_by_id(card_id, data["cards"])
-                if card and card.get("rarity") == "T8":
-                    t8_cards_user.add(card_id)
-
-            # Находим всех существ T8 в системе
-            all_t8_cards = set()
-            for card in data["cards"]:
-                if card.get("rarity") == "T8" and card.get("available", True):
-                    all_t8_cards.add(card["id"])
-
-            # Проверяем, собрано ли достижение
-            if len(t8_cards_user) < len(all_t8_cards) or len(all_t8_cards) == 0:
-                await query.edit_message_text(
-                    f"❌ Достижение не завершено!\n"
-                    f"📊 Собрано: {len(t8_cards_user)}/{len(all_t8_cards)}\n"
-                    f"🏷 Нужно собрать всех существ редкости T8"
-                )
-                return
-
-            # ⭐ ID СУЩЕСТВА ДЛЯ НАГРАДЫ ⭐
-            DRAGON_KING_CARD_ID = 173  # ← УКАЖИТЕ НУЖНЫЙ ID СУЩЕСТВА
-
-            # Находим карту
-            reward_card = find_card_by_id(DRAGON_KING_CARD_ID, data["cards"])
-            if reward_card:
-                # Добавляем карту игроку
-                user_data["cards"].append(DRAGON_KING_CARD_ID)
-
-                # Отмечаем достижение как полученное
-                claimed_achievements.append(dragon_king_achievement)
-                user_data["claimed_achievements"] = claimed_achievements
-                save_data(data)
-
-                # ⭐ ОТПРАВЛЯЕМ КАРТУ СУЩЕСТВА С ОПИСАНИЕМ ⭐
-                caption = generate_card_caption(reward_card, user_data, count=1, show_bonus=True)
-                await send_card(update, reward_card, context, caption=caption)
-
-                await query.edit_message_text(
-                    f"🎉 Достижение получено!\n"
-                    f"🏆 Могущество царя драконов\n"
-                    f"🎁 Награда:\n"
-                    f"• 🐉 {reward_card['title']}\n"
-                    f"Поздравляем!",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-                    ]])
-                )
-                logger.info(f"Пользователь {user_id} получил достижение: Могущество царя драконов и существо #{DRAGON_KING_CARD_ID}")
-                return
-            else:
-                await query.edit_message_text("❌ Ошибка: существо для награды не найдено!")
-                return
-
-        # ⭐ СТАРАЯ ЛОГИКА ДЛЯ ФРАКЦИОННЫХ ДОСТИЖЕНИЙ ⭐
-        # Получаем номер достижения из callback_data
-        achievement_num = int(query.data.split("_")[-1])
-        factions = [
-            "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
-        ]
-        if achievement_num < 1 or achievement_num > len(factions):
-            await query.edit_message_text("❌ Неверное достижение!")
-            return
-
-        faction = factions[achievement_num - 1]
-        claimed_achievements = user_data.get("claimed_achievements", [])
-
-        # Проверяем, не получена ли уже награда
-        if faction in claimed_achievements:
-            await query.edit_message_text("❌ Вы уже получили награду за это достижение!")
-            return
-
-        # Получаем карты пользователя
-        user_card_ids = user_data.get("cards", [])
-
-        # Считаем карты по фракциям
-        faction_cards = set()
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction") == faction:
-                faction_cards.add(card_id)
-
-        # Проверяем, собрано ли достижение
-        faction_data = data["achievements"].get(faction, {"cards": []})
-        total_cards = len(faction_data.get("cards", []))
-        if len(faction_cards) < total_cards or total_cards == 0:
-            await query.edit_message_text(
-                f"❌ Достижение не завершено!\n"
-                f"📊 Собрано: {len(faction_cards)}/{total_cards}\n"
-                f"🏷 Фракция: {faction}"
-            )
-            return
-
-        # ⭐ ВЫДАЁМ НАГРАДУ ⭐
-        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
-        user_data["cents"] = user_data.get("cents", 0) + 30000
-        claimed_achievements.append(faction)
-        user_data["claimed_achievements"] = claimed_achievements
-        save_data(data)
-
-        await query.edit_message_text(
-            f"🎉 **Достижение получено!**\n"
-            f"🏆 {achievement_num}. {faction}\n"
-            f"🎁 **Награда:**\n"
-            f"• 🎲 +30 бесплатных наймов\n"
-            f"• 💰 +30000 золота\n"
-            f"Поздравляем!",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-            ]]),
-            parse_mode="Markdown"
-        )
-        logger.info(f"Пользователь {user_id} получил достижение: {faction}")
-    except Exception as e:
-        logger.error(f"Ошибка claim_achievement: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
-async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Добавляет карты в достижение фракции."""
-    try:
-        data = load_data()
-        if not is_admin(str(update.effective_user.id), data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n"
-                "/set_achievement_cards [Фракция] [ID_карты1] [ID_карты2] ...\n\n"
-                "**Пример:**\n"
-                "/set_achievement_cards Замок 1 2 3 4 5",
-                parse_mode="Markdown"
-            )
-            return
-        
-        faction = context.args[0]
-        card_ids = [int(x) for x in context.args[1:]]
-        
-        valid_factions = [
-            "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
-        ]
-        
-        if faction not in valid_factions:
-            await update.message.reply_text(
-                f"⚠️ Недопустимая фракция!\n"
-                f"Доступные: {', '.join(valid_factions)}"
-            )
-            return
-        
-        # Проверяем существование карт
-        for card_id in card_ids:
-            if not find_card_by_id(card_id, data["cards"]):
-                await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено!")
-                return
-        
-        # Сохраняем карты достижения
-        data["achievements"][faction]["cards"] = card_ids
-        save_data(data)
-        
-        await update.message.reply_text(
-            f"✅ **Достижение обновлено!**\n\n"
-            f"🏷 Фракция: {faction}\n"
-            f"🐦‍🔥 Существ: {len(card_ids)}\n"
-            f"📋 ID: {', '.join(map(str, card_ids))}",
-            parse_mode="Markdown"
-        )
-        
-        logger.info(f"Админ обновил достижение {faction}: {card_ids}")
-        
-    except ValueError:
-        await update.message.reply_text("⚠️ ID карт должны быть числами!")
-    except Exception as e:
-        logger.error(f"Ошибка set_achievement_cards: {e}")
-        await update.message.reply_text("❌ Ошибка при настройке достижения")
-
-
-async def check_card_notifications(application: Application) -> None:
-    """Фоновая проверка уведомлений каждую минуту."""
-    while True:
-        try:
-            await asyncio.sleep(60)  # Проверяем каждую минуту
-            data = load_data()
-            current_time = int(time.time())
-            COOLDOWN_SECONDS = 2 * 60 * 60  # 2 часа
-            notified_count = 0
-            
-            # ⭐ СОБИРАЕМ СПИСОК ПОЛЬЗОВАТЕЛЕЙ ДЛЯ УВЕДОМЛЕНИЯ ⭐
-            users_to_notify = []
-            for user_id, user_data in data["users"].items():
-                last_card_time = user_data.get("last_card_time", 0)
-                notification_sent = user_data.get("notification_sent", False)
-                
-                # Проверяем: прошло ли 2 часа И уведомление ещё не отправлено
-                if last_card_time > 0 and not notification_sent:
-                    time_passed = current_time - last_card_time
-                    if time_passed >= COOLDOWN_SECONDS:
-                        users_to_notify.append(user_id)
-            
-            # ⭐ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ⭐
-            for user_id in users_to_notify:
-                try:
-                    await application.bot.send_message(
-                        chat_id=user_id,
-                        text=(
-                            "🎉 **Вы снова можете нанять существо!**\n\n"
-                            "⏰ Кулдаун завершился.\n"
-                            "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
-                        ),
-                        parse_mode="Markdown"
-                    )
-                    # ⭐ ОБНОВЛЯЕМ ФЛАГ В ДАННЫХ ⭐
-                    data["users"][user_id]["notification_sent"] = True
-                    notified_count += 1
-                    logger.info(f"Уведомление отправлено пользователю {user_id}")
-                except Exception as send_error:
-                    pass
-            
-            # ⭐ СОХРАНЯЕМ ДАННЫЕ ОДИН РАЗ ПОСЛЕ ВСЕХ УВЕДОМЛЕНИЙ ⭐
-            if notified_count > 0:
-                save_data(data)
-                logger.info(f"Отправлено {notified_count} уведомлений, данные сохранены")
-            
-        except Exception as e:
-            pass
-        await asyncio.sleep(60)
 
 async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание промокода на карту."""
@@ -5877,7 +5061,6 @@ def main() -> None:
             CommandHandler("list_admins", list_admins),
             CommandHandler("add_admin", add_admin),
             CommandHandler("remove_admin", remove_admin),
-            CommandHandler("set_achievement_cards", set_achievement_cards),
             CommandHandler("create_promo", create_promo_code),
             CommandHandler("delete_promo", delete_promo_code),
             CommandHandler("list_promo", list_promo_codes),
@@ -5911,14 +5094,6 @@ def main() -> None:
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
-
-        import threading
-        notification_thread = threading.Thread(
-            target=lambda: asyncio.run(check_card_notifications(application)), 
-            daemon=True
-        )
-        notification_thread.start()
-        logger.info("Запущена фоновая задача уведомлений")
         
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
