@@ -53,6 +53,8 @@ DATA_FILE = "/data/bot_data.json"
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 AUTO_ANIMATED_RARITIES = ["Animated!"]
 SUPER_ADMIN_ID = "881692999"
+CLAN_CREATION_COST = 30000
+MAX_CLAN_MEMBERS = 7
 
 SACRIFICE_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
@@ -143,6 +145,20 @@ def load_data() -> Dict[str, Any]:
 
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
+
+            if "clans" not in data:
+                data["clans"] = {}
+
+            for clan in data.get("clans", {}).values():
+                if "max_members" not in clan:
+                    clan["max_members"] = MAX_CLAN_MEMBERS
+
+            if "user_clan" not in data:
+                data["user_clan"] = {}  # {user_id: clan_name}
+
+            for user_id, user_data in data.get("users", {}).items():
+                if "clan_invite_pending" not in user_data:
+                    user_data["clan_invite_pending"] = None  # Для хранения ожидающего приглашения
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -329,7 +345,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📁 Мой архив")],
             [KeyboardButton("🔨 Крафт")],
-            [KeyboardButton("🍺 Бар")]
+            [KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🏰 Кланы")] 
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1060,7 +1077,58 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if step in ["select_partner", "search_mode"]:
                 await process_partner_selection(update, context)
                 return
-        
+        # ===== ДОБАВИТЬ В НАЧАЛО handle_message() =====
+
+        # ⭐ КНОПКА "🏰 Кланы" в главном меню ⭐
+        if text == "🏰 Кланы":
+            await clan_menu(update, context)
+            return
+
+        # ⭐ ВНУТРИ МЕНЮ КЛАНОВ ⭐
+        if text == "➕ Создать клан":
+            await create_clan_flow(update, context)
+            return
+
+        if text == "📋 Мой клан" or text == "🔒 Мой клан (не в клане)":
+            await my_clan_view(update, context)
+            return
+
+        if text == "🔙 Назад в кланы":
+            await clan_menu(update, context)
+            return
+
+        # ⭐ ПРОЦЕСС СОЗДАНИЯ КЛАНА ⭐
+        if user_id in context.user_data:
+            user_step = context.user_data[user_id].get("step", "")
+    
+            if user_step == "clan_create_confirm":
+                await confirm_clan_creation(update, context)
+                return
+    
+            if user_step == "clan_enter_name":
+                await process_clan_name(update, context)
+                return
+    
+            if user_step == "clan_invite_enter_username":
+                await process_clan_invite(update, context)
+                return
+
+        # ⭐ ВЫХОД ИЗ КЛАНА ⭐
+        if text == "🚪 Покинуть клан":
+            await leave_clan_confirm(update, context)
+            return
+
+        if text == "✅ Да, покинуть клан" or text == "❌ Отмена":
+            # Проверяем, что это не отмена создания клана
+            if user_id not in context.user_data or context.user_data[user_id].get("step") != "clan_enter_name":
+                await process_leave_clan(update, context)
+                return
+
+        # ⭐ ПРИГЛАШЕНИЕ В КЛАН ⭐
+        if text == "📨 Пригласить игрока":
+            await invite_clan_member(update, context)
+            return
+    
         # ⭐ КНОПКА "🔙 НАЗАД В МЕНЮ" ⭐
         if text == "🔙 Назад в меню":
             # Возврат в главное меню
@@ -1069,7 +1137,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("👤 Личное дело")],
                 [KeyboardButton("📁 Мой архив")],
                 [KeyboardButton("🔨 Крафт")],
-                [KeyboardButton("🍺 Бар")]
+                [KeyboardButton("🍺 Бар")],
+                [KeyboardButton("🏰 Кланы")]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
@@ -3048,6 +3117,681 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка в craft_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
+    """Возвращает название клана пользователя или None."""
+    return data.get("user_clan", {}).get(user_id)
+
+def get_clan_data(clan_name: str, data: Dict) -> Optional[Dict]:
+    """Возвращает данные клана по названию."""
+    return data.get("clans", {}).get(clan_name)
+
+def is_clan_leader(user_id: str, clan_name: str, data: Dict) -> bool:
+    """Проверяет, является ли пользователь главой клана."""
+    clan = get_clan_data(clan_name, data)
+    return clan and clan.get("leader_id") == user_id
+
+def can_create_clan(user_id: str, data: Dict) -> tuple[bool, str]:
+    """Проверяет, может ли пользователь создать клан."""
+    # Проверка: уже в клане
+    if get_user_clan(user_id, data):
+        return False, "Вы уже состоите в клане!"
+    
+    # Проверка: достаточно ли средств
+    user_data = data["users"].get(user_id, {})
+    if user_data.get("cents", 0) < CLAN_CREATION_COST:
+        return False, f"Недостаточно бэт-коинов! Нужно {CLAN_CREATION_COST}"
+    
+    return True, ""
+
+async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создание нового клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Проверяем, не состоит ли пользователь уже в клане
+        for clan in data.get("clans", {}).values():
+            if user_id in clan.get("members", []):
+                await update.message.reply_text("❌ Вы уже состоите в клане!")
+                return
+        
+        if not context.args:
+            await update.message.reply_text("ℹ️ Используйте: /create_clan [Название_клана]")
+            return
+            
+        clan_name = " ".join(context.args)
+        
+        # Создаём клан
+        clan_id = f"clan_{int(time.time())}_{user_id}"
+        data.setdefault("clans", {})[clan_id] = {
+            "id": clan_id,
+            "name": clan_name,
+            "creator": user_id,
+            "members": [user_id],  # Создатель — первый участник
+            "max_members": MAX_CLAN_MEMBERS,  # ⭐ Лимит участников
+            "created_at": int(time.time()),
+            "description": "",
+        }
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ Клан **«{clan_name}»** создан!"
+            f"👥 Участники: 1/{MAX_CLAN_MEMBERS}"
+            f"🆔 ID клана: `{clan_id}`"
+            f"Чтобы пригласить игрока: /invite_clan [ID_игрока]",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Пользователь {user_id} создал клан {clan_name}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка create_clan: {e}")
+        await update.message.reply_text("❌ Ошибка при создании клана")
+        
+def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
+    """Позволяет пользователю покинуть клан. Возвращает (success, message)."""
+    clan_name = get_user_clan(user_id, data)
+    if not clan_name:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(clan_name, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    is_leader = user_id == clan["leader_id"]
+    
+    if is_leader and len(clan["members"]) > 1:
+        return False, "Вы не можете покинуть клан, пока в нём есть другие участники!\nПередайте лидерство или расформируйте клан."
+    
+    # Удаляем пользователя из клана
+    if user_id in clan["members"]:
+        del clan["members"][user_id]
+    
+    # Если клан пуст — удаляем его
+    if not clan["members"]:
+        del data["clans"][clan_name]
+    
+    # Удаляем привязку пользователя
+    if user_id in data["user_clan"]:
+        del data["user_clan"][user_id]
+    
+    return True, f"Вы покинули клан **{clan_name}**." if not is_leader else f"Клан **{clan_name}** распущен."
+
+def get_clan_members_list(clan_name: str, data: Dict) -> str:
+    """Формирует текст со списком участников клана и их очками репутации."""
+    clan = get_clan_data(clan_name, data)
+    if not clan:
+        return "❌ Клан не найден!"
+    
+    members_text = f"👥 Участники клана **{clan_name}**:\n\n"
+    
+    for member_id, member_info in clan["members"].items():
+        user_data = data["users"].get(member_id, {})
+        username = user_data.get("first_name", "Неизвестно")
+        if user_data.get("last_name"):
+            username += f" {user_data['last_name']}"
+        
+        reputation = user_data.get("season_points", 0)
+        role_emoji = "👑" if member_info.get("role") == "leader" else "•"
+        
+        members_text += f"{role_emoji} {username} — {reputation} очков репутации\n"
+    
+    return members_text
+
+async def invite_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Приглашение игрока в клан."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if not context.args:
+            await update.message.reply_text("ℹ️ Используйте: /invite_clan [ID_игрока]")
+            return
+            
+        target_id = context.args[0]
+        
+        # Находим клан пользователя
+        user_clan = None
+        user_clan_id = None
+        for cid, clan in data.get("clans", {}).items():
+            if user_id in clan.get("members", []):
+                user_clan = clan
+                user_clan_id = cid
+                break
+                
+        if not user_clan:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+            
+        # Проверяем права (только создатель или офицеры могут приглашать)
+        if user_clan.get("creator") != user_id:
+            await update.message.reply_text("❌ Только создатель клана может приглашать!")
+            return
+            
+        # ⭐ ПРОВЕРКА ЛИМИТА ПЕРЕД ПРИГЛАШЕНИЕМ ⭐
+        if len(user_clan["members"]) >= MAX_CLAN_MEMBERS:
+            await update.message.reply_text(
+                f"❌ Невозможно пригласить: клан заполнен!
+"
+                f"👥 {len(user_clan['members'])}/{MAX_CLAN_MEMBERS} участников"
+            )
+            return
+            
+        # Проверяем, не состоит ли игрок уже в клане
+        for clan in data.get("clans", {}).values():
+            if target_id in clan.get("members", []):
+                await update.message.reply_text("❌ Этот игрок уже в клане!")
+                return
+                
+        # Отправляем приглашение (реализация зависит от вашей системы приглашений)
+        # ... код отправки приглашения ...
+        
+    except Exception as e:
+        logger.error(f"Ошибка invite_to_clan: {e}")
+        await update.message.reply_text("❌ Ошибка при приглашении")
+        
+async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Присоединение к клану по ID."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if not context.args:
+            await update.message.reply_text("ℹ️ Используйте: /join_clan [ID_клана]")
+            return
+            
+        clan_id = context.args[0]
+        
+        # Проверяем существование клана
+        if clan_id not in data.get("clans", {}):
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+            
+        clan = data["clans"][clan_id]
+        
+        # Проверяем, не состоит ли пользователь уже в клане
+        for c in data.get("clans", {}).values():
+            if user_id in c.get("members", []):
+                await update.message.reply_text("❌ Вы уже состоите в клане!")
+                return
+                
+        # ⭐ ПРОВЕРКА ЛИМИТА УЧАСТНИКОВ ⭐
+        can_join, reason = can_join_clan(clan_id, data)
+        if not can_join:
+            await update.message.reply_text(
+                f"{reason}"
+                f"👥 Сейчас в клане: {len(clan['members'])}/{MAX_CLAN_MEMBERS}"
+            )
+            return
+        
+        # Добавляем участника
+        clan["members"].append(user_id)
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ Вы присоединились к клану **«{clan['name']}»**!"
+            f"👥 Участники: {len(clan['members'])}/{MAX_CLAN_MEMBERS}",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Пользователь {user_id} присоединился к клану {clan_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка join_clan: {e}")
+        await update.message.reply_text("❌ Ошибка при вступлении в клан")
+
+# ===== МЕНЮ КЛАНОВ =====
+async def clan_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает главное меню кланов."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        clan_name = get_user_clan(user_id, data)
+        
+        # Кнопки меню
+        keyboard = [
+            [KeyboardButton("➕ Создать клан")],
+            [KeyboardButton("📋 Мой клан" if clan_name else "🔒 Мой клан (не в клане)")],
+            [KeyboardButton("🔙 Назад в меню")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        caption = (
+            "🏰 **Кланы**\n\n"
+            "Объединяйтесь с другими игроками!\n\n"
+            "• Создайте свой клан за 30 000 бэт-коинов\n"
+            "• Приглашайте друзей и развивайте клан вместе\n"
+            "• Следите за прогрессом участников"
+        )
+        
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=CLAN_IMAGE_URL,
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=CLAN_IMAGE_URL,
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в clan_menu: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню кланов")
+
+
+async def create_clan_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начинает процесс создания клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Проверки
+        can_create, error_msg = can_create_clan(user_id, data)
+        if not can_create:
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                f"❌ {error_msg}",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # Запрашиваем подтверждение
+        context.user_data[user_id] = {"step": "clan_create_confirm"}
+        
+        keyboard = [
+            [KeyboardButton("✅ Да, создать за 30000")],
+            [KeyboardButton("❌ Отмена")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            f"🏰 **Создание клана**\n\n"
+            f"Стоимость: **30 000 бэт-коинов**\n\n"
+            f"После подтверждения вам нужно будет ввести название клана.\n"
+            f"Название должно быть уникальным!\n\n"
+            f"Подтверждаете создание?",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в create_clan_flow: {e}")
+        await update.message.reply_text("❌ Ошибка")
+
+
+async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает подтверждение создания клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        
+        if text == "✅ Да, создать за 30000":
+            # Переход к вводу названия
+            context.user_data[user_id]["step"] = "clan_enter_name"
+            keyboard = [[KeyboardButton("❌ Отмена создания")]]
+            await update.message.reply_text(
+                "✏️ Введите название вашего клана:\n\n"
+                "• Только латиница или кириллица\n"
+                "• 3-20 символов\n"
+                "• Без специальных символов",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+        elif text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Создание клана отменено.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в confirm_clan_creation: {e}")
+
+
+async def process_clan_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод названия клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        clan_name = update.message.text.strip()
+        data = load_data()
+        
+        # Проверка отмены
+        if clan_name == "❌ Отмена создания":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Создание клана отменено.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # Валидация названия
+        if len(clan_name) < 3 or len(clan_name) > 20:
+            await update.message.reply_text(
+                "❌ Название должно содержать от 3 до 20 символов!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        if not clan_name.replace(" ", "").isalnum():
+            await update.message.reply_text(
+                "❌ Название может содержать только буквы и цифры!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        # Создаём клан
+        success, message = create_clan(clan_name, user_id, data)
+        save_data(data)
+        
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        if success:
+            await update.message.reply_text(
+                f"✅ {message}\n\n"
+                f"Теперь вы можете приглашать участников командой:\n"
+                f"`/clan_invite @username`",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ {message}",
+                reply_markup=reply_markup
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в process_clan_name: {e}")
+        await update.message.reply_text("❌ Ошибка при создании клана")
+
+
+async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает информацию о клане пользователя."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        clan_name = get_user_clan(user_id, data)
+        if not clan_name:
+            keyboard = [
+                [KeyboardButton("➕ Создать клан")],
+                [KeyboardButton("🔙 Назад в кланы")]
+            ]
+            await update.message.reply_text(
+                "❌ Вы не состоите в клане!\n\n"
+                "Создайте свой клан или попросите главу другого клана пригласить вас.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        clan = get_clan_data(clan_name, data)
+        if not clan:
+            await update.message.reply_text("❌ Ошибка: данные клана повреждены!")
+            return
+        
+        is_leader = user_id == clan["leader_id"]
+        
+        # Формируем сообщение
+        members_list = get_clan_members_list(clan_name, data)
+        
+        message_text = (
+            f"🏰 **Ваш клан: {clan_name}**\n\n"
+            f"{members_list}\n"
+            f"📊 Всего участников: {len(clan['members'])}\n"
+            f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
+        )
+        
+        # Кнопки для лидера
+        if is_leader:
+            keyboard = [
+                [KeyboardButton("📨 Пригласить игрока")],
+                [KeyboardButton("🚪 Покинуть клан")],
+                [KeyboardButton("🔙 Назад в кланы")]
+            ]
+        else:
+            keyboard = [
+                [KeyboardButton("🚪 Покинуть клан")],
+                [KeyboardButton("🔙 Назад в кланы")]
+            ]
+        
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            message_text,
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в my_clan_view: {e}")
+        await update.message.reply_text("❌ Ошибка при показе информации о клане")
+
+
+async def leave_clan_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает подтверждение выхода из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        clan_name = get_user_clan(user_id, data)
+        if not clan_name:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        is_leader = is_clan_leader(user_id, clan_name, data)
+        warning = (
+            "⚠️ **ВНИМАНИЕ:** Как глава клана, вы не можете покинуть его, "
+            "пока в клане есть другие участники!\n\n"
+            if is_leader and len(get_clan_data(clan_name, data)["members"]) > 1
+            else ""
+        )
+        
+        keyboard = [
+            [KeyboardButton("✅ Да, покинуть клан")],
+            [KeyboardButton("❌ Отмена")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            f"{warning}Вы уверены, что хотите покинуть клан **{clan_name}**?",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в leave_clan_confirm: {e}")
+
+
+async def process_leave_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает выход из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        if text == "✅ Да, покинуть клан":
+            success, message = leave_clan(user_id, data)
+            save_data(data)
+            
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                f"{'✅' if success else '❌'} {message}",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                parse_mode="Markdown"
+            )
+        elif text == "❌ Отмена":
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Выход из клана отменён.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в process_leave_clan: {e}")
+
+
+async def invite_clan_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает @никнейм для приглашения в клан."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        clan_name = get_user_clan(user_id, data)
+        if not clan_name:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        if not is_clan_leader(user_id, clan_name, data):
+            await update.message.reply_text("❌ Только глава клана может приглашать участников!")
+            return
+        
+        context.user_data[user_id] = {"step": "clan_invite_enter_username"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await update.message.reply_text(
+            "✏️ Введите @никнейм игрока для приглашения:\n\n"
+            "Пример: `@username`",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в invite_clan_member: {e}")
+
+
+async def process_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма для приглашения."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Приглашение отменено.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        target_username = text[1:].strip()
+        success, message = await invite_player_to_clan(user_id, target_username, data, context)
+        save_data(data)
+        
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"{'✅' if success else '❌'} {message}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в process_clan_invite: {e}")
+
+
+# ===== КОМАНДА ДЛЯ ПРИНЯТИЯ ПРИГЛАШЕНИЯ =====
+async def accept_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает команду /accept_clan_invite."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        invite = user_data.get("clan_invite_pending")
+        if not invite:
+            await update.message.reply_text("❌ У вас нет ожидающих приглашений в клан!")
+            return
+        
+        clan_name = invite["clan_name"]
+        inviter_id = invite["inviter_id"]
+        
+        # Проверки
+        if get_user_clan(user_id, data):
+            await update.message.reply_text("❌ Вы уже состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_name, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан больше не существует!")
+            return
+        
+        # Добавляем пользователя в клан
+        clan["members"][user_id] = {"joined_at": int(time.time()), "role": "member"}
+        data["user_clan"][user_id] = clan_name
+        user_data["clan_invite_pending"] = None
+        
+        save_data(data)
+        
+        # Уведомляем лидера
+        try:
+            await context.bot.send_message(
+                chat_id=inviter_id,
+                text=f"✅ Игрок {user_data.get('first_name', 'Новый участник')} принял приглашение в клан **{clan_name}**!",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        
+        await update.message.reply_text(
+            f"🎉 Вы успешно вступили в клан **{clan_name}**!\n\n"
+            f"Используйте кнопку «📋 Мой клан» для просмотра участников.",
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в accept_clan_invite: {e}")
+        await update.message.reply_text("❌ Ошибка при принятии приглашения")
+
+def get_clan_member_count(clan_id: str, data: Dict) -> int:
+    """Возвращает текущее количество участников в клане."""
+    clan = data.get("clans", {}).get(clan_id)
+    if not clan:
+        return 0
+    return len(clan.get("members", []))
+
+def can_join_clan(clan_id: str, data: Dict) -> tuple[bool, str]:
+    """
+    Проверяет, можно ли присоединиться к клану.
+    Возвращает: (можно_ли_войти, сообщение_о_причине)
+    """
+    clan = data.get("clans", {}).get(clan_id)
+    if not clan:
+        return False, "❌ Клан не найден!"
+    
+    member_count = len(clan.get("members", []))
+    if member_count >= MAX_CLAN_MEMBERS:
+        return False, f"❌ Клан заполнен! Максимум {MAX_CLAN_MEMBERS} участников."
+    
+    return True, ""
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -3091,6 +3835,7 @@ def main() -> None:
             CommandHandler("list_promo", list_promo_codes),
             CommandHandler("promo", activate_promo_code),
             CommandHandler("craft", craft_menu),
+            CommandHandler("accept_clan_invite", accept_clan_invite),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
