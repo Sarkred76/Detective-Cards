@@ -1840,7 +1840,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     try:
         data = load_data()
 
-        if not is_admin(str(update.effective_user.id), data)
+        if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
 
