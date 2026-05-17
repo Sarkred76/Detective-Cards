@@ -2748,22 +2748,21 @@ async def craft_select_card(
         # Создаём клавиатуру
         keyboard = []
         
-        # Кнопка крафта
+        # Кнопка крафта — замените строку формирования callback_data:
         keyboard.append([
             InlineKeyboardButton(
                 f"🔨 Скрафтить ({count_needed} шт.)",
-                callback_data=f"craft_execute_{rule_key}_{card_id}"
+                callback_data=f"craft_execute_{rule_key}|{card_id}"  # ← Используем |
             )
         ])
-        
-        # Кнопки навигации
+
+        # Кнопки навигации — замените формирование:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_page_{rule_key}_{page - 1}"))
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_page_{rule_key}|{page - 1}"))  # ← |
         nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_cards}", callback_data="craft_info"))
         if page < total_cards - 1:
-            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_page_{rule_key}_{page + 1}"))
-        keyboard.append(nav_buttons)
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_page_{rule_key}|{page + 1}"))  # ← |
         
         # Кнопки возврата
         keyboard.append([
@@ -2921,10 +2920,15 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Пагинация
         if query.data.startswith("craft_page_"):
-            parts = query.data.replace("craft_page_", "").split("_")
-            rule_key = parts[0]
-            page = int(parts[1]) if len(parts) > 1 else 0
-            await craft_select_card(update, context, rule_key, page=page)
+            # Парсим по |
+            suffix = query.data.replace("craft_page_", "")
+            try:
+                rule_key, page_str = suffix.split("|")
+                page = int(page_str)
+                await craft_select_card(update, context, rule_key, page=page)
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка навигации!", show_alert=True)
+                logger.error(f"Неверный формат craft_page: {query.data}")
             return
         
         # Информация
@@ -2934,10 +2938,15 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Выполнение крафта
         if query.data.startswith("craft_execute_"):
-            parts = query.data.replace("craft_execute_", "").split("_")
-            rule_key = parts[0]
-            card_id = int(parts[1])
-            await craft_execute(update, context, rule_key, card_id)
+            # Парсим по |, так как rule_key может содержать _
+            suffix = query.data.replace("craft_execute_", "")
+            try:
+                rule_key, card_id_str = suffix.split("|")
+                card_id = int(card_id_str)
+                await craft_execute(update, context, rule_key, card_id)
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка данных крафта!", show_alert=True)
+                logger.error(f"Неверный формат craft_execute: {query.data}")
             return
         
         # Назад в главное меню
