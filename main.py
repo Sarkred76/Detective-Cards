@@ -932,25 +932,19 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if not rarity_text:
             rarity_text = "Пока нет существ\n"
             
-        claimed_count = len(user_data.get("claimed_achievements", []))
         profile_text = (
             f"👤 Профиль героя\n"
             f"🆔 ID: `{user_id}`\n"
-            f"💰 Золото: {user_data.get('cents', 0)}\n"
-            f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
-            f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n"
-            f"🐦‍🔥 Коллекция:\n"
-            f"📦 Собрано существ: {unique_cards}/{total_available_cards}\n"
+            f"💰 Бэт-коинов: {user_data.get('cents', 0)}\n"
+            f"💥 Очков репутации (сезон): {user_data.get('season_points', 0)}\n"
+            f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n\n"
+            f"📦 Собрано карт: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
             f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n"
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
             f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
-            f"🏆 Достижения: {claimed_count}/9\n"
         )
-        
-        # ⭐ ВАЖНО: УБЕДИТЕСЬ, ЧТО ЭТА СТРОКА ПРИСУТСТВУЕТ ⭐
-        keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
         
         # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
         if is_callback:
@@ -962,13 +956,11 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
         else:
             await update.message.reply_text(
                 profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
             
