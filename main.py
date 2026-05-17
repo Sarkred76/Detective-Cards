@@ -601,7 +601,7 @@ async def show_cards_by_rarity(
         keyboard = [nav_buttons]
         keyboard.append([
             InlineKeyboardButton(
-                "🔙 Назад в казарму",
+                "🔙 Назад",
                 callback_data="mycards_back_to_rarities"
             )
         ])
@@ -747,7 +747,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ]
             keyboard = InlineKeyboardMarkup([
                 nav_buttons,
-                [InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")]
+                [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
             ])
             
             count = card_counts[card["id"]]
@@ -1041,7 +1041,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             ]
             keyboard = InlineKeyboardMarkup([
                 nav_buttons,
-                [InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")]
+                [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
             ])
 
             # ⭐ ДОБАВЬТЕ ЛОГИРОВАНИЕ ⭐
@@ -3687,10 +3687,6 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             keyboard = [
                 [KeyboardButton("👊 Устроить допрос")],
                 [KeyboardButton("🎲 Бросить кубик")],
-                [
-                    KeyboardButton("🛡 Казарма"),
-                    KeyboardButton("👑 Мой герой"),
-                ],
                 [KeyboardButton("🌲 Лес")],
                 [KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🏆 Топ героев")],
