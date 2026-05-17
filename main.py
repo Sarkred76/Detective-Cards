@@ -3144,16 +3144,15 @@ def can_create_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     return True, ""
 
 async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Создание нового клана."""
+    """Обработчик команды /create_clan."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         
-        # Проверяем, не состоит ли пользователь уже в клане
-        for clan in data.get("clans", {}).values():
-            if user_id in clan.get("members", []):
-                await update.message.reply_text("❌ Вы уже состоите в клане!")
-                return
+        # Проверка: уже в клане
+        if get_user_clan(user_id, data):
+            await update.message.reply_text("❌ Вы уже состоите в клане!")
+            return
         
         if not context.args:
             await update.message.reply_text("ℹ️ Используйте: /create_clan [Название_клана]")
@@ -3161,28 +3160,21 @@ async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             
         clan_name = " ".join(context.args)
         
-        # Создаём клан
-        clan_id = f"clan_{int(time.time())}_{user_id}"
-        data.setdefault("clans", {})[clan_id] = {
-            "id": clan_id,
-            "name": clan_name,
-            "creator": user_id,
-            "members": [user_id],  # Создатель — первый участник
-            "max_members": MAX_CLAN_MEMBERS,  # ⭐ Лимит участников
-            "created_at": int(time.time()),
-            "description": "",
-        }
+        # Вызываем внутреннюю логику
+        success, message = _create_clan_logic(clan_name, user_id, data)
         save_data(data)
         
-        await update.message.reply_text(
-            f"✅ Клан **«{clan_name}»** создан!"
-            f"👥 Участники: 1/{MAX_CLAN_MEMBERS}"
-            f"🆔 ID клана: `{clan_id}`"
-            f"Чтобы пригласить игрока: /invite_clan [ID_игрока]",
-            parse_mode="Markdown"
-        )
-        logger.info(f"Пользователь {user_id} создал клан {clan_name}")
-        
+        if success:
+            await update.message.reply_text(
+                f"✅ {message}\n"
+                f"👥 Участники: 1/{MAX_CLAN_MEMBERS}\n"
+                f"Чтобы пригласить игрока: /invite_clan @username",
+                parse_mode="Markdown"
+            )
+            logger.info(f"Пользователь {user_id} создал клан {clan_name}")
+        else:
+            await update.message.reply_text(f"❌ {message}")
+            
     except Exception as e:
         logger.error(f"Ошибка create_clan: {e}")
         await update.message.reply_text("❌ Ошибка при создании клана")
@@ -3477,21 +3469,15 @@ async def process_clan_name(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         # Валидация названия
         if len(clan_name) < 3 or len(clan_name) > 20:
-            await update.message.reply_text(
-                "❌ Название должно содержать от 3 до 20 символов!\n"
-                "Повторите ввод:"
-            )
+            await update.message.reply_text("❌ Название должно содержать от 3 до 20 символов!\nПовторите ввод:")
             return
         
         if not clan_name.replace(" ", "").isalnum():
-            await update.message.reply_text(
-                "❌ Название может содержать только буквы и цифры!\n"
-                "Повторите ввод:"
-            )
+            await update.message.reply_text("❌ Название может содержать только буквы и цифры!\nПовторите ввод:")
             return
         
-        # Создаём клан
-        success, message = create_clan(clan_name, user_id, data)
+        # ✅ ИСПРАВЛЕННЫЙ ВЫЗОВ:
+        success, message = _create_clan_logic(clan_name, user_id, data)
         save_data(data)
         
         if user_id in context.user_data:
@@ -3509,15 +3495,11 @@ async def process_clan_name(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 parse_mode="Markdown"
             )
         else:
-            await update.message.reply_text(
-                f"❌ {message}",
-                reply_markup=reply_markup
-            )
+            await update.message.reply_text(f"❌ {message}", reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Ошибка в process_clan_name: {e}")
         await update.message.reply_text("❌ Ошибка при создании клана")
-
 
 async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает информацию о клане пользователя."""
@@ -3788,6 +3770,30 @@ def can_join_clan(clan_id: str, data: Dict) -> tuple[bool, str]:
         return False, f"❌ Клан заполнен! Максимум {MAX_CLAN_MEMBERS} участников."
     
     return True, ""
+
+def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, str]:
+    """Внутренняя логика создания клана. Возвращает (success, message)."""
+    # Проверка: имя уже занято
+    for clan in data.get("clans", {}).values():
+        if clan["name"].lower() == clan_name.lower():
+            return False, f"Клан с названием «{clan_name}» уже существует!"
+    
+    # Создаём клан
+    clan_id = f"clan_{int(time.time())}_{user_id}"
+    data.setdefault("clans", {})[clan_id] = {
+        "id": clan_id,
+        "name": clan_name,
+        "creator": user_id,
+        "leader_id": user_id,  # ← Добавьте это поле!
+        "members": {user_id: {"joined_at": int(time.time()), "role": "leader"}},  # ← dict, не list!
+        "max_members": MAX_CLAN_MEMBERS,
+        "created_at": int(time.time()),
+        "description": "",
+    }
+    # Привязываем пользователя к клану
+    data.setdefault("user_clan", {})[user_id] = clan_name
+    
+    return True, f"Клан **«{clan_name}»** успешно создан!"
 
 # ===== ЗАПУСК БОТА =====
 
