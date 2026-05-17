@@ -376,7 +376,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
     try:
         keyboard = [
-            [KeyboardButton("Устроить допрос")],
+            [KeyboardButton("👊 Устроить допрос")],
             [KeyboardButton("📁 Мое досье")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
