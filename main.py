@@ -143,18 +143,6 @@ def load_data() -> Dict[str, Any]:
 
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
-
-            if "mercenary_guild" not in data:
-                data["mercenary_guild"] = {
-                    "creatures": [],  # Список существ для продажи
-                    "max_slots": 4    # Максимум 4 существа
-                }
-
-            if "pending_battles" not in data:
-                data["pending_battles"] = {}
-
-            if "active_battles" not in data:
-                data["active_battles"] = {}
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -169,12 +157,6 @@ def load_data() -> Dict[str, Any]:
                     user_data["last_casino_reset"] = 0
                 if "used_promo_codes" not in user_data:
                     user_data["used_promo_codes"] = []
-                if "refugee_camp_last_reset" not in user_data:
-                    user_data["refugee_camp_last_reset"] = 0  # ← Время последнего сброса
-                if "refugee_camp_offered_card" not in user_data:
-                    user_data["refugee_camp_offered_card"] = None
-                if "refugee_camp_purchased" not in user_data:
-                    user_data["refugee_camp_purchased"] = False
             return data
             
         except Exception as e:
@@ -185,10 +167,6 @@ def load_data() -> Dict[str, Any]:
                 "season": 1,
                 "admins": [INITIAL_ADMIN_ID],
                 "active_trades": {},
-                "mercenary_guild": {
-                    "creatures": [],
-                    "max_slots": 4
-                },
             }
     
     return {
@@ -197,10 +175,6 @@ def load_data() -> Dict[str, Any]:
         "season": 1,
         "admins": [INITIAL_ADMIN_ID],
         "active_trades": {},
-        "mercenary_guild": {
-            "creatures": [],
-            "max_slots": 4
-        },
     }
 
 def check_casino_reset(user_data: Dict) -> None:
