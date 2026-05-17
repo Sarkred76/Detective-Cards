@@ -3368,18 +3368,16 @@ async def clan_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await query.message.delete()
             except:
                 pass
-            await context.bot.send_photo(
+            await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                photo=CLAN_IMAGE_URL,
-                caption=caption,
+                text = caption,
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         else:
-            await context.bot.send_photo(
+            await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                photo=CLAN_IMAGE_URL,
-                caption=caption,
+                text=caption,
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
