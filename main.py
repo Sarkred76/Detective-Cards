@@ -294,7 +294,7 @@ def generate_card_caption(
         caption = f"⚔️ {card['title']}\n🌟 Редкость: {card['rarity']}"
     else:
         # Если есть данные пользователя — показываем полную информацию
-        caption = f"У Вас новый подозреваемый\n{card['title']}\nРедкость: {card['rarity']}"
+        caption = f"🔍 У Вас новый подозреваемый!\n\n{card['title']}\nРедкость: {card['rarity']}"
     
     
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
