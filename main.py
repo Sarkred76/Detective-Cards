@@ -1089,12 +1089,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # ⭐ КНОПКА "🔙 НАЗАД В МЕНЮ" ⭐
         if text == "🔙 Назад в меню":
-            # ⭐ СБРАСЫВАЕМ СОСТОЯНИЕ ПОИСКА ПРОТИВНИКА ⭐
-            if user_id in context.user_data:
-                if "step" in context.user_data[user_id]:
-                    if context.user_data[user_id]["step"] == "battle_find_opponent":
-                        del context.user_data[user_id]["step"]
-                        logger.info(f"Сброшен поиск противника для пользователя {user_id}")
             # Возврат в главное меню
             keyboard = [
                 [KeyboardButton("🔍 Получить досье")],
@@ -2639,10 +2633,6 @@ async def craft_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                     callback_data=f"craft_recipe_{rule_key}"
                 )
             ])
-        
-        keyboard.append([
-            InlineKeyboardButton("🔙 Назад в меню", callback_data="craft_back")
-        ])
         
         caption = (
             "🔨 **Мастерская крафта**\n\n"
