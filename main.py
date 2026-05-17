@@ -646,63 +646,63 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-        
         if not user_data or not user_data.get("cards"):
             await query.edit_message_text("У вас пока нет существ!")
             return
-        
+
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
         unique_card_ids = list(card_counts.keys())
-        
+
         rarity_cards = {}
         for card_id in unique_card_ids:
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                rarity = card.get("rarity", "Classic")
+                rarity = card.get("rarity", "Common")
                 if rarity not in rarity_cards:
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
-        
+
         if not rarity_cards:
             await query.edit_message_text("У вас пока нет существ!")
             return
-        
+
         keyboard = []
-        for rarity in ["Classic"]:
+        
+        # Обновлённый список редкостей в нужном порядке
+        main_rarities = [
+            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", 
+            "Legendary", "Legendary Team-up", "Highlight", "Limited"
+        ]
+        
+        for rarity in main_rarities:
             if rarity in rarity_cards:
                 keyboard.append([
-                    InlineKeyboardButton(rarity, callback_data=f"barracks_rarity_select_{rarity}")
+                    InlineKeyboardButton(f"{rarity}", callback_data=f"barracks_rarity_select_{rarity}")
                 ])
-        
+
+        # Проверяем наличие Upgrade редкостей и добавляем их, если они есть
         upgrade_rarities = [r for r in rarity_cards.keys() if r.startswith("Upgrade")]
         if upgrade_rarities:
-            keyboard.append([])
+            keyboard.append([]) # Пустая строка для разделения
             for rarity in sorted(upgrade_rarities):
                 keyboard.append([
-                    InlineKeyboardButton(rarity, callback_data=f"barracks_rarity_select_{rarity}")
+                    InlineKeyboardButton(f"{rarity}", callback_data=f"barracks_rarity_select_{rarity}")
                 ])
-        
-        keyboard.append([
-            InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
-        ])
-        
+
         try:
             await query.message.delete()
         except:
             pass
-        
+
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text="📊 Выберите редкость:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        
     except Exception as e:
         logger.error(f"Ошибка в show_rarity_menu: {e}")
         await query.answer("Произошла ошибка", show_alert=True)
-
-
 
 async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок просмотра карт в Казарме."""
