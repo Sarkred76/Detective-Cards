@@ -2769,9 +2769,6 @@ async def craft_select_card(
             f"🃏 Карта: **{card['title']}**\n"
             f"🌟 Редкость: {card['rarity']}\n"
             f"📊 У вас: {count} шт. (нужно {count_needed})\n\n"
-            f"🎁 После крафта вы получите:\n"
-            f"• 1 случайную карту редкости **{rule['to_rarity']}**\n"
-            f"• Награду за получение новой карты 💰💥\n\n"
             f"⚠️ {count_needed} карт **{card['title']}** будут удалены!"
         )
         
