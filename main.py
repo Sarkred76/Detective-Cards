@@ -79,6 +79,47 @@ RARITY_BONUSES = {
     "Limited": {"cents": 0, "points": 0, "probability": 0},
 }
 
+# ===== ПРАВИЛА КРАФТА =====
+CRAFT_RULES = {
+    "Common_to_Rare": {
+        "from_rarity": "Common",
+        "to_rarity": "Rare",
+        "count_needed": 10,
+        "button_text": "10 Common → 1 Rare",
+    },
+    "Rare_to_Epic": {
+        "from_rarity": "Rare",
+        "to_rarity": "Epic",
+        "count_needed": 15,
+        "button_text": "15 Rare → 1 Epic",
+    },
+    "Epic_to_Legendary": {
+        "from_rarity": "Epic",
+        "to_rarity": "Legendary",
+        "count_needed": 20,
+        "button_text": "20 Epic → 1 Legendary",
+    },
+    "Legendary_to_Highlight": {
+        "from_rarity": "Legendary",
+        "to_rarity": "Highlight",
+        "count_needed": 30,
+        "button_text": "30 Legendary → 1 Highlight",
+    },
+    "RareTU_to_EpicTU": {
+        "from_rarity": "Rare Team-up",
+        "to_rarity": "Epic Team-up",
+        "count_needed": 15,
+        "button_text": "15 Rare Team-up → 1 Epic Team-up",
+    },
+    "EpicTU_to_LegendaryTU": {
+        "from_rarity": "Epic Team-up",
+        "to_rarity": "Legendary Team-up",
+        "count_needed": 20,
+        "button_text": "20 Epic Team-up → 1 Legendary Team-up",
+    },
+}
+
+CRAFT_ITEMS_PER_PAGE = 5  # Сколько карт показывать на странице
 
 # Настройка логирования
 logging.basicConfig(
@@ -313,6 +354,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("🔍 Получить досье")],
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📁 Мой архив")],
+            [KeyboardButton("🔨 Крафт")],
             [KeyboardButton("🍺 Бар")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1073,6 +1115,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "📁 Мой архив":
             await show_user_cards(update, context)
+            return
+
+        elif text == "🔨 Крафт":
+            await craft_menu(update, context)
             return
 
         if text == "🔍 Получить досье":
@@ -2568,6 +2614,358 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         logger.error(f"Ошибка в open_casino_from_button: {e}")
         await update.message.reply_text("❌ Ошибка при открытии казино")
 
+async def craft_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню выбора рецепта крафта."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') else None
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            text = "❌ У вас нет карт для крафта!"
+            if query:
+                await query.edit_message_text(text)
+            else:
+                await update.message.reply_text(text)
+            return
+        
+        # Создаём inline-клавиатуру с рецептами
+        keyboard = []
+        for rule_key, rule in CRAFT_RULES.items():
+            keyboard.append([
+                InlineKeyboardButton(
+                    rule["button_text"],
+                    callback_data=f"craft_recipe_{rule_key}"
+                )
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("🔙 Назад в меню", callback_data="craft_back")
+        ])
+        
+        caption = (
+            "🔨 **Мастерская крафта**\n\n"
+            "Выберите рецепт для улучшения карт:\n"
+            "• Соберите нужное количество дубликатов указанной редкости\n"
+            "• Получите 1 карту более высокой редкости + награды!\n\n"
+            "💡 Совет: карты для крафта должны быть у вас в коллекции."
+        )
+        
+        if query:
+            try:
+                await query.edit_message_text(
+                    caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            except:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await update.message.reply_text(
+                caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в craft_menu: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Ошибка при открытии мастерской")
+
+async def craft_select_card(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    rule_key: str,
+    page: int = 0
+) -> None:
+    """Показывает доступные карты выбранной редкости для крафта."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            await query.edit_message_text("❌ У вас нет карт!")
+            return
+        
+        rule = CRAFT_RULES.get(rule_key)
+        if not rule:
+            await query.edit_message_text("❌ Неверный рецепт крафта!")
+            return
+        
+        from_rarity = rule["from_rarity"]
+        count_needed = rule["count_needed"]
+        
+        # Считаем карты пользователя по редкости
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
+        
+        # Фильтруем карты нужной редкости, которых достаточно для крафта
+        craftable_cards = []
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("rarity") == from_rarity and count >= count_needed:
+                craftable_cards.append((card_id, count, card))
+        
+        if not craftable_cards:
+            await query.edit_message_text(
+                f"❌ У вас недостаточно карт редкости **{from_rarity}** для крафта!\n\n"
+                f"📋 Нужно: {count_needed} одинаковых карт\n"
+                f"💡 Продолжайте собирать карты и попробуйте снова!",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # Сортируем карты по названию для удобства
+        craftable_cards.sort(key=lambda x: x[2]["title"])
+        total_cards = len(craftable_cards)
+        
+        # Пагинация
+        if page < 0:
+            page = 0
+        elif page >= total_cards:
+            page = total_cards - 1
+        
+        # Сохраняем состояние в context
+        if user_id not in context.user_data:
+            context.user_data[user_id] = {}
+        context.user_data[user_id]["craft_rule"] = rule_key
+        context.user_data[user_id]["craft_page"] = page
+        
+        # Получаем карту для текущей страницы
+        card_id, count, card = craftable_cards[page]
+        
+        # Создаём клавиатуру
+        keyboard = []
+        
+        # Кнопка крафта
+        keyboard.append([
+            InlineKeyboardButton(
+                f"🔨 Скрафтить ({count_needed} шт.)",
+                callback_data=f"craft_execute_{rule_key}_{card_id}"
+            )
+        ])
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_page_{rule_key}_{page - 1}"))
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_cards}", callback_data="craft_info"))
+        if page < total_cards - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_page_{rule_key}_{page + 1}"))
+        keyboard.append(nav_buttons)
+        
+        # Кнопки возврата
+        keyboard.append([
+            InlineKeyboardButton("📋 Другие рецепты", callback_data="craft_menu"),
+            InlineKeyboardButton("🔙 Назад", callback_data="craft_back")
+        ])
+        
+        caption = (
+            f"🔨 **Выберите карту для крафта**\n\n"
+            f"📦 Рецепт: {rule['button_text']}\n"
+            f"🃏 Карта: **{card['title']}**\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"📊 У вас: {count} шт. (нужно {count_needed})\n\n"
+            f"🎁 После крафта вы получите:\n"
+            f"• 1 случайную карту редкости **{rule['to_rarity']}**\n"
+            f"• Награду за получение новой карты 💰💥\n\n"
+            f"⚠️ {count_needed} карт **{card['title']}** будут удалены!"
+        )
+        
+        await query.edit_message_text(
+            caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в craft_select_card: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def craft_execute(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    rule_key: str,
+    card_id: int
+) -> None:
+    """Выполняет крафт карты."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
+            return
+        
+        rule = CRAFT_RULES.get(rule_key)
+        if not rule:
+            await query.edit_message_text("❌ Неверный рецепт!")
+            return
+        
+        from_rarity = rule["from_rarity"]
+        to_rarity = rule["to_rarity"]
+        count_needed = rule["count_needed"]
+        
+        # Проверяем, есть ли у игрока нужное количество карт
+        user_card_ids = user_data.get("cards", [])
+        card_counts = Counter(user_card_ids)
+        
+        if card_counts.get(card_id, 0) < count_needed:
+            await query.edit_message_text(
+                f"❌ Недостаточно карт!\n"
+                f"Нужно: {count_needed}, у вас: {card_counts.get(card_id, 0)}"
+            )
+            return
+        
+        # Находим карту-источник
+        source_card = find_card_by_id(card_id, data["cards"])
+        if not source_card:
+            await query.edit_message_text("❌ Карта не найдена!")
+            return
+        
+        # Находим доступные карты целевой редкости
+        available_upgrade_cards = [
+            c for c in data["cards"]
+            if c.get("rarity") == to_rarity and c.get("available", True)
+        ]
+        
+        if not available_upgrade_cards:
+            await query.edit_message_text(
+                f"❌ В системе нет доступных карт редкости **{to_rarity}** для выдачи!",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # === ВЫПОЛНЯЕМ КРАФТ ===
+        
+        # Удаляем нужное количество карт из коллекции
+        removed = 0
+        new_cards_list = []
+        for cid in user_card_ids:
+            if cid == card_id and removed < count_needed:
+                removed += 1
+            else:
+                new_cards_list.append(cid)
+        user_data["cards"] = new_cards_list
+        
+        # Выбираем случайную карту целевой редкости
+        new_card = random.choice(available_upgrade_cards)
+        user_data["cards"].append(new_card["id"])
+        
+        # Начисляем награды за получение новой карты
+        bonus = RARITY_BONUSES.get(new_card["rarity"], {"cents": 0, "points": 0})
+        user_data["total_points"] += bonus["points"]
+        user_data["season_points"] += bonus["points"]
+        user_data["cents"] += bonus["cents"]
+        
+        save_data(data)
+        
+        # === ОТПРАВЛЯЕМ РЕЗУЛЬТАТ ===
+        result_text = (
+            f"✅ **Крафт успешен!** 🔨\n\n"
+            f"🗑️ Использовано: {count_needed}x {source_card['title']} ({from_rarity})\n"
+            f"🎁 Получено: **{new_card['title']}**\n"
+            f"🌟 Редкость: {new_card['rarity']}\n\n"
+            f"💰 +{bonus['cents']} бэт-коинов\n"
+            f"💥 +{bonus['points']} очков репутации"
+        )
+        
+        # Отправляем сообщение с результатом
+        await query.edit_message_text(result_text, parse_mode="Markdown")
+        
+        # Отправляем полученную карту
+        caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
+        await send_card(update, new_card, context, caption=caption)
+        
+        # Возвращаем в меню выбора карт (обновлённое)
+        await asyncio.sleep(2)
+        await craft_select_card(update, context, rule_key, page=0)
+        
+        logger.info(f"Игрок {user_id} выполнил крафт: {rule_key}, карта #{card_id} → #{new_card['id']}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в craft_execute: {e}")
+        await query.answer("❌ Произошла ошибка при крафте", show_alert=True)
+
+async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок крафта."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        
+        # Меню рецептов крафта
+        if query.data == "craft_menu":
+            await craft_menu(update, context)
+            return
+        
+        # Выбор рецепта
+        if query.data.startswith("craft_recipe_"):
+            rule_key = query.data.replace("craft_recipe_", "")
+            await craft_select_card(update, context, rule_key, page=0)
+            return
+        
+        # Пагинация
+        if query.data.startswith("craft_page_"):
+            parts = query.data.replace("craft_page_", "").split("_")
+            rule_key = parts[0]
+            page = int(parts[1]) if len(parts) > 1 else 0
+            await craft_select_card(update, context, rule_key, page=page)
+            return
+        
+        # Информация
+        if query.data == "craft_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+            return
+        
+        # Выполнение крафта
+        if query.data.startswith("craft_execute_"):
+            parts = query.data.replace("craft_execute_", "").split("_")
+            rule_key = parts[0]
+            card_id = int(parts[1])
+            await craft_execute(update, context, rule_key, card_id)
+            return
+        
+        # Назад в главное меню
+        if query.data == "craft_back":
+            # Возврат в главное меню через callback
+            keyboard = [
+                [KeyboardButton("👊 Устроить допрос")],
+                [KeyboardButton("👤 Мое досье")],
+                [KeyboardButton("📁 Мой архив")],
+                [KeyboardButton("🔨 Крафт")],  # ← Новая кнопка
+                [KeyboardButton("🍺 Бар")]
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="🏠 Главное меню\n\nДобро пожаловать! Используйте кнопки ниже:",
+                reply_markup=reply_markup
+            )
+            return
+        
+    except Exception as e:
+        logger.error(f"Ошибка в craft_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -2610,6 +3008,7 @@ def main() -> None:
             CommandHandler("delete_promo", delete_promo_code),
             CommandHandler("list_promo", list_promo_codes),
             CommandHandler("promo", activate_promo_code),
+            CommandHandler("craft", craft_menu),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
@@ -2623,6 +3022,7 @@ def main() -> None:
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
+            CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
         ]
 
         for handler in handlers:
