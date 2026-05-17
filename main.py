@@ -83,8 +83,6 @@ SACRIFICE_REWARDS = {
 }
 
 # Бонусы по редкостям
-
-
 RARITY_BONUSES = {
     "Common": {"cents": 100, "points": 100, "probability": 55},
     "Rare": {"cents": 250, "points": 250, "probability": 22},
@@ -99,20 +97,13 @@ RARITY_BONUSES = {
 
 
 # Настройка логирования
-
-
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
     handlers=[logging.FileHandler("bot_errors.log"), logging.StreamHandler()],
 )
 
-
 logger = logging.getLogger(__name__)
-
-
-# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-
 
 def load_data() -> Dict[str, Any]:
     """Загружает данные из файла или создает новую структуру."""
@@ -189,30 +180,22 @@ def load_data() -> Dict[str, Any]:
 
 def check_casino_reset(user_data: Dict) -> None:
     """Проверяет и сбрасывает попытки казино в полночь по МСК."""
-
     import datetime
 
     # Получаем текущее время по МСК
-
     msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-
     now_msk = datetime.datetime.now(msk_tz)
 
     # Получаем дату последнего сброса
-
     last_reset = user_data.get("last_casino_reset", 0)
 
     # Если сегодня ещё не сбрасывали
-
     if (
         last_reset == 0
         or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day
     ):
-
         user_data["casino_attempts"] = 10
-
         user_data["last_casino_reset"] = int(now_msk.timestamp())
-
 
 def save_data(data: Dict[str, Any]) -> None:
     """Сохраняет данные в файл."""
@@ -227,33 +210,24 @@ def save_data(data: Dict[str, Any]) -> None:
 
 def is_admin(user_id: str, data: Dict[str, Any]) -> bool:
     """Проверяет, является ли пользователь администратором."""
-
     admins = data.get("admins", [])
-
     return user_id in admins
 
 
 def find_card_by_id(card_id: int, cards: List[Dict]) -> Optional[Dict]:
     """Находит карточку по ID."""
-
     for card in cards:
-
         if card["id"] == card_id:
-
             return card
-
     return None
-
 
 def create_cards_keyboard(
     current_index: int, total_cards: int
 ) -> Optional[InlineKeyboardMarkup]:
     """Создает инлайн-клавиатуру для бесконечной навигации."""
-
     if total_cards <= 0:
-
         return None
-
+        
     nav_buttons = [
         InlineKeyboardButton("<", callback_data=f"card_prev_{current_index}"),
         InlineKeyboardButton(
@@ -261,23 +235,16 @@ def create_cards_keyboard(
         ),
         InlineKeyboardButton(">", callback_data=f"card_next_{current_index}"),
     ]
-
     return InlineKeyboardMarkup([nav_buttons])
-
 
 def determine_media_type(url: str, rarity: str) -> str:
     """Определяет тип медиа на основе URL и редкости."""
-
     if rarity in AUTO_ANIMATED_RARITIES:
-
         return "animation"
 
     if any(url.lower().endswith(ext) for ext in ANIMATED_FORMATS):
-
         return "animation"
-
     return "photo"
-
 
 def generate_card_caption(
     card: Dict,
@@ -294,7 +261,6 @@ def generate_card_caption(
     else:
         # Если есть данные пользователя — показываем полную информацию
         caption = f"🔍 У Вас новый подозреваемый!\n\n{card['title']}\nРедкость: {card['rarity']}"
-    
     
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -314,7 +280,6 @@ def generate_card_caption(
     
     return caption
 
-
 async def send_card(
     update_or_chat_id: Update,
     card: Dict,
@@ -326,24 +291,19 @@ async def send_card(
     """Отправляет карточку в зависимости от типа медиа."""
 
     if isinstance(update_or_chat_id, Update):
-
         chat_id = update_or_chat_id.effective_chat.id
-
+        
     if chat_id is None:
-
         return
 
     if card.get("media_type") == "animation":
-
         await context.bot.send_animation(
             chat_id=chat_id,
             animation=card["image_url"],
             caption=caption,
             reply_markup=reply_markup,
         )
-
     else:
-
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=card["image_url"],
@@ -351,25 +311,16 @@ async def send_card(
             reply_markup=reply_markup,
         )
 
-
 async def edit_card_message(
     query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup
 ) -> None:
     """Редактирует сообщение с карточкой."""
-
     if card.get("media_type") == "animation":
-
         media = InputMediaAnimation(media=card["image_url"], caption=caption)
-
+        
     else:
-
         media = InputMediaPhoto(media=card["image_url"], caption=caption)
-
     await query.edit_message_media(media=media, reply_markup=reply_markup)
-
-
-# ===== КОМАНДЫ ПОЛЬЗОВАТЕЛЯ =====
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
@@ -387,7 +338,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
-
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
@@ -430,10 +380,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/mercenary_list - список Гильдии\n"
             response += "/mercenary_price [ID] [цена] - обновить цену\n\n"
         
-        response += "💡 Нужна помощь?\n"
-        response += "Напишите администратору бота."
-        
-        # ⭐ ИСПРАВЛЕНИЕ: УБРАЛИ parse_mode="Markdown" ⭐
         await update.message.reply_text(response)
         
     except Exception as e:
@@ -983,57 +929,39 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Обработчик инлайн-кнопок навигации."""
 
     try:
-
         query = update.callback_query
-
         await query.answer()
-
         user_id = str(query.from_user.id)
-
         data = load_data()
-
         user_data = data["users"].get(user_id)
 
         if not user_data or not user_data.get("cards"):
-
             await query.edit_message_text("У вас больше нет существ!")
-
             return
 
         user_card_ids = user_data["cards"]
-
         card_counts = Counter(user_card_ids)
-
         unique_card_ids = list(card_counts.keys())
-
         total_cards = len(unique_card_ids)
 
         if query.data and ("card_prev" in query.data or "card_next" in query.data):
-
             action = "prev" if "prev" in query.data else "next"
-
             current_index = int(query.data.split("_")[-1])
-
             new_index = (
                 (current_index - 1) % total_cards
                 if action == "prev"
                 else (current_index + 1) % total_cards
             )
-
             card = find_card_by_id(unique_card_ids[new_index], data["cards"])
 
             if not card:
-
                 await query.edit_message_text("Карточка не найдена!")
-
                 return
 
             count = card_counts[card["id"]]
-
             caption = generate_card_caption(
                 card, user_data, count=count, show_bonus=False
             )
-
             nav_buttons = [
                 InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}"),
                 InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info"),
@@ -1044,36 +972,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
             ])
 
-            # ⭐ ДОБАВЬТЕ ЛОГИРОВАНИЕ ⭐
-
             logger.info(
                 f"Попытка показать существо #{card['id']}: {card['image_url'][:100]}"
             )
 
             try:
-
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
-
                 await query.edit_message_media(media=media, reply_markup=keyboard)
-
             except Exception as edit_error:
-
                 logger.error(
                     f"❌ Ошибка редактирования существа #{card['id']}: {edit_error}"
                 )
-
                 logger.error(f"URL: {card['image_url']}")
-
-                # Отправляем как новое сообщение
-
                 try:
-
                     await query.message.delete()
-
                 except:
-
                     pass
-
                 await context.bot.send_photo(
                     chat_id=query.message.chat_id,
                     photo=card["image_url"],
@@ -1081,102 +995,55 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     reply_markup=keyboard,
                 )
 
-
         elif query.data == "barracks_back":
             try:
                 await query.message.delete()
             except:
                 pass
-            await show_user_cards(update, context)
-            
+            await show_user_cards(update, context)    
     except Exception as e:
-
         logger.error(f"Ошибка в callback: {e}")
-
         await query.answer("Произошла ошибка", show_alert=True)
 
-
 def get_card_with_fixed_rarity(cards: List[Dict]) -> Optional[Dict]:
-    """
-
-
-    Двухэтапный выбор:
-
-
-    1. Выбираем редкость по фиксированному шансу
-
-
-    2. Из всех карт этой редкости выбираем случайную
-
-
-    """
 
     if not cards:
-
         return None
-
+        
     # Группируем карты по редкостям
-
     cards_by_rarity = {}
-
     for card in cards:
-
         rarity = card.get("rarity", "Classic")
-
         if rarity not in cards_by_rarity:
-
             cards_by_rarity[rarity] = []
-
         cards_by_rarity[rarity].append(card)
-
+        
     # Создаём список редкостей с весами
-
     available_rarities = []
-
     weights = []
-
     for rarity, rarity_cards in cards_by_rarity.items():
-
         if rarity_cards:  # Если есть карты такой редкости
-
             probability = RARITY_BONUSES.get(rarity, {"probability": 0}).get(
                 "probability", 0
             )
-
             if probability > 0:
-
                 available_rarities.append(rarity)
-
                 weights.append(probability)
-
+    
     if not available_rarities:
-
         return None
-
-    # Этап 1: Выбираем редкость по фиксированному шансу
-
+    
     total_weight = sum(weights)
 
     if total_weight == 0:
-
         return None
-
-    # Нормализуем веса до 100%
-
+    
     normalized_weights = [w / total_weight for w in weights]
-
-    # Выбираем редкость
-
     chosen_rarity = random.choices(available_rarities, weights=normalized_weights, k=1)[
         0
     ]
-
-    # Этап 2: Выбираем случайную карту из этой редкости
-
     rarity_cards = cards_by_rarity[chosen_rarity]
-
     return random.choice(rarity_cards)
-
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик текстовых сообщений (кнопки)."""
@@ -1362,40 +1229,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await send_card(update, card, context, caption=caption)
 
         elif text == "🍺 Таверна":
-
             await mini_games(update, context)
 
         elif text == "🎲 Бросить кубик":
-
             await dice(update, context)
 
         elif text == "🎰 Казино":
-
             await open_casino_from_button(update, context)
 
         elif text == "👑 Мой герой":
-
             await my_profile(update, context)
 
         elif text == "🏆 Топ героев":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
-            
             await top_players(update, context)
 
         elif text == "🔄 Трейд":  # ← ДОБАВЬТЕ
-            
             await trade_menu(update, context)
 
     except (NetworkError, TimedOut) as e:
-
         logger.warning(f"Сетевая ошибка: {e}")
 
     except Exception as e:
-
         logger.error(f"Ошибка обработки сообщения: {e}")
-
-
-# ===== АДМИН-КОМАНДЫ =====
-
 
 async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Добавление новой карточки (многострочно)."""
@@ -1508,214 +1363,127 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def toggle_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Включение/выключение карточки."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         if not context.args:
-
             await update.message.reply_text("ℹ️ Используйте: /toggle_card [ID]")
-
             return
-
         try:
-
             card_id = int(context.args[0])
-
         except ValueError:
-
             await update.message.reply_text("ℹ️ ID должен быть числом!")
-
             return
 
         for card in data["cards"]:
-
             if card["id"] == card_id:
-
                 card["available"] = not card["available"]
-
                 save_data(data)
-
                 await update.message.reply_text(
                     f"ℹ️ Карточка #{card_id} {'включена' if card['available'] else 'выключена'}"
                 )
-
                 return
-
         await update.message.reply_text(f"⚠️ Карточка #{card_id} не найдена")
-
     except Exception as e:
-
         logger.error(f"Ошибка переключения карточки: {e}")
-
         await update.message.reply_text("❌ Ошибка при изменении")
-
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Рассылка сообщения всем пользователям."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
         if not context.args:
-
             await update.message.reply_text("ℹ️ Используйте: /broadcast [текст]")
-
             return
-
         message_text = " ".join(context.args)
-
         users = data.get("users", {})
-
         if not users:
-
             await update.message.reply_text("ℹ️ Нет пользователей для рассылки!")
-
             return
-
         status = await update.message.reply_text(
             f"📢 Рассылка для {len(users)} пользователей..."
         )
-
         success, failed = 0, 0
-
         for i, user_id in enumerate(users.keys(), 1):
-
             try:
-
                 await context.bot.send_message(chat_id=user_id, text=message_text)
-
                 success += 1
-
             except Exception as e:
-
                 failed += 1
-
             if i % 5 == 0 or i == len(users):
-
                 await status.edit_text(
                     f"📢 Отправлено {i}/{len(users)}\n✅ Успешно: {success} | ❌ Ошибок: {failed}"
                 )
-
         await status.edit_text(
             f"✅ Рассылка завершена!\nВсего: {len(users)}\nУспешно: {success}\nОшибок: {failed}"
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка рассылки: {e}")
-
         await update.message.reply_text("❌ Ошибка при рассылке")
-
 
 async def reset_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Сброс всех карточек у всех пользователей."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
         reset_count = 0
-
         for user_data in data["users"].values():
-
             if "cards" in user_data:
-
                 user_data["cards"] = []
-
                 reset_count += 1
-
         save_data(data)
-
         await update.message.reply_text(
             f"✅ Сброшены карточки у {reset_count} пользователей!"
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка сброса карточек: {e}")
-
         await update.message.reply_text("❌ Ошибка при сбросе")
-
 
 async def delete_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Полное удаление карточки из системы."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
         if not context.args:
-
             await update.message.reply_text("ℹ️ Используйте: /delete_card [ID]")
-
             return
-
         try:
-
             card_id = int(context.args[0])
-
         except ValueError:
-
             await update.message.reply_text("ℹ️ ID должен быть числом!")
-
             return
-
+            
         removed_users = 0
-
+        
         # Удаляем из общего списка карт
-
         data["cards"] = [card for card in data["cards"] if card["id"] != card_id]
-
+        
         # Удаляем из коллекций пользователей
-
         for user_data in data["users"].values():
-
             if "cards" in user_data and card_id in user_data["cards"]:
-
                 user_data["cards"] = [
                     cid for cid in user_data["cards"] if cid != card_id
                 ]
-
                 removed_users += 1
 
         save_data(data)
-
         await update.message.reply_text(
             f"✅ Карточка #{card_id} удалена!\n"
             f"Удалена у {removed_users} пользователей."
         )
 
     except Exception as e:
-
         logger.error(f"Ошибка удаления карточки: {e}")
-
         await update.message.reply_text("❌ Ошибка при удалении")
 
 
