@@ -379,7 +379,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👊 Устроить допрос")],
             [KeyboardButton("👤 Мое досье")],
             [KeyboardButton("📁 Мой архив")],
-            [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🦇 Подземелье")]
         ]
@@ -480,13 +479,12 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ СОЗДАЁМ МЕНЮ ВЫБОРА СПОСОБА ПРОСМОТРА ⭐
         keyboard = [
             [InlineKeyboardButton("📊 По редкости", callback_data="barracks_rarity")],
-            [InlineKeyboardButton("📋 Все существа", callback_data="barracks_all")],
+            [InlineKeyboardButton("📋 Все карты", callback_data="barracks_all")],
         ]
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
-            # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
             try:
                 await query.message.delete()
             except:
@@ -495,11 +493,10 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=query.message.chat_id,
                 photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
-                    "🛡 Казарма\n\n"
+                    "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
-                    "• ⚔️ По фракции\n"
-                    "• 📋 Все существа"
+                    "• 📋 Все карты"
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
@@ -508,11 +505,10 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=update.effective_chat.id,
                 photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
-                    "🛡 Казарма\n\n"
+                    "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
-                    "• ⚔️ По фракции\n"
-                    "• 📋 Все существа"
+                    "• 📋 Все карты"
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
@@ -1213,7 +1209,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Возврат в главное меню
             keyboard = [
                 [KeyboardButton("👊 Устроить допрос")],
-                [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🦇 Подземелье")]
             ]
@@ -1241,7 +1236,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await my_profile(update, context)
             return
 
-        elif text == "📁 Мой архив":  # ← БЫЛО "🏰 Город"
+        elif text == "📁 Мой архив":
             await show_user_cards(update, context)
             return
 
