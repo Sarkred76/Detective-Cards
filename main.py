@@ -490,7 +490,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 pass
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                caption=(
+                text=(
                     "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
@@ -501,7 +501,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         else:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                caption=(
+                text=(
                     "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
