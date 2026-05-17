@@ -891,68 +891,66 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_id = str(update.effective_user.id)
             chat_id = update.effective_chat.id
             is_callback = False
-        
+            
         data = load_data()
         user_data = data["users"].get(user_id)
-        
         if not user_data:
             if is_callback:
                 await query.edit_message_text("❌ Вы ещё не начали игру!\nНажмите /start")
             else:
                 await update.message.reply_text("❌ Вы ещё не начали игру!\nНажмите /start")
             return
-        
+
         # Считаем уникальные карты пользователя
         user_card_ids = user_data.get("cards", [])
         unique_cards = len(set(user_card_ids))
-        
         # Считаем общее количество доступных карт в игре
         total_available_cards = len(
             [card for card in data["cards"] if card.get("available", True)]
         )
-        
         # Процент коллекции
         collection_percent = (
             round((unique_cards / total_available_cards * 100), 1)
             if total_available_cards > 0
             else 0
         )
-        
         # Считаем карты по редкостям
         card_counts = Counter(user_card_ids)
         rarity_stats = {}
         for card_id in set(user_card_ids):
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                rarity = card.get("rarity", "Classic")
+                rarity = card.get("rarity", "T1")
                 rarity_stats[rarity] = rarity_stats.get(rarity, 0) + 1
-        
         # Формируем статистику по редкостям
         rarity_text = ""
         for rarity in [
-            "Classic", 
+            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited", 
         ]:
             if rarity in rarity_stats:
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
-        
         if not rarity_text:
             rarity_text = "Пока нет существ\n"
-        
-        
+            
+        claimed_count = len(user_data.get("claimed_achievements", []))
         profile_text = (
-            f"👤 Профиль героя\n\n"
+            f"👤 Профиль героя\n"
             f"🆔 ID: `{user_id}`\n"
-            f"💰 Бэт-коины: {user_data.get('cents', 0)}\n"
-            f"💥 Очков репутации (сезон): {user_data.get('season_points', 0)}\n"
-            f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n\n"
+            f"💰 Золото: {user_data.get('cents', 0)}\n"
+            f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
+            f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n"
             f"🐦‍🔥 Коллекция:\n"
             f"📦 Собрано существ: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
-            f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n\n"
+            f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n"
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
             f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
+            f"🏆 Достижения: {claimed_count}/9\n"
         )
+        
+        # ⭐ ВАЖНО: УБЕДИТЕСЬ, ЧТО ЭТА СТРОКА ПРИСУТСТВУЕТ ⭐
+        keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
         
         # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
         if is_callback:
@@ -965,15 +963,15 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 chat_id=chat_id,
                 text=profile_text,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode = "Markdown"
+                parse_mode="Markdown"
             )
         else:
             await update.message.reply_text(
                 profile_text,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode = "Markdown"
+                parse_mode="Markdown"
             )
-        
+            
     except Exception as e:
         logger.error(f"Ошибка показа профиля: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
