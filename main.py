@@ -1219,7 +1219,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         logger.info(f"Сброшен поиск противника для пользователя {user_id}")
             # Возврат в главное меню
             keyboard = [
-                [KeyboardButton("Устроить допрос")],
+                [KeyboardButton("👊 Устроить допрос")],
                 [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🦇 Подземелье")]
@@ -1281,7 +1281,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await craft(update, context)
             return
 
-        if text == "Устроить допрос":
+        if text == "👊 Устроить допрос":
 
             user_data = data["users"].get(user_id)
 
@@ -3704,7 +3704,7 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             except:
                 pass
             keyboard = [
-                [KeyboardButton("Устроить допрос")],
+                [KeyboardButton("👊 Устроить допрос")],
                 [KeyboardButton("🎲 Бросить кубик")],
                 [
                     KeyboardButton("🛡 Казарма"),
