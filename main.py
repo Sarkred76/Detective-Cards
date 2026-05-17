@@ -2747,22 +2747,26 @@ async def craft_select_card(
         # Создаём клавиатуру
         keyboard = []
         
-        # Кнопка крафта — замените строку формирования callback_data:
+        # Кнопка крафта
         keyboard.append([
             InlineKeyboardButton(
                 f"🔨 Скрафтить ({count_needed} шт.)",
-                callback_data=f"craft_execute_{rule_key}|{card_id}"  # ← Используем |
+                callback_data=f"craft_execute_{rule_key}|{card_id}"
             )
         ])
 
-        # Кнопки навигации — замените формирование:
+        # Кнопки навигации
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_page_{rule_key}|{page - 1}"))  # ← |
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_page_{rule_key}|{page - 1}"))
         nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_cards}", callback_data="craft_info"))
         if page < total_cards - 1:
-            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_page_{rule_key}|{page + 1}"))  # ← |
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_page_{rule_key}|{page + 1}"))
         
+        # ⭐ ИСПРАВЛЕНИЕ: ДОБАВЛЯЕМ КНОПКИ НАВИГАЦИИ В КЛАВИАТУРУ ⭐
+        if nav_buttons:
+            keyboard.append(nav_buttons)
+
         # Кнопки возврата
         keyboard.append([
             InlineKeyboardButton("📋 Другие рецепты", callback_data="craft_menu"),
@@ -2790,7 +2794,7 @@ async def craft_select_card(
     except Exception as e:
         logger.error(f"Ошибка в craft_select_card: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
+        
 async def craft_execute(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
