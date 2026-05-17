@@ -57,7 +57,6 @@ SUPER_ADMIN_ID = "881692999"
 FORT_IMAGE_URL = "https://ibb.co/gZwy5v0G"
 FOREST_IMAGE_URL = "https://ibb.co/DgTPVmTr"
 TAVERN_IMAGE_URL = "https://ibb.co/jPQv7mYn"
-BARRACKS_IMAGE_URL = "https://ibb.co/cSVxP3kh"
 DUNGEON_IMAGE_URL = "https://ibb.co/yBckMfHf"
 ALTAR_IMAGE_URL = "https://ibb.co/S7c5NL6v"
 REFUGEE_CAMP_IMAGE_URL = "https://ibb.co/qY2W2TpR"
@@ -489,9 +488,8 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await query.message.delete()
             except:
                 pass
-            await context.bot.send_photo(
+            await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
                     "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
@@ -501,9 +499,8 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            await context.bot.send_photo(
+            await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
                     "📁 Мой архив\n\n"
                     "Выберите способ просмотра:\n"
