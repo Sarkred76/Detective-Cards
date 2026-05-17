@@ -3270,8 +3270,7 @@ async def invite_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # ⭐ ПРОВЕРКА ЛИМИТА ПЕРЕД ПРИГЛАШЕНИЕМ ⭐
         if len(user_clan["members"]) >= MAX_CLAN_MEMBERS:
             await update.message.reply_text(
-                f"❌ Невозможно пригласить: клан заполнен!
-"
+                f"❌ Невозможно пригласить: клан заполнен!"
                 f"👥 {len(user_clan['members'])}/{MAX_CLAN_MEMBERS} участников"
             )
             return
