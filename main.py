@@ -2891,8 +2891,8 @@ async def craft_execute(
         await send_card(update, new_card, context, caption=caption)
         
         # Возвращаем в меню выбора карт (обновлённое)
-        await asyncio.sleep(2)
-        await craft_select_card(update, context, rule_key, page=0)
+        #await asyncio.sleep(2)
+        #await craft_select_card(update, context, rule_key, page=0)
         
         logger.info(f"Игрок {user_id} выполнил крафт: {rule_key}, карта #{card_id} → #{new_card['id']}")
         
