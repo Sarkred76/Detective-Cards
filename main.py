@@ -856,7 +856,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             rarity_text = "Пока нет существ\n"
             
         profile_text = (
-            f"👤 Профиль героя\n"
+            f"👤 Профиль игрока\n"
             f"🆔 ID: `{user_id}`\n"
             f"💰 Бэт-коинов: {user_data.get('cents', 0)}\n"
             f"💥 Очков репутации (сезон): {user_data.get('season_points', 0)}\n"
@@ -866,7 +866,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"🔢 Всего получено: {len(user_card_ids)}\n"
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
-            f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
+            f"🎲 Бесплатные попытки: {user_data.get('free_rolls', 0)}\n"
         )
         
         # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
@@ -1132,8 +1132,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 time_text += f"{seconds} сек"
 
                 await update.message.reply_text(
-                    f"⏳ До следующего найма: {time_text}\n\n"
-                    f"🎲 Или бросьте кубик для бесплатного найма!"
+                    f"⏳ До следующего допроса: {time_text}\n\n"
+                    f"🎲 Или бросьте кубик для бесплатной попытки!"
                 )
                 return
 
@@ -1179,10 +1179,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🎰 Казино":
             await open_casino_from_button(update, context)
 
-        elif text == "👑 Мой герой":
-            await my_profile(update, context)
-
-        elif text == "🏆 Топ героев":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
+        elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             await top_players(update, context)
 
         elif text == "🔄 Трейд":  # ← ДОБАВЬТЕ
@@ -1849,7 +1846,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             minutes = (remaining % 3600) // 60
             await update.message.reply_text(
                 f"⏳ Следующий бросок через: {hours} ч {minutes} мин\n\n"
-                f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных наймов"
+                f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных попыток"
             )
             return
 
@@ -1868,8 +1865,8 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await asyncio.sleep(4)
         await update.message.reply_text(
             f"🎲 Выпало: {dice_value}!\n\n"
-            f"✨ Получено бесплатных наймов: {dice_value}\n"
-            f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
+            f"✨ Получено бесплатных попыток: {dice_value}\n"
+            f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n\n"
             f"⏳ Следующий бросок через 12 часов"
         )
     except Exception as e:
@@ -1889,7 +1886,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик")],
             [KeyboardButton("🎰 Казино")],
-            [KeyboardButton("🏆 Топ героев")],
+            [KeyboardButton("🏆 Топ игроков")],
             [KeyboardButton("🔄 Трейд")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
@@ -1930,11 +1927,11 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             f"📜 **Правила:**\n"
             f"• Стоимость игры: 3000 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
-            f"• При победе: 10 бесплатных наймов существ\n"
-            f"• Попыток сегодня: {attempts}/10\n"
+            f"• При победе: 10 бесплатных попыток\n"
+            f"• Игр сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n\n"
             f"💰 Ваш баланс: {cents} бэт-коинов\n"
-            f"🎲 Осталось попыток: {attempts}",
+            f"🎲 Осталось игр: {attempts}",
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
@@ -2006,9 +2003,9 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.message.reply_text(
                 f"🎉 **ДЖЕКПОТ!** 🎉\n\n"
                 f"✨ **3 одинаковых символа!**\n"
-                f"🎁 Получено: 10 бесплатных наймов\n"
-                f"📊 Всего наймов: {user_data['free_rolls']}\n\n"
-                f"🎲 Осталось попыток в казино: {user_data['casino_attempts']}",
+                f"🎁 Получено: 10 бесплатных попыток\n"
+                f"📊 Всего попыток: {user_data['free_rolls']}\n\n"
+                f"🎲 Осталось игр в казино: {user_data['casino_attempts']}",
                 parse_mode="Markdown",
             )
 
@@ -2067,7 +2064,7 @@ async def add_card_to_player(
 
         # Проверяем существование игрока
         if target_user_id not in data["users"]:
-            await update.message.reply_text(f"⚠️ герой {target_user_id} не найден!")
+            await update.message.reply_text(f"⚠️ игрок {target_user_id} не найден!")
             return
 
         # Проверяем существование карты
@@ -2155,23 +2152,23 @@ async def add_rolls_to_player(
         user_data["free_rolls"] = old_rolls + rolls_count
         save_data(data)
         await update.message.reply_text(
-            f"✅ **Наймы добавлены!**\n\n"
-            f"👤 Герой: {target_user_id}\n"
+            f"✅ **Попытки добавлены!**\n\n"
+            f"👤 Игрок: {target_user_id}\n"
             f"🎲 Добавлено: {rolls_count}\n"
             f"📊 Было: {old_rolls}\n"
             f"📈 Стало: {user_data['free_rolls']}\n\n"
-            f"{'🆕 Герой создан!' if created else ''}",
+            f"{'🆕 Игрок создан!' if created else ''}",
             parse_mode="Markdown",
         )
 
     except ValueError:
         await update.message.reply_text("⚠️ Количество должно быть числом!")
     except Exception as e:
-        logger.error(f"Ошибка добавления наймов герою: {e}")
-        await update.message.reply_text("❌ Ошибка при добавлении наймов")
+        logger.error(f"Ошибка добавления попыток игроку: {e}")
+        await update.message.reply_text("❌ Ошибка при добавлении попыток")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает топ-10 героев по очков репутации игроков по поинтам в сезоне (админы исключены)."""
+    """Показывает топ-10 игроков по очков репутации игроков по поинтам в сезоне (админы исключены)."""
     try:
         data = load_data()
         users = data.get("users", {})
@@ -2194,14 +2191,14 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         top_10 = sorted_users[:10]
         
         # Формируем сообщение
-        message_text = "🏆 **Топ героев этого сезона**\n\n"
+        message_text = "🏆 **Топ игроков этого сезона**\n\n"
         
         if not top_10:
-            message_text += "📭 Пока нет героев в топе!"
+            message_text += "📭 Пока нет игроков в топе!"
         else:
             for rank, (user_id, user_data) in enumerate(top_10, 1):
                 # Получаем имя из профиля Telegram
-                first_name = user_data.get("first_name", "Герой")
+                first_name = user_data.get("first_name", "Игрок")
                 last_name = user_data.get("last_name", "")
                 
                 # Формируем полное имя
@@ -2294,7 +2291,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not context.args:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n\n"
-                "/reset_season_points [ID_героя]\n\n"
+                "/reset_season_points [ID_игрока]\n\n"
                 "**Пример:**\n"
                 "/reset_season_points 881692999",
                 parse_mode="Markdown"
@@ -2305,7 +2302,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Проверяем существование игрока
         if target_user_id not in data["users"]:
-            await update.message.reply_text(f"⚠️ Герой {target_user_id} не найден!")
+            await update.message.reply_text(f"⚠️ Игрок {target_user_id} не найден!")
             return
         
         # Сохраняем старые поинты
@@ -2318,13 +2315,13 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Получаем имя игрока
         player_data = data["users"][target_user_id]
-        player_name = player_data.get("first_name", "Герой")
+        player_name = player_data.get("first_name", "Игрок")
         if player_data.get("last_name"):
             player_name += f" {player_data['last_name']}"
         
         await update.message.reply_text(
             f"✅ **Сезонные очки репутации сброшены!**\n\n"
-            f"👤 Герой: {player_name}\n"
+            f"👤 Игрок: {player_name}\n"
             f"🆔 ID: {target_user_id}\n"
             f"📊 Было очков репутации: {old_points}\n"
             f"📈 Стало очков репутации: 0\n\n"
@@ -2332,7 +2329,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="HTML"
         )
         
-        logger.info(f"Админ {user_id} сбросил сезонный очков репутации герою {target_user_id} ({old_points} → 0)")
+        logger.info(f"Админ {user_id} сбросил сезонный очков репутации игроку {target_user_id} ({old_points} → 0)")
         
     except Exception as e:
         logger.error(f"Ошибка reset_season_points: {e}")
@@ -2667,8 +2664,8 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
             f"📜 **Правила:**\n"
             f"• Стоимость игры: 3000 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
-            f"• При победе: 10 бесплатных наймов существ\n"
-            f"• Попыток сегодня: {attempts}/10\n"
+            f"• При победе: 10 бесплатных попыток\n"
+            f"• Игр сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n"
             f"💰 Ваш баланс: {cents} бэт-коинов\n",
             reply_markup=reply_markup,
