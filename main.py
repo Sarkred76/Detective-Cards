@@ -72,14 +72,30 @@ FREE_ROLLS_PACKAGE = {
 }
 
 SACRIFICE_REWARDS = {
-    "Classic": {"cents": 100, "free_rolls": 0},
+    "Common": {"cents": 100, "free_rolls": 0},
+    "Rare": {"cents": 100, "free_rolls": 0},
+    "Rare Team-up": {"cents": 100, "free_rolls": 0},
+    "Epic": {"cents": 100, "free_rolls": 0},
+    "Epic Team-up": {"cents": 100, "free_rolls": 0},
+    "Legendary": {"cents": 100, "free_rolls": 0},
+    "Legendary Team-up": {"cents": 100, "free_rolls": 0},
+    "Highlight": {"cents": 100, "free_rolls": 0},
+    "Limited": {"cents": 100, "free_rolls": 0},
 }
 
 # Бонусы по редкостям
 
 
 RARITY_BONUSES = {
-    "Classic": {"cents": 100, "points": 100, "probability": 100},
+    "Common": {"cents": 100, "points": 100, "probability": 55},
+    "Rare": {"cents": 250, "points": 250, "probability": 22},
+    "Rare Team-up": {"cents": 500, "points": 500, "probability": 10},
+    "Epic": {"cents": 500, "points": 500, "probability": 6},
+    "Epic Team-up": {"cents": 1000, "points": 1000, "probability": 3.2},
+    "Legendary": {"cents": 1000, "points": 1000, "probability": 2.7},
+    "Legendary Team-up": {"cents": 2000, "points": 2000, "probability": 0.8},
+    "Highlight": {"cents": 2000, "points": 2000, "probability": 0.3},
+    "Limited": {"cents": 0, "points": 0, "probability": 0},
 }
 
 
@@ -1855,7 +1871,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "**Параметры:**\n"
                 "• title - название карты\n"
                 "• url - URL изображения\n"
-                "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
+                "• rarity - редкость (Common - Highlight, Limited)\n"
                 "• faction - фракция (текст)\n"
                 "• available - статус (true/false)\n"
                 "• attack - атака (число или диапазон, например: 15 или 10-20)\n"
