@@ -313,7 +313,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👊 Устроить допрос")],
             [KeyboardButton("👤 Мое досье")],
             [KeyboardButton("📁 Мой архив")],
-            [KeyboardButton("🍺 Таверна")]
+            [KeyboardButton("🍺 Бар")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1058,7 +1058,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("👊 Устроить допрос")],
                 [KeyboardButton("👤 Мое досье")],
                 [KeyboardButton("📁 Мой архив")],
-                [KeyboardButton("🍺 Таверна")]
+                [KeyboardButton("🍺 Бар")]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
@@ -1170,7 +1170,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
 
-        elif text == "🍺 Таверна":
+        elif text == "🍺 Бар":
             await mini_games(update, context)
 
         elif text == "🎲 Бросить кубик":
@@ -1883,7 +1883,7 @@ async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Таверны с изображением."""
+    """Показывает меню Бара."""
     try:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
         keyboard = [
@@ -1894,15 +1894,10 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        caption = (
-            "🍺 Добро пожаловать в Таверну!"
-        )
 
-        await context.bot.send_photo(
+        await context.bot.send_message(
                 chat_id=update.effective_chat.id, 
-                photo=TAVERN_IMAGE_URL,  # ← Изображение Таверны
-                caption=caption,
+                text="🍺 Добро пожаловать в Бар!",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
