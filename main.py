@@ -1094,6 +1094,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("🔍 Получить досье")],
                 [KeyboardButton("👤 Личное дело")],
                 [KeyboardButton("📁 Мой архив")],
+                [KeyboardButton("🔨 Крафт")],
                 [KeyboardButton("🍺 Бар")]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
