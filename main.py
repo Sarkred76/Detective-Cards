@@ -377,7 +377,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("👊 Устроить допрос")],
-            [KeyboardButton("📁 Мое досье")],
+            [KeyboardButton("👤 Мое досье")],
+            [KeyboardButton("📁 Мой архив")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🦇 Подземелье")]
@@ -940,7 +941,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n\n"
             f"📦 Собрано карт: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
-            f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n"
+            f"🔢 Всего получено: {len(user_card_ids)}\n"
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
             f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
@@ -1236,12 +1237,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await buy_refugee_creature(update, context)
             return
 
-        elif text == "🏰 Город":
-            await city_menu(update, context)
+        elif text == "👤 Мое досье":
+            await my_profile(update, context)
             return
 
-        elif text == "📁 Мое досье":
-            await my_profile(update, context)
+        elif text == "📁 Мой архив":  # ← БЫЛО "🏰 Город"
+            await show_user_cards(update, context)
             return
 
         elif text == "🦇 Подземелье":
@@ -1383,10 +1384,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "👑 Мой герой":
 
             await my_profile(update, context)
-
-        elif text == "🛡 Казарма":
-
-            await show_user_cards(update, context)
 
         elif text == "🏆 Топ героев":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             
@@ -3752,49 +3749,6 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
     except Exception as e:
         logger.error(f"Ошибка в open_casino_from_button: {e}")
         await update.message.reply_text("❌ Ошибка при открытии казино")
-
-async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Города."""
-    try:
-        # ⭐ КЛАВИАТУРА С КНОПКАМИ ГОРОДА ⭐
-        keyboard = [
-            [KeyboardButton("🛡 Казарма")],
-            # [KeyboardButton("👑 Мой герой")],  # ← УДАЛЕНО
-            [KeyboardButton("🔙 Назад в меню")],
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            query = update.callback_query
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=(
-                    "🏰 **Город**\n"
-                    "Добро пожаловать в Город!\n"
-                    "Здесь вы можете:\n"
-                    "• 🛡 Посмотреть своих существ в Казарме\n"
-                    "Выберите действие:"  # ← Убрано упоминание профиля
-                ),
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-        else:
-            await update.message.reply_text(
-                "🏰 **Город**\n"
-                "Добро пожаловать в Город!\n"
-                "Здесь вы можете:\n"
-                "• 🛡 Посмотреть своих существ в Казарме\n"
-                "Выберите действие:",  # ← Убрано упоминание профиля
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-    except Exception as e:
-        logger.error(f"Ошибка в city_menu: {e}")
 
 async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню Подземелья."""
