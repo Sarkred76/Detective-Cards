@@ -377,6 +377,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("Устроить допрос")],
+            [KeyboardButton("📁 Мое досье")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🦇 Подземелье")]
@@ -1247,6 +1248,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🏰 Город":
             await city_menu(update, context)
+            return
+
+        elif text == "📁 Мое досье":
+            await my_profile(update, context)
             return
 
         elif text == "🦇 Подземелье":
@@ -3764,7 +3769,7 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ГОРОДА ⭐
         keyboard = [
             [KeyboardButton("🛡 Казарма")],
-            [KeyboardButton("👑 Мой герой")],
+            # [KeyboardButton("👑 Мой герой")],  # ← УДАЛЕНО
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -3779,30 +3784,27 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
-                    "🏰 **Город**\n\n"
-                    "Добро пожаловать в Город!\n\n"
+                    "🏰 **Город**\n"
+                    "Добро пожаловать в Город!\n"
                     "Здесь вы можете:\n"
                     "• 🛡 Посмотреть своих существ в Казарме\n"
-                    "• 👑 Проверить статистику героя\n\n"
-                    "Выберите действие:"
+                    "Выберите действие:"  # ← Убрано упоминание профиля
                 ),
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         else:
             await update.message.reply_text(
-                "🏰 **Город**\n\n"
-                "Добро пожаловать в Город!\n\n"
+                "🏰 **Город**\n"
+                "Добро пожаловать в Город!\n"
                 "Здесь вы можете:\n"
                 "• 🛡 Посмотреть своих существ в Казарме\n"
-                "• 👑 Проверить статистику героя\n\n"
-                "Выберите действие:",
+                "Выберите действие:",  # ← Убрано упоминание профиля
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
     except Exception as e:
         logger.error(f"Ошибка в city_menu: {e}")
-
 
 async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню Подземелья."""
