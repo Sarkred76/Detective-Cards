@@ -1486,62 +1486,44 @@ async def delete_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.error(f"Ошибка удаления карточки: {e}")
         await update.message.reply_text("❌ Ошибка при удалении")
 
-
 async def reset_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Сброс карточек конкретного пользователя."""
 
     try:
-
         data = load_data()
 
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         if not context.args:
-
             await update.message.reply_text("ℹ️ Используйте: /reset_user [ID]")
-
             return
-
         target_user_id = context.args[0]
 
         if target_user_id in data["users"]:
-
             data["users"][target_user_id]["cards"] = []
-
             save_data(data)
-
             await update.message.reply_text(
                 f"✅ Карточки пользователя {target_user_id} сброшены!"
             )
 
         else:
-
             await update.message.reply_text(
                 f"ℹ️ Пользователь {target_user_id} не найден"
             )
 
     except Exception as e:
-
         logger.error(f"Ошибка сброса пользователя: {e}")
-
         await update.message.reply_text("❌ Ошибка при сбросе")
-
 
 async def check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Статистика карточек."""
 
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         available = sum(1 for card in data["cards"] if card["available"])
@@ -1554,58 +1536,36 @@ async def check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
 
     except Exception as e:
-
         logger.error(f"Ошибка проверки статистики: {e}")
-
         await update.message.reply_text("❌ Ошибка при проверке")
-
-
-# ===== НОВЫЕ КОМАНДЫ ДЛЯ УПРАВЛЕНИЯ АДМИНАМИ =====
-
 
 async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список администраторов."""
 
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
         admins = data.get("admins", [])
 
         if not admins:
-
             await update.message.reply_text("Список администраторов пуст.")
-
             return
-
         response = "👥 Администраторы:\n"
 
         for admin_id in admins:
-
             # Попробуем получить username из данных пользователя (если есть)
-
             user_info = data["users"].get(admin_id, {})
-
             name = user_info.get("username") or user_info.get("first_name") or admin_id
-
             response += f"• {admin_id} (@{name})\n"
-
         await update.message.reply_text(response)
 
     except Exception as e:
-
         logger.error(f"Ошибка при показе админов: {e}")
-
         await update.message.reply_text(
             "❌ Ошибка при получении списка администраторов"
         )
-
 
 async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Редактирование параметров карты."""
@@ -1846,109 +1806,73 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Добавляет нового администратора."""
-
     try:
 
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         if not context.args:
-
             await update.message.reply_text(
                 "ℹ️ Используйте: /add_admin [ID пользователя]"
             )
-
             return
-
         new_admin_id = context.args[0]
-
         admins = data.setdefault("admins", [])
 
         if new_admin_id in admins:
-
             await update.message.reply_text(
                 f"ℹ️ Пользователь {new_admin_id} уже администратор."
             )
-
             return
-
         admins.append(new_admin_id)
-
         save_data(data)
-
         await update.message.reply_text(
             f"✅ Пользователь {new_admin_id} добавлен в администраторы."
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка добавления админа: {e}")
-
         await update.message.reply_text("❌ Ошибка при добавлении администратора")
-
 
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Удаляет администратора."""
-
     try:
-
         data = load_data()
 
-        if not is_admin(str(update.effective_user.id), data):
-
+        if not is_admin(str(update.effective_user.id), data)
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         if not context.args:
-
             await update.message.reply_text(
                 "ℹ️ Используйте: /remove_admin [ID пользователя]"
             )
-
             return
-
         admin_id = context.args[0]
-
         admins = data.get("admins", [])
-
+        
         if admin_id not in admins:
-
             await update.message.reply_text(
                 f"ℹ️ Пользователь {admin_id} не является администратором."
             )
-
             return
 
         # Нельзя удалить последнего админа (по желанию)
-
         if len(admins) == 1:
-
             await update.message.reply_text(
                 "⚠️ Нельзя удалить последнего администратора!"
             )
-
             return
-
+            
         admins.remove(admin_id)
-
         save_data(data)
-
         await update.message.reply_text(
             f"✅ Пользователь {admin_id} удалён из администраторов."
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка удаления админа: {e}")
-
         await update.message.reply_text("❌ Ошибка при удалении администратора")
-
 
 async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Крафт 2 одинаковых карт в новую карту редкости Upgrade."""
@@ -2409,17 +2333,11 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Бросок кубика для получения бесплатных попыток."""
-
     try:
-
         user_id = str(update.effective_user.id)
-
         data = load_data()
-
         user_data = data["users"].get(user_id)
-
         if not user_data:
-
             user_data = {
                 "username": update.effective_user.username or "",
                 "first_name": update.effective_user.first_name or "",
@@ -2436,65 +2354,46 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             data["users"][user_id] = user_data
 
         # Проверка кулдауна (6 часов)
-
         DICE_COOLDOWN = 12 * 60 * 60
-
         current_time = int(time.time())
-
         time_passed = current_time - user_data.get("last_dice_time", 0)
 
         if time_passed < DICE_COOLDOWN:
-
             remaining = DICE_COOLDOWN - time_passed
-
             hours = remaining // 3600
-
             minutes = (remaining % 3600) // 60
-
             await update.message.reply_text(
                 f"⏳ Следующий бросок через: {hours} ч {minutes} мин\n\n"
                 f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных наймов"
             )
-
             return
 
         # ⭐ ОТПРАВЛЯЕМ НАСТОЯЩИЙ КУБИК TELEGRAM ⭐
-
         sent_dice = await context.bot.send_dice(
             chat_id=update.effective_chat.id, emoji="🎲"  # Именно кубик!
         )
 
         # ⭐ ПОЛУЧАЕМ РЕАЛЬНОЕ ЗНАЧЕНИЕ ИЗ КУБИКА ⭐
-
         dice_value = sent_dice.dice.value  # Значение от 1 до 6
 
         # Добавляем бесплатные попытки (ровно столько, сколько выпало)
-
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + dice_value
-
         user_data["last_dice_time"] = current_time
-
         save_data(data)
-
         await asyncio.sleep(4)
-
         await update.message.reply_text(
             f"🎲 Выпало: {dice_value}!\n\n"
             f"✨ Получено бесплатных наймов: {dice_value}\n"
             f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
             f"⏳ Следующий бросок через 12 часов"
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка броска кубика: {e}")
-
         await update.message.reply_text("❌ Произошла ошибка")
 
 
 async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопки кубика."""
-
     await dice(update, context)
 
 
@@ -2525,45 +2424,27 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as e:
         logger.error(f"Ошибка в mini_games: {e}")
         
-           
-
 async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню казино."""
-
     try:
-
         query = update.callback_query
-
         await query.answer()
-
         user_id = str(query.from_user.id)
-
         data = load_data()
-
         user_data = data["users"].get(user_id)
-
         if not user_data:
-
             await query.edit_message_text("❌ Вы ещё не начали игру!")
-
             return
 
         # Проверяем сброс попыток
-
         check_casino_reset(user_data)
-
         save_data(data)
-
         attempts = user_data.get("casino_attempts", 10)
-
         cents = user_data.get("cents", 0)
-
         keyboard = [
             [InlineKeyboardButton("🎰 Играть (3000 бэт-коинов)", callback_data="casino_play")]
         ]
-
         reply_markup = InlineKeyboardMarkup(keyboard)
-
         await query.edit_message_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
@@ -2577,65 +2458,42 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка в casino_menu: {e}")
-
 
 async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Игра в казино."""
-
     try:
-
         query = update.callback_query
-
         await query.answer()
-
         user_id = str(query.from_user.id)
-
         data = load_data()
-
         user_data = data["users"].get(user_id)
-
         if not user_data:
-
             await query.edit_message_text("❌ Вы ещё не начали игру!")
-
             return
 
         # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
-
         is_super_admin = (user_id == SUPER_ADMIN_ID)
 
         # Проверяем сброс попыток
-
         check_casino_reset(user_data)
-
         attempts = user_data.get("casino_attempts", 0)
-
         cents = user_data.get("cents", 0)
-
+        
         # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКИ ⭐
-
         if not is_super_admin:
-
             # Проверяем попытки
-
             if attempts <= 0:
-
                 await query.edit_message_text(
                     "❌ **Лимит попыток исчерпан!**\n\n"
                     "Приходите завтра после 00:00 МСК 🕛",
                     parse_mode="Markdown",
                 )
-
                 return
 
             # Проверяем баланс
-
             if cents < 3000:
-
                 await query.edit_message_text(
                     f"❌ **Недостаточно бэт-коинов!**\n\n"
                     f"Нужно: 3000 бэт-коинов\n"
@@ -2643,41 +2501,28 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
                 )
-
                 return
 
             # Списываем центы и попытки
-
             user_data["cents"] -= 3000
-
             user_data["casino_attempts"] -= 1
-
         save_data(data)
-
+        
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
-
         sent_slot = await context.bot.send_dice(
             chat_id=query.message.chat_id, emoji="🎰"
         )
-
+        
         # ⭐ ПОЛУЧАЕМ ЗНАЧЕНИЕ (1-64) ⭐
-
         slot_value = sent_slot.dice.value
 
         # ⭐ ПРОВЕРЯЕМ ПОБЕДУ (только 1, 22, 43, 64) ⭐
-
         is_win = slot_value in [1, 22, 43, 64]
-
         if is_win:
-
             # Добавляем 10 бесплатных попыток
-
             await asyncio.sleep(2)
-
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
-
             save_data(data)
-
             await query.message.reply_text(
                 f"🎉 **ДЖЕКПОТ!** 🎉\n\n"
                 f"✨ **3 одинаковых символа!**\n"
@@ -2688,9 +2533,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
 
         else:
-
             await asyncio.sleep(2)
-
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
                 f"💰 Списано: 3000 бэт-коинов\n"
@@ -2698,56 +2541,37 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 parse_mode="Markdown",
             )
-
     except Exception as e:
-
         logger.error(f"Ошибка в casino_play: {e}")
-
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
 async def casino_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-
     try:
-
         query = update.callback_query
-
         await query.answer()
-
         if query.data == "casino_menu":
-
             await casino_menu(update, context)
 
         elif query.data == "casino_play":
-
             await casino_play(update, context)
 
     except Exception as e:
-
         logger.error(f"Ошибка casino_callback: {e}")
-
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def add_card_to_player(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Добавляет определённую карту определённому игроку."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         # Проверяем аргументы
-
         if not context.args or len(context.args) < 2:
-
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n\n"
                 "/add_card_to_player [ID_игрока] [ID_карты] [количество]\n\n"
@@ -2756,45 +2580,30 @@ async def add_card_to_player(
                 "/add_card_to_player 881692999 45 5 - добавить 5 карт",
                 parse_mode="Markdown",
             )
-
             return
-
         target_user_id = context.args[0]
-
         card_id = int(context.args[1])
-
         count = int(context.args[2]) if len(context.args) > 2 else 1
 
         # Проверяем существование игрока
-
         if target_user_id not in data["users"]:
-
             await update.message.reply_text(f"⚠️ герой {target_user_id} не найден!")
-
             return
 
         # Проверяем существование карты
-
         card = find_card_by_id(card_id, data["cards"])
-
         if not card:
-
             await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено!")
-
             return
 
         # Добавляем карту(ы) в коллекцию игрока
-
         user_data = data["users"][target_user_id]
 
         if "cards" not in user_data:
-
             user_data["cards"] = []
 
         for _ in range(count):
-
             user_data["cards"].append(card_id)
-
         save_data(data)
 
         await update.message.reply_text(
@@ -2806,37 +2615,24 @@ async def add_card_to_player(
             f"Всего карт у игрока: {len(user_data['cards'])}",
             parse_mode="Markdown",
         )
-
     except ValueError:
-
         await update.message.reply_text("⚠️ ID должен быть числом!")
-
     except Exception as e:
-
         logger.error(f"Ошибка добавления карты игроку: {e}")
-
         await update.message.reply_text("❌ Ошибка при добавлении карты")
-
 
 async def add_rolls_to_player(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Добавляет определённое количество бесплатных попыток игроку."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
 
         # Проверяем аргументы
-
         if not context.args or len(context.args) < 2:
-
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n\n"
                 "/add_rolls_to_player [ID_игрока] [количество]\n\n"
@@ -2847,17 +2643,12 @@ async def add_rolls_to_player(
             )
 
             return
-
         target_user_id = context.args[0]
-
         rolls_count = int(context.args[1])
 
         # Проверяем существование игрока
-
         if target_user_id not in data["users"]:
-
             # Создаём нового игрока если не существует
-
             user_data = {
                 "username": "",
                 "first_name": "Admin Granted",
@@ -2872,25 +2663,17 @@ async def add_rolls_to_player(
                 "casino_attempts": 10,
                 "last_casino_reset": 0,
             }
-
             data["users"][target_user_id] = user_data
-
             created = True
-
+            
         else:
-
             user_data = data["users"][target_user_id]
-
             created = False
 
         # Добавляем попытки
-
         old_rolls = user_data.get("free_rolls", 0)
-
         user_data["free_rolls"] = old_rolls + rolls_count
-
         save_data(data)
-
         await update.message.reply_text(
             f"✅ **Наймы добавлены!**\n\n"
             f"👤 Герой: {target_user_id}\n"
@@ -2902,13 +2685,9 @@ async def add_rolls_to_player(
         )
 
     except ValueError:
-
         await update.message.reply_text("⚠️ Количество должно быть числом!")
-
     except Exception as e:
-
         logger.error(f"Ошибка добавления наймов герою: {e}")
-
         await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -4768,31 +4547,21 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Ошибка mercenary_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
-  
 # ===== ЗАПУСК БОТА =====
 
-
 def main() -> None:
-
     try:
-
         if BOT_TOKEN == "ВАШ_ТОКЕН_БОТА" or INITIAL_ADMIN_ID == "ВАШ_ID_АДМИНА":
-
             print("ЗАМЕНИТЕ BOT_TOKEN И INITIAL_ADMIN_ID НА РЕАЛЬНЫЕ ЗНАЧЕНИЯ!")
-
             input("Нажмите Enter для выхода...")
-
             return
 
         if not os.path.exists(DATA_FILE):
-
             save_data(load_data())
-
             print("Создан новый файл данных")
 
         # Регистрируем обработчики
         application = Application.builder().token(BOT_TOKEN).build()
-
         handlers = [
             CommandHandler("start", start),
             CommandHandler("profile", my_profile),
