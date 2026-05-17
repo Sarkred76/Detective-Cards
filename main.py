@@ -310,8 +310,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
     try:
         keyboard = [
-            [KeyboardButton("👊 Устроить допрос")],
-            [KeyboardButton("👤 Мое досье")],
+            [KeyboardButton("🔍 Получить досье")],
+            [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📁 Мой архив")],
             [KeyboardButton("🍺 Бар")]
         ]
@@ -1055,8 +1055,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         logger.info(f"Сброшен поиск противника для пользователя {user_id}")
             # Возврат в главное меню
             keyboard = [
-                [KeyboardButton("👊 Устроить допрос")],
-                [KeyboardButton("👤 Мое досье")],
+                [KeyboardButton("🔍 Получить досье")],
+                [KeyboardButton("👤 Личное дело")],
                 [KeyboardButton("📁 Мой архив")],
                 [KeyboardButton("🍺 Бар")]
             ]
@@ -1067,7 +1067,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             return
 
-        elif text == "👤 Мое досье":
+        elif text == "👤 Личное дело":
             await my_profile(update, context)
             return
 
@@ -1075,7 +1075,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await show_user_cards(update, context)
             return
 
-        if text == "👊 Устроить допрос":
+        if text == "🔍 Получить досье":
 
             user_data = data["users"].get(user_id)
 
@@ -1132,7 +1132,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 time_text += f"{seconds} сек"
 
                 await update.message.reply_text(
-                    f"⏳ До следующего допроса: {time_text}\n\n"
+                    f"⏳ До получения следующего досье: {time_text}\n\n"
                     f"🎲 Или бросьте кубик для бесплатной попытки!"
                 )
                 return
