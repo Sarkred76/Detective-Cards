@@ -2648,8 +2648,7 @@ async def craft_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "🔨 **Мастерская крафта**\n\n"
             "Выберите рецепт для улучшения карт:\n"
             "• Соберите нужное количество дубликатов указанной редкости\n"
-            "• Получите 1 карту более высокой редкости + награды!\n\n"
-            "💡 Совет: карты для крафта должны быть у вас в коллекции."
+            "• Получите 1 карту более высокой редкости + награды!"
         )
         
         if query:
@@ -2953,7 +2952,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if query.data == "craft_back":
             # Возврат в главное меню через callback
             keyboard = [
-                [KeyboardButton("👊 Устроить допрос")],
+                [KeyboardButton("🔍 Получить досье")],
                 [KeyboardButton("👤 Мое досье")],
                 [KeyboardButton("📁 Мой архив")],
                 [KeyboardButton("🔨 Крафт")],  # ← Новая кнопка
