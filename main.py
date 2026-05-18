@@ -580,17 +580,9 @@ async def show_cards_by_rarity(
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
         
         if query:
+            # Было (примерно строка 1050):
             try:
-                # Определяем тип медиа для редактирования
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    media = InputMediaVideo(
-                        media=card["image_url"], 
-                        caption=caption,
-                        supports_streaming=True
-                    )
-                else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
-    
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
                 logger.error(
@@ -601,22 +593,12 @@ async def show_cards_by_rarity(
                     await query.message.delete()
                 except:
                     pass
-                # Отправляем с правильным типом медиа
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                    )
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=keyboard,
+                )
         else:
             await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
         
