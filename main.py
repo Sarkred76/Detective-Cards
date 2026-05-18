@@ -302,79 +302,48 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
         chat_id = update_or_chat_id.effective_chat.id
     if chat_id is None:
         return
-    
-    # ⭐ Гарантируем, что reply_markup — это InlineKeyboardMarkup ⭐
-    if reply_markup and not isinstance(reply_markup, InlineKeyboardMarkup):
-        reply_markup = InlineKeyboardMarkup(reply_markup)
+
+    url = card["image_url"]
     
     try:
-        if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
+        # ⭐ Пытаемся отправить как видео (автовоспроизведение в чате)
+        if card.get("media_type") == "animation" or url.lower().endswith((".mp4", ".webm")):
             await context.bot.send_video(
                 chat_id=chat_id,
-                video=card["image_url"],
+                video=url,
                 caption=caption,
                 reply_markup=reply_markup,
-                supports_streaming=True,
-                width=400,
+                supports_streaming=True,  # Включает inline-плеер
+                width=400,  # Опционально: размер превью
                 height=400
             )
         else:
             await context.bot.send_photo(
                 chat_id=chat_id,
-                photo=card["image_url"],
+                photo=url,
                 caption=caption,
                 reply_markup=reply_markup,
             )
     except Exception as e:
-        logger.warning(f"Ошибка отправки медиа: {e}. Пробую как документ...")
-        # Fallback: отправляем как документ
-        await context.bot.send_document(
+        # ⭐ Если видео не загрузилось, отправляем как документ/фото с fallback
+        logger.warning(f"Не удалось отправить как видео: {e}. Отправляю как фото/документ.")
+        await context.bot.send_photo(
             chat_id=chat_id,
-            document=card["image_url"],
+            photo=url,
             caption=caption,
             reply_markup=reply_markup,
         )
 
 async def edit_card_message(
-    query, 
-    card: Dict, 
-    caption: str, 
-    reply_markup: InlineKeyboardMarkup
+    query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup
 ) -> None:
-    """Редактирует сообщение с карточкой (только для фото)."""
-    try:
-        if card.get("media_type") == "animation":
-            # ⭐ Видео нельзя редактировать — отправляем новое сообщение ⭐
-            await query.message.delete()
-            await query.message.answer_video(
-                video=card["image_url"],
-                caption=caption,
-                reply_markup=reply_markup,
-                supports_streaming=True
-            )
-        else:
-            media = InputMediaPhoto(media=card["image_url"], caption=caption)
-            await query.edit_message_media(media=media, reply_markup=reply_markup)
-    except Exception as e:
-        logger.error(f"Ошибка редактирования: {e}")
-        # Fallback: удаляем старое и отправляем новое
-        try:
-            await query.message.delete()
-        except:
-            pass
-        if card.get("media_type") == "animation":
-            await query.message.answer_video(
-                video=card["image_url"],
-                caption=caption,
-                reply_markup=reply_markup,
-                supports_streaming=True
-            )
-        else:
-            await query.message.answer_photo(
-                photo=card["image_url"],
-                caption=caption,
-                reply_markup=reply_markup
-            )
+    """Редактирует сообщение с карточкой."""
+    if card.get("media_type") == "animation":
+        media = InputMediaAnimation(media=card["image_url"], caption=caption)
+        
+    else:
+        media = InputMediaPhoto(media=card["image_url"], caption=caption)
+    await query.edit_message_media(media=media, reply_markup=reply_markup)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
@@ -599,10 +568,7 @@ async def show_cards_by_rarity(
             )
         
         # ⭐ КНОПКА "НАЗАД" ⭐
-        keyboard = []
-        # ⭐ ДОБАВЛЯЕМ nav_buttons ТОЛЬКО ЕСЛИ ОНИ НЕ ПУСТЫЕ ⭐
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        keyboard = [nav_buttons]
         keyboard.append([
             InlineKeyboardButton(
                 "🔙 Назад",
@@ -615,42 +581,23 @@ async def show_cards_by_rarity(
         
         if query:
             try:
-                # Определяем тип медиа для редактирования
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    media = InputMediaVideo(
-                        media=card["image_url"], 
-                        caption=caption,
-                        supports_streaming=True
-                    )
-                else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
-    
-                await query.edit_message_media(media=media, reply_markup=keyboard)
-            except Exception as edit_error:
-                logger.error(
-                    f"❌ Ошибка редактирования существа #{card['id']}: {edit_error}"
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                await query.edit_message_media(
+                    media=media,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
                 )
-                logger.error(f"URL: {card['image_url']}")
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
                 try:
                     await query.message.delete()
                 except:
                     pass
-                # Отправляем с правильным типом медиа
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                    )
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
         else:
             await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
         
@@ -1054,16 +1001,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
 
             try:
-                # Определяем тип медиа для редактирования
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    media = InputMediaVideo(
-                        media=card["image_url"], 
-                        caption=caption,
-                        supports_streaming=True
-                    )
-                else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
-    
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
                 logger.error(
@@ -1074,22 +1012,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await query.message.delete()
                 except:
                     pass
-                # Отправляем с правильным типом медиа
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".mov")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                    )
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=keyboard,
+                )
 
         elif query.data == "barracks_back":
             try:
