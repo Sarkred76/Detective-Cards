@@ -295,35 +295,44 @@ def generate_card_caption(
     
     return caption
 
-async def send_card(
-    update_or_chat_id: Update,
-    card: Dict,
-    context: ContextTypes.DEFAULT_TYPE,
-    caption: Optional[str] = None,
-    reply_markup: Optional[InlineKeyboardMarkup] = None,
-    chat_id: Optional[int] = None,
-) -> None:
-    """Отправляет карточку в зависимости от типа медиа."""
-
-    if isinstance(update_or_chat_id, Update):
-        chat_id = update_or_chat_id.effective_chat.id
-        
+async def send_media(update_or_chat_id, media_url, context, caption=None, reply_markup=None):
+    """Умная отправка медиа: автоматически выбирает photo/video/animation."""
+    chat_id = update_or_chat_id.effective_chat.id if hasattr(update_or_chat_id, 'effective_chat') else update_or_chat_id
     if chat_id is None:
         return
 
-    if card.get("media_type") == "animation":
-        await context.bot.send_animation(
-            chat_id=chat_id,
-            animation=card["image_url"],
-            caption=caption,
-            reply_markup=reply_markup,
-        )
-    else:
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=card["image_url"],
-            caption=caption,
-            reply_markup=reply_markup,
+    url_lower = media_url.lower()
+    
+    try:
+        if url_lower.endswith(('.mp4', '.mov', '.avi')):
+            await context.bot.send_video(
+                chat_id=chat_id, 
+                video=media_url, 
+                caption=caption, 
+                reply_markup=reply_markup,
+                supports_streaming=True  # Улучшает совместимость
+            )
+        elif url_lower.endswith(('.gif', '.webm')):
+            await context.bot.send_animation(
+                chat_id=chat_id, 
+                animation=media_url, 
+                caption=caption, 
+                reply_markup=reply_markup
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=chat_id, 
+                photo=media_url, 
+                caption=caption, 
+                reply_markup=reply_markup
+            )
+    except Exception as e:
+        # Фоллбэк: если Telegram не принял видео как видео, отправим как документ
+        await context.bot.send_document(
+            chat_id=chat_id, 
+            document=media_url, 
+            caption=caption, 
+            reply_markup=reply_markup
         )
 
 async def edit_card_message(
@@ -591,7 +600,7 @@ async def show_cards_by_rarity(
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
         else:
-            await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
+            await send_media(update, card["image_url"], context, caption=caption, reply_markup=reply_markup)
         
     except Exception as e:
         logger.error(f"Ошибка при показе карт редкости {rarity}: {e}")
@@ -1252,7 +1261,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             save_data(data)
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
-            await send_card(update, card, context, caption=caption)
+            await send_media(update, card["image_url"], context, caption=caption, reply_markup=reply_markup)
 
         elif text == "🍺 Бар":
             await mini_games(update, context)
@@ -2529,7 +2538,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"🌟 Редкость: {card['rarity']}\n"
             f"Приятной игры!"
         )
-        await send_card(update, card, context, caption=caption)
+        await send_media(update, card["image_url"], context, caption=caption, reply_markup=reply_markup)
         
         logger.info(f"Игрок {user_id} активировал промокод {promo_code} {'(случайная карта)' if is_random else ''}")
         
@@ -2922,7 +2931,7 @@ async def craft_execute(
         
         # ⭐ 2. Отправляем полученную карту ОТДЕЛЬНЫМ сообщением ⭐
         caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
-        await send_card(update, new_card, context, caption=caption)
+        await send_media(update, card["image_url"], context, caption=caption, reply_markup=reply_markup)
         
         # ⭐ 3. Отправляем НОВОЕ сообщение с меню выбора карт (не редактируем!) ⭐
         await _send_craft_select_menu(context, query.message.chat_id, user_id, rule_key, page=0)
