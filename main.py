@@ -599,7 +599,10 @@ async def show_cards_by_rarity(
             )
         
         # ⭐ КНОПКА "НАЗАД" ⭐
-        keyboard = [nav_buttons]
+        keyboard = []
+        # ⭐ ДОБАВЛЯЕМ nav_buttons ТОЛЬКО ЕСЛИ ОНИ НЕ ПУСТЫЕ ⭐
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         keyboard.append([
             InlineKeyboardButton(
                 "🔙 Назад",
