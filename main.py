@@ -253,12 +253,14 @@ def create_cards_keyboard(
     return InlineKeyboardMarkup([nav_buttons])
 
 def determine_media_type(url: str, rarity: str) -> str:
-    """Определяет тип медиа на основе URL и редкости."""
+    # Если редкость помечена как анимация
     if rarity in AUTO_ANIMATED_RARITIES:
         return "animation"
-
-    if any(url.lower().endswith(ext) for ext in ANIMATED_FORMATS):
-        return "animation"
+    
+    # Если ссылка ведёт на видеофайл
+    if any(url.lower().endswith(ext) for ext in (".mp4", ".mov", ".webm", ".gif")):
+        return "animation"  # В Telegram "animation" = inline-видео без звука, отлично для превью
+        
     return "photo"
 
 def generate_card_caption(
@@ -295,33 +297,39 @@ def generate_card_caption(
     
     return caption
 
-async def send_card(
-    update_or_chat_id: Update,
-    card: Dict,
-    context: ContextTypes.DEFAULT_TYPE,
-    caption: Optional[str] = None,
-    reply_markup: Optional[InlineKeyboardMarkup] = None,
-    chat_id: Optional[int] = None,
-) -> None:
-    """Отправляет карточку в зависимости от типа медиа."""
-
+async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes.DEFAULT_TYPE, caption: Optional[str] = None, reply_markup: Optional[InlineKeyboardMarkup] = None, chat_id: Optional[int] = None) -> None:
     if isinstance(update_or_chat_id, Update):
         chat_id = update_or_chat_id.effective_chat.id
-        
     if chat_id is None:
         return
 
-    if card.get("media_type") == "animation":
-        await context.bot.send_animation(
-            chat_id=chat_id,
-            animation=card["image_url"],
-            caption=caption,
-            reply_markup=reply_markup,
-        )
-    else:
+    url = card["image_url"]
+    
+    try:
+        # ⭐ Пытаемся отправить как видео (автовоспроизведение в чате)
+        if card.get("media_type") == "animation" or url.lower().endswith((".mp4", ".webm")):
+            await context.bot.send_video(
+                chat_id=chat_id,
+                video=url,
+                caption=caption,
+                reply_markup=reply_markup,
+                supports_streaming=True,  # Включает inline-плеер
+                width=400,  # Опционально: размер превью
+                height=400
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=url,
+                caption=caption,
+                reply_markup=reply_markup,
+            )
+    except Exception as e:
+        # ⭐ Если видео не загрузилось, отправляем как документ/фото с fallback
+        logger.warning(f"Не удалось отправить как видео: {e}. Отправляю как фото/документ.")
         await context.bot.send_photo(
             chat_id=chat_id,
-            photo=card["image_url"],
+            photo=url,
             caption=caption,
             reply_markup=reply_markup,
         )
