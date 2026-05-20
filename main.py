@@ -3162,13 +3162,13 @@ def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
     """Возвращает название клана пользователя или None."""
     return data.get("user_clan", {}).get(user_id)
 
-def get_clan_data(clan_name: str, data: Dict) -> Optional[Dict]:
+def get_clan_data(clan_id: str, data: Dict) -> Optional[Dict]:
     """Возвращает данные клана по названию."""
-    return data.get("clans", {}).get(clan_name)
+    return data.get("clans", {}).get(clan_id)
 
-def is_clan_leader(user_id: str, clan_name: str, data: Dict) -> bool:
+def is_clan_leader(user_id: str, clan_id: str, data: Dict) -> bool:
     """Проверяет, является ли пользователь главой клана."""
-    clan = get_clan_data(clan_name, data)
+    clan = get_clan_data(clan_id, data)
     return clan and clan.get("leader_id") == user_id
 
 def can_create_clan(user_id: str, data: Dict) -> tuple[bool, str]:
@@ -3222,11 +3222,11 @@ async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
 def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     """Позволяет пользователю покинуть клан. Возвращает (success, message)."""
-    clan_name = get_user_clan(user_id, data)
-    if not clan_name:
+    clan["name"] = get_user_clan(user_id, data)
+    if not clan["name"]:
         return False, "Вы не состоите в клане!"
     
-    clan = get_clan_data(clan_name, data)
+    clan = get_clan_data(clan_id, data)
     if not clan:
         return False, "Ошибка: клан не найден!"
     
@@ -3241,17 +3241,17 @@ def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     
     # Если клан пуст — удаляем его
     if not clan["members"]:
-        del data["clans"][clan_name]
+        del data["clans"][clan["name"]]
     
     # Удаляем привязку пользователя
     if user_id in data["user_clan"]:
         del data["user_clan"][user_id]
     
-    return True, f"Вы покинули клан **{clan_name}**." if not is_leader else f"Клан **{clan_name}** распущен."
+    return True, f"Вы покинули клан **{clan["name"]}**." if not is_leader else f"Клан **{clan["name"]}** распущен."
 
-def get_clan_members_list(clan_name: str, data: Dict) -> str:
+def get_clan_members_list(clan_id: str, data: Dict) -> str:
     """Формирует текст со списком участников клана и их очками репутации."""
-    clan = get_clan_data(clan_name, data)
+    clan = get_clan_data(clan_id, data)
     if not clan:
         return "❌ Клан не найден!"
     
@@ -3296,7 +3296,7 @@ async def invite_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
             
         # Проверяем права (только создатель или офицеры могут приглашать)
-        if user_clan.get("creator") != user_id:
+        if user_clan.get("leader_id") != user_id:
             await update.message.reply_text("❌ Только создатель клана может приглашать!")
             return
             
@@ -3548,8 +3548,8 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         user_id = str(update.effective_user.id)
         data = load_data()
         
-        clan_name = get_user_clan(user_id, data)
-        if not clan_name:
+        clan_id = get_user_clan(user_id, data)
+        if not clan_id:
             keyboard = [
                 [KeyboardButton("➕ Создать клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
@@ -3561,7 +3561,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             )
             return
         
-        clan = get_clan_data(clan_name, data)
+        clan = get_clan_data(clan_id, data)
         if not clan:
             await update.message.reply_text("❌ Ошибка: данные клана повреждены!")
             return
@@ -3832,7 +3832,7 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
         "description": "",
     }
     # Привязываем пользователя к клану
-    data.setdefault("user_clan", {})[user_id] = clan_name
+    data.setdefault("user_clan", {})[user_id] = clan_id
     
     return True, f"Клан **«{clan_name}»** успешно создан!"
 
