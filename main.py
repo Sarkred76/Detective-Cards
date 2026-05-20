@@ -56,6 +56,10 @@ SUPER_ADMIN_ID = "881692999"
 CLAN_CREATION_COST = 30000
 MAX_CLAN_MEMBERS = 7
 
+BASKET_GAME_COST = 1000
+BASKET_MAX_PLAYS = 5
+BASKET_HIT_THRESHOLD = 4 
+
 SACRIFICE_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
     "Rare": {"cents": 100, "free_rolls": 0},
@@ -169,6 +173,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["last_dice_time"] = 0
                 if "casino_attempts" not in user_data:
                     user_data["casino_attempts"] = 10
+                if "basket_plays" not in user_data:
+                    user_data["basket_plays"] = 0
+                if "basket_last_reset" not in user_data:
+                    user_data["basket_last_reset"] = 0
                 if "last_casino_reset" not in user_data:
                     user_data["last_casino_reset"] = 0
                 if "used_promo_codes" not in user_data:
@@ -1304,6 +1312,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🎰 Казино":
             await open_casino_from_button(update, context)
 
+        elif text == "🏀 Баскет":
+            await play_basket(update, context)
+
         elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             await top_players(update, context)
 
@@ -1904,6 +1915,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик")],
             [KeyboardButton("🎰 Казино")],
+            [KeyboardButton("🏀 Баскет")],
             [KeyboardButton("🏆 Топ игроков")],
             [KeyboardButton("🔄 Трейд")],
             [KeyboardButton("🔙 Назад в меню")],
@@ -3878,6 +3890,76 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
     data.setdefault("user_clan", {})[user_id] = clan_name
     
     return True, f"Клан **«{clan_name}»** успешно создан!"
+
+def check_basket_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает попытки игры в Баскет в 00:00 по МСК."""
+    import datetime
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    last_reset = user_data.get("basket_last_reset", 0)
+    
+    if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
+        user_data["basket_plays"] = 0
+        user_data["basket_last_reset"] = int(now_msk.timestamp())
+
+async def play_basket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Мини-игра 'Баскет'. Стоимость: 1000 бэт-коинов, 5 попыток в день."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data:
+            await update.message.reply_text("❌ Вы ещё не начали игру! Нажмите /start")
+            return
+
+        check_basket_reset(user_data)
+        plays = user_data.get("basket_plays", 0)
+
+        if plays >= BASKET_MAX_PLAYS:
+            await update.message.reply_text(f"❌ Лимит игр исчерпан ({BASKET_MAX_PLAYS}/{BASKET_MAX_PLAYS})!\nПопробуйте завтра после 00:00 МСК.")
+            return
+
+        if user_data.get("cents", 0) < BASKET_GAME_COST:
+            await update.message.reply_text(f"❌ Недостаточно бэт-коинов! Нужно {BASKET_GAME_COST} бэт-коинов.")
+            return
+
+        # Списываем монеты и увеличиваем счётчик
+        user_data["cents"] -= BASKET_GAME_COST
+        user_data["basket_plays"] = plays + 1
+        save_data(data)
+
+        # Отправляем 3 мяча
+        hits = 0
+        await update.message.reply_text("🏀 Бросаем мячи!")
+        
+        for _ in range(3):
+            dice_msg = await context.bot.send_dice(chat_id=update.effective_chat.id, emoji="🏀")
+            await asyncio.sleep(1)  # Небольшая задержка между бросками
+            if dice_msg.dice.value >= BASKET_HIT_THRESHOLD:
+                hits += 1
+
+        if hits > 0:
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + hits
+            save_data(data)
+            await update.message.reply_text(
+                f"🏀 Попытка завершена!\n"
+                f"✅ Попаданий: {hits}/3\n"
+                f"🎁 Получено free rolls: {hits}\n"
+                f"📊 Всего free rolls: {user_data['free_rolls']}\n"
+                f"🔄 Осталось игр сегодня: {BASKET_MAX_PLAYS - user_data['basket_plays']}"
+            )
+        else:
+            await update.message.reply_text(
+                f"🏀 Попытка завершена!\n"
+                f"❌ Попаданий: 0/3\n"
+                f"🔄 Осталось игр сегодня: {BASKET_MAX_PLAYS - user_data['basket_plays']}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка в play_basket: {e}")
+        await update.message.reply_text("❌ Произошла ошибка при игре в Баскет")
+
+
 
 # ===== ЗАПУСК БОТА =====
 
