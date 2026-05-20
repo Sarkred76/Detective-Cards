@@ -3343,9 +3343,8 @@ async def invite_player_to_clan(
         await context.bot.send_message(
             chat_id=target_user_id,
             text=(
-                f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\\n"
-                f"👤 Пригласил: {clan['members'][inviter_id].get('username', 'Лидер')}\\n"
-                f"Для принятия приглашения используйте команду:\\n"
+                f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\n"
+                f"Для принятия приглашения используйте команду:\n"
                 f"`/accept_clan_invite`"
             ),
             parse_mode="Markdown"
@@ -3353,7 +3352,7 @@ async def invite_player_to_clan(
     except Exception as notify_error:
         logger.warning(f"Не удалось отправить уведомление о приглашении: {notify_error}")
     
-    return True, f"✅ Приглашение отправлено пользователю @{target_username}!"
+    return True, f"Приглашение отправлено пользователю @{target_username}!"
         
 async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Присоединение к клану по ID."""
