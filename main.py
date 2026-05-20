@@ -3162,9 +3162,19 @@ def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
     """Возвращает название клана пользователя или None."""
     return data.get("user_clan", {}).get(user_id)
 
-def get_clan_data(clan_id: str, data: Dict) -> Optional[Dict]:
-    """Возвращает данные клана по ID."""
-    return data.get("clans", {}).get(clan_id)
+def get_clan_data(clan_identifier: str, data: Dict) -> Optional[Dict]:
+    """Возвращает данные клана по ID или по названию."""
+    clans = data.get("clans", {})
+    
+    # Сначала ищем по ключу (clan_id) — быстрый путь
+    if clan_identifier in clans:
+        return clans[clan_identifier]
+    
+    # Если не нашли, ищем по названию — для совместимости
+    for clan in clans.values():
+        if clan.get("name") == clan_identifier:
+            return clan
+    return None
 
 def is_clan_leader(user_id: str, clan_id: str, data: Dict) -> bool:
     """Проверяет, является ли пользователь главой клана."""
@@ -3571,10 +3581,10 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         clan_name = clan["name"] 
         
         # Формируем сообщение
-        members_list = get_clan_members_list(clan_name, data)
+        members_list = get_clan_members_list(clan["name"], data)
         
         message_text = (
-            f"🏰 **Ваш клан: {clan_name}**\n\n"
+            f"🏰 **Ваш клан: {clan["name"]}**\n\n"
             f"{members_list}\n"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
