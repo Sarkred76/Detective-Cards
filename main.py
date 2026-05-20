@@ -3866,7 +3866,7 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
         "description": "",
     }
     # Привязываем пользователя к клану
-    data.setdefault("user_clan", {})[user_id] = clan_id
+    data.setdefault("user_clan", {})[user_id] = clan_name
     
     return True, f"Клан **«{clan_name}»** успешно создан!"
 
