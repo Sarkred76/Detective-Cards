@@ -3281,56 +3281,79 @@ def get_clan_members_list(clan_id: str, data: Dict) -> str:
     
     return members_text
 
-async def invite_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Приглашение игрока в клан."""
+async def invite_player_to_clan(
+    inviter_id: str,
+    target_username: str,
+    data: Dict,
+    context: ContextTypes.DEFAULT_TYPE
+) -> tuple[bool, str]:
+    """Приглашает игрока в клан по @никнейму. Возвращает (success, message)."""
+    # Находим клан приглашающего
+    inviter_clan_name = get_user_clan(inviter_id, data)
+    if not inviter_clan_name:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(inviter_clan_name, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    # Проверяем, что приглашающий — лидер клана
+    if clan.get("leader_id") != inviter_id:
+        return False, "Только глава клана может приглашать участников!"
+    
+    # Проверяем лимит участников
+    if len(clan["members"]) >= MAX_CLAN_MEMBERS:
+        return False, f"Клан заполнен! Максимум {MAX_CLAN_MEMBERS} участников."
+    
+    # Ищем целевого пользователя по никнейму
+    target_user_id = None
+    for uid, udata in data.get("users", {}).items():
+        # Сравниваем никнеймы без @ и в нижнем регистре
+        user_username = udata.get("username", "")
+        if user_username and user_username.lower() == target_username.lower():
+            target_user_id = uid
+            break
+    
+    if not target_user_id:
+        return False, f"Пользователь @{target_username} не найден!"
+    
+    # Нельзя пригласить самого себя
+    if target_user_id == inviter_id:
+        return False, "Вы не можете пригласить самого себя!"
+    
+    # Проверяем, не состоит ли пользователь уже в клане
+    if get_user_clan(target_user_id, data):
+        return False, "Этот игрок уже состоит в клане!"
+    
+    # Проверяем, не приглашён ли уже пользователь
+    target_user_data = data["users"].get(target_user_id, {})
+    if target_user_data.get("clan_invite_pending"):
+        return False, "У этого игрока уже есть ожидающее приглашение!"
+    
+    # Создаём приглашение
+    target_user_data["clan_invite_pending"] = {
+        "clan_name": inviter_clan_name,
+        "inviter_id": inviter_id,
+        "invited_at": int(time.time())
+    }
+    data["users"][target_user_id] = target_user_data
+    
+    # Уведомляем целевого пользователя
     try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        
-        if not context.args:
-            await update.message.reply_text("ℹ️ Используйте: /invite_clan [ID_игрока]")
-            return
-            
-        target_id = context.args[0]
-        
-        # Находим клан пользователя
-        user_clan = None
-        user_clan_id = None
-        for cid, clan in data.get("clans", {}).items():
-            if user_id in clan.get("members", {}):
-                user_clan = clan
-                user_clan_id = cid
-                break
-                
-        if not user_clan:
-            await update.message.reply_text("❌ Вы не состоите в клане!")
-            return
-            
-        # Проверяем права (только создатель или офицеры могут приглашать)
-        if user_clan.get("leader_id") != user_id:
-            await update.message.reply_text("❌ Только создатель клана может приглашать!")
-            return
-            
-        # ⭐ ПРОВЕРКА ЛИМИТА ПЕРЕД ПРИГЛАШЕНИЕМ ⭐
-        if len(user_clan["members"]) >= MAX_CLAN_MEMBERS:
-            await update.message.reply_text(
-                f"❌ Невозможно пригласить: клан заполнен!"
-                f"👥 {len(user_clan['members'])}/{MAX_CLAN_MEMBERS} участников"
-            )
-            return
-            
-        # Проверяем, не состоит ли игрок уже в клане
-        for clan in data.get("clans", {}).values():
-            if target_id in clan.get("members", []):
-                await update.message.reply_text("❌ Этот игрок уже в клане!")
-                return
-                
-        # Отправляем приглашение (реализация зависит от вашей системы приглашений)
-        # ... код отправки приглашения ...
-        
-    except Exception as e:
-        logger.error(f"Ошибка invite_to_clan: {e}")
-        await update.message.reply_text("❌ Ошибка при приглашении")
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=(
+                f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\\n"
+                f"👤 Пригласил: {clan['members'][inviter_id].get('username', 'Лидер')}\\n"
+                f"Для принятия приглашения используйте команду:\\n"
+                f"`/accept_clan_invite`"
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as notify_error:
+        logger.warning(f"Не удалось отправить уведомление о приглашении: {notify_error}")
+    
+    return True, f"✅ Приглашение отправлено пользователю @{target_username}!"
         
 async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Присоединение к клану по ID."""
