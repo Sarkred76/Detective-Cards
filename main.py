@@ -3562,9 +3562,7 @@ async def process_clan_name(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         if success:
             await update.message.reply_text(
-                f"✅ {message}\n\n"
-                f"Теперь вы можете приглашать участников командой:\n"
-                f"`/clan_invite @username`",
+                f"✅ {message}",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
@@ -3852,6 +3850,17 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
     for clan in data.get("clans", {}).values():
         if clan["name"].lower() == clan_name.lower():
             return False, f"Клан с названием «{clan_name}» уже существует!"
+
+    # Проверка и списание бэт-коинов
+    if user_id not in data.get("users", {}):
+        return False, "Ошибка: профиль пользователя не найден."
+        
+    current_cents = data["users"][user_id].get("cents", 0)
+    if current_cents < CLAN_CREATION_COST:
+        return False, f"Недостаточно бэт-коинов! Нужно {CLAN_CREATION_COST}."
+        
+    # ✅ Списываем стоимость создания
+    data["users"][user_id]["cents"] -= CLAN_CREATION_COST
     
     # Создаём клан
     clan_id = f"clan_{int(time.time())}_{user_id}"
