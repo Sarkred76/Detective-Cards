@@ -578,10 +578,15 @@ async def show_cards_by_rarity(
         
         # Генерируем описание
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
-        
+
         if query:
             try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                # ⭐ ПРОВЕРЯЕМ ТИП МЕДИа ⭐
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption)
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
+        
                 await query.edit_message_media(
                     media=media,
                     reply_markup=InlineKeyboardMarkup(keyboard)
@@ -592,13 +597,23 @@ async def show_cards_by_rarity(
                     await query.message.delete()
                 except:
                     pass
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
+                # ⭐ ОТПРАВЛЯЕМ С УЧЁТОМ ТИПА МЕДИА ⭐
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
         else:
+            # ⭐ ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ИСПОЛЬЗУЕМ send_card ⭐
             await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
         
     except Exception as e:
