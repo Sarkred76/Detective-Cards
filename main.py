@@ -3162,9 +3162,12 @@ def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
     """Возвращает название клана пользователя или None."""
     return data.get("user_clan", {}).get(user_id)
 
-def get_clan_data(clan_id: str, data: Dict) -> Optional[Dict]:
+def get_clan_data(clan_name: str, data: Dict) -> Optional[Dict]:
     """Возвращает данные клана по названию."""
-    return data.get("clans", {}).get(clan_id)
+    for clan in data.get("clans", {}).values():
+        if clan["name"] == clan_name:
+            return clan
+    return None
 
 def is_clan_leader(user_id: str, clan_id: str, data: Dict) -> bool:
     """Проверяет, является ли пользователь главой клана."""
@@ -3222,8 +3225,8 @@ async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
 def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     """Позволяет пользователю покинуть клан. Возвращает (success, message)."""
-    clan["name"] = get_user_clan(user_id, data)
-    if not clan["name"]:
+    clan_name = get_user_clan(user_id, data)
+    if not clan_name:
         return False, "Вы не состоите в клане!"
     
     clan = get_clan_data(clan_id, data)
@@ -3241,13 +3244,17 @@ def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     
     # Если клан пуст — удаляем его
     if not clan["members"]:
-        del data["clans"][clan["name"]]
+        # Находим ID клана для удаления (ключи в data["clans"] — это clan_id, а не имя)
+        for cid, c in data["clans"].items():
+            if c["name"] == clan_name:
+                del data["clans"][cid]
+                break
     
     # Удаляем привязку пользователя
     if user_id in data["user_clan"]:
         del data["user_clan"][user_id]
     
-    return True, f"Вы покинули клан **{clan["name"]}**." if not is_leader else f"Клан **{clan["name"]}** распущен."
+    return True, f"Вы покинули клан **{clan_name}**." if not is_leader else f"Клан **{clan_name}** распущен."
 
 def get_clan_members_list(clan_id: str, data: Dict) -> str:
     """Формирует текст со списком участников клана и их очками репутации."""
