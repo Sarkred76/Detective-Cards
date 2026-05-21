@@ -1313,7 +1313,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await open_casino_from_button(update, context)
 
         elif text == "🏀 Баскет":
-            await play_basket(update, context)
+            await basket_menu(update, context)
+            return
 
         elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             await top_players(update, context)
@@ -3902,64 +3903,109 @@ def check_basket_reset(user_data: Dict) -> None:
         user_data["basket_plays"] = 0
         user_data["basket_last_reset"] = int(now_msk.timestamp())
 
-async def play_basket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Мини-игра 'Баскет'. Стоимость: 1000 бэт-коинов, 5 попыток в день."""
+async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню и правила игры Баскет."""
+    keyboard = [[InlineKeyboardButton("🏀 Сыграть", callback_data="basket_play")]]
+    caption = (
+        "🏀 **Игра «Баскет»**\n\n"
+        "📜 **Правила:**\n"
+        "• Стоимость игры: 1000 бэт-коинов\n"
+        "• Бот бросает 3 баскетбольных мяча 🏀\n"
+        "• За каждое попадание вы получаете 1 бесплатную попытку\n"
+        "• Лимит: 5 игр в день (сброс в 00:00 МСК)"
+    )
+    if hasattr(update, 'callback_query') and update.callback_query:
+        query = update.callback_query
+        try: await query.message.delete()
+        except: pass
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            text=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
+async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок игры Баскет."""
     try:
-        user_id = str(update.effective_user.id)
+        query = update.callback_query
+        await query.answer()
+        if query.data == "basket_play":
+            await basket_play(update, context)
+    except Exception as e:
+        logger.error(f"Ошибка в basket_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Логика игры в Баскет."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data:
-            await update.message.reply_text("❌ Вы ещё не начали игру! Нажмите /start")
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
 
-        check_basket_reset(user_data)
-        plays = user_data.get("basket_plays", 0)
+        # Сброс дневного лимита в 00:00 МСК
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        now_msk = datetime.datetime.now(msk_tz)
+        last_reset = user_data.get("basket_last_reset", 0)
+        if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
+            user_data["basket_plays_today"] = 0
+            user_data["basket_last_reset"] = int(now_msk.timestamp())
 
-        if plays >= BASKET_MAX_PLAYS:
-            await update.message.reply_text(f"❌ Лимит игр исчерпан ({BASKET_MAX_PLAYS}/{BASKET_MAX_PLAYS})!\nПопробуйте завтра после 00:00 МСК.")
+        if user_data.get("basket_plays_today", 0) >= MAX_BASKET_DAILY_PLAYS:
+            await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
             return
 
         if user_data.get("cents", 0) < BASKET_GAME_COST:
-            await update.message.reply_text(f"❌ Недостаточно бэт-коинов! Нужно {BASKET_GAME_COST} бэт-коинов.")
+            await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {BASKET_GAME_COST}. У вас: {user_data.get('cents', 0)}")
             return
 
-        # Списываем монеты и увеличиваем счётчик
+        # Списание средств и учёт игры
         user_data["cents"] -= BASKET_GAME_COST
-        user_data["basket_plays"] = plays + 1
+        user_data["basket_plays_today"] += 1
         save_data(data)
 
-        # Отправляем 3 мяча
+        await query.edit_message_text("🏀 Бросаем мячи...")
+
         hits = 0
-        await update.message.reply_text("🏀 Бросаем мячи!")
-        
         for _ in range(3):
-            dice_msg = await context.bot.send_dice(chat_id=update.effective_chat.id, emoji="🏀")
-            await asyncio.sleep(1)  # Небольшая задержка между бросками
-            if dice_msg.dice.value >= BASKET_HIT_THRESHOLD:
+            await asyncio.sleep(1.5)
+            dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🏀")
+            # В Telegram 🏀 кубик выдаёт значения 1-5. 4 и 5 считаем попаданием.
+            if dice_msg.dice.value >= 4:
                 hits += 1
 
         if hits > 0:
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + hits
             save_data(data)
-            await update.message.reply_text(
-                f"🏀 Попытка завершена!\n"
-                f"✅ Попаданий: {hits}/3\n"
-                f"🎁 Получено free rolls: {hits}\n"
-                f"📊 Всего free rolls: {user_data['free_rolls']}\n"
-                f"🔄 Осталось игр сегодня: {BASKET_MAX_PLAYS - user_data['basket_plays']}"
+            await query.message.reply_text(
+                f"🏀 **Результат:** {hits}/3 попаданий!\n\n"
+                f"🎁 Получено бесплатных попыток: {hits}\n",
+                parse_mode="Markdown"
             )
         else:
-            await update.message.reply_text(
-                f"🏀 Попытка завершена!\n"
-                f"❌ Попаданий: 0/3\n"
-                f"🔄 Осталось игр сегодня: {BASKET_MAX_PLAYS - user_data['basket_plays']}"
-            )
-            
+            await query.message.reply_text("😔 Не повезло! 0/3 попаданий. Попробуйте ещё раз.")
+
+        # Возвращаем меню
+        keyboard = [[InlineKeyboardButton("🏀 Сыграть ещё", callback_data="basket_play")]]
+        await query.message.reply_text(
+            "🏀 **Баскет**\nХотите сыграть ещё раз?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
     except Exception as e:
-        logger.error(f"Ошибка в play_basket: {e}")
-        await update.message.reply_text("❌ Произошла ошибка при игре в Баскет")
-
-
+        logger.error(f"Ошибка в basket_play: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 # ===== ЗАПУСК БОТА =====
 
@@ -4019,6 +4065,7 @@ def main() -> None:
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
+            CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
         ]
 
         for handler in handlers:
