@@ -3892,17 +3892,6 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
     
     return True, f"Клан **«{clan_name}»** успешно создан!"
 
-def check_basket_reset(user_data: Dict) -> None:
-    """Проверяет и сбрасывает попытки игры в Баскет в 00:00 по МСК."""
-    import datetime
-    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-    now_msk = datetime.datetime.now(msk_tz)
-    last_reset = user_data.get("basket_last_reset", 0)
-    
-    if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
-        user_data["basket_plays"] = 0
-        user_data["basket_last_reset"] = int(now_msk.timestamp())
-
 async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню и правила игры Баскет."""
     keyboard = [[InlineKeyboardButton("🏀 Сыграть", callback_data="basket_play")]]
@@ -3931,17 +3920,6 @@ async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode="Markdown"
         )
 
-async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик кнопок игры Баскет."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        if query.data == "basket_play":
-            await basket_play(update, context)
-    except Exception as e:
-        logger.error(f"Ошибка в basket_callback: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
 async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Логика игры в Баскет."""
     try:
@@ -3958,10 +3936,10 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         now_msk = datetime.datetime.now(msk_tz)
         last_reset = user_data.get("basket_last_reset", 0)
         if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
-            user_data["basket_plays_today"] = 0
+            user_data["basket_plays"] = 0
             user_data["basket_last_reset"] = int(now_msk.timestamp())
 
-        if user_data.get("basket_plays_today", 0) >= MAX_BASKET_DAILY_PLAYS:
+        if user_data.get("basket_plays", 0) >= MAX_BASKET_DAILY_PLAYS:
             await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
             return
 
@@ -3971,7 +3949,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         # Списание средств и учёт игры
         user_data["cents"] -= BASKET_GAME_COST
-        user_data["basket_plays_today"] += 1
+        user_data["basket_plays"] += 1
         save_data(data)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
@@ -4006,6 +3984,19 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception as e:
         logger.error(f"Ошибка в basket_play: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок игры Баскет."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        if query.data == "basket_play":
+            await basket_play(update, context)
+    except Exception as e:
+        logger.error(f"Ошибка в basket_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
 
 # ===== ЗАПУСК БОТА =====
 
