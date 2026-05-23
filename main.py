@@ -362,7 +362,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("📁 Мой архив")],
             [KeyboardButton("🔨 Крафт")],
             [KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🏰 Кланы")] 
+            [KeyboardButton("🏰 Кланы")],
+            [KeyboardButton("🛍️ Магазин")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1187,7 +1188,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("📁 Мой архив")],
                 [KeyboardButton("🔨 Крафт")],
                 [KeyboardButton("🍺 Бар")],
-                [KeyboardButton("🏰 Кланы")]
+                [KeyboardButton("🏰 Кланы")],
+                [KeyboardButton("🛍️ Магазин")]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
