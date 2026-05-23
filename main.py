@@ -4025,21 +4025,47 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     # Если вызов через callback, удаляем старое сообщение
     if hasattr(update, 'callback_query') and update.callback_query:
-        try: await update.callback_query.message.delete()
-        except: pass
-        await context.bot.send_photo(chat_id=query.message.chat_id, photo=SHOP_MAIN_IMAGE, caption="🛍️ **Добро пожаловать в Магазин!**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        try: 
+            await update.callback_query.message.delete()
+        except: 
+            pass
+        await context.bot.send_photo(
+            chat_id=update.callback_query.message.chat_id,  # ← ИСПРАВЛЕНО
+            photo=SHOP_MAIN_IMAGE, 
+            caption="🛍️ **Добро пожаловать в Магазин!**", 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
     else:
-        await update.message.reply_photo(photo=SHOP_MAIN_IMAGE, caption="🛍️ **Добро пожаловать в Магазин!**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        await update.message.reply_photo(
+            photo=SHOP_MAIN_IMAGE, 
+            caption="🛍️ **Добро пожаловать в Магазин!**", 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
 
 async def shop_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Раздел Донат."""
     keyboard = [[InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]]
     if hasattr(update, 'callback_query') and update.callback_query:
-        try: await update.callback_query.message.delete()
-        except: pass
-        await context.bot.send_photo(chat_id=query.message.chat_id, photo=SHOP_DONATE_IMAGE, caption="💎 **Раздел Доната**\n\nЗдесь будет информация о донате.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        try: 
+            await update.callback_query.message.delete()
+        except: 
+            pass
+        await context.bot.send_photo(
+            chat_id=update.callback_query.message.chat_id,  # ← ИСПРАВЛЕНО
+            photo=SHOP_DONATE_IMAGE, 
+            caption="💎 **Раздел Доната**\n\nЗдесь будет информация о донате.", 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
     else:
-        await update.message.reply_photo(photo=SHOP_DONATE_IMAGE, caption="💎 **Раздел Доната**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        await update.message.reply_photo(
+            photo=SHOP_DONATE_IMAGE, 
+            caption="💎 **Раздел Доната**", 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
 
 async def shop_tries(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Раздел Попытки."""
@@ -4049,11 +4075,22 @@ async def shop_tries(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ]
     text = "🎟️ **Покупка попыток**\n\nВыберите предложение:"
     if hasattr(update, 'callback_query') and update.callback_query:
-        try: await update.callback_query.message.delete()
-        except: pass
-        await context.bot.send_message(chat_id=query.message.chat_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        try: 
+            await update.callback_query.message.delete()
+        except: 
+            pass
+        await context.bot.send_message(
+            chat_id=update.callback_query.message.chat_id,  # ← ИСПРАВЛЕНО
+            text=text, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
     else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        await update.message.reply_text(
+            text, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
 
 async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
     """Раздел Боксы с навигацией."""
@@ -4068,20 +4105,35 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     
     # Навигация ◀️ ▶️
     nav_btns = []
-    if page > 0: nav_btns.append(InlineKeyboardButton("◀️", callback_data=f"shop_boxes_{page-1}"))
+    if page > 0: 
+        nav_btns.append(InlineKeyboardButton("◀️", callback_data=f"shop_boxes_{page-1}"))
     nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
-    if page < len(SHOP_BOXES) - 1: nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
+    if page < len(SHOP_BOXES) - 1: 
+        nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
     
     keyboard.insert(1, nav_btns)
 
     text = f"📦 **{current_box['name']}**\n\nЦена: {current_box['price']} бэт-коинов"
     if hasattr(update, 'callback_query') and update.callback_query:
-        try: await update.callback_query.message.delete()
-        except: pass
-        await context.bot.send_photo(chat_id=query.message.chat_id, photo=current_box["image"], caption=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        try: 
+            await update.callback_query.message.delete()
+        except: 
+            pass
+        await context.bot.send_photo(
+            chat_id=update.callback_query.message.chat_id,  # ← ИСПРАВЛЕНО
+            photo=current_box["image"], 
+            caption=text, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
     else:
-        await update.message.reply_photo(photo=current_box["image"], caption=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
+        await update.message.reply_photo(
+            photo=current_box["image"], 
+            caption=text, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
+        
 async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик всех кнопок магазина."""
     query = update.callback_query
