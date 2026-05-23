@@ -4146,7 +4146,10 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif query.data == "shop_tries":
         await shop_tries(update, context)
     elif query.data.startswith("shop_boxes"):
-        page = int(query.data.split("_")[-1])
+        if query.data == "shop_boxes":  # ✅ Проверяем, это вход или навигация
+            page = 0
+        else:
+            page = int(query.data.split("_")[-1])
         context.user_data["shop_box_index"] = page
         await shop_boxes(update, context, page)
     elif query.data.startswith("shop_buy_box"):
