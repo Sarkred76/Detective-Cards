@@ -4146,25 +4146,58 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif query.data == "shop_tries":
         await shop_tries(update, context)
     elif query.data.startswith("shop_boxes"):
-        if query.data == "shop_boxes":  # ✅ Проверяем, это вход или навигация
+        if query.data == "shop_boxes":
             page = 0
         else:
-            page = int(query.data.split("_")[-1])
+            try:
+                page = int(query.data.split("_")[-1])
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка навигации", show_alert=True)
+                return
         context.user_data["shop_box_index"] = page
         await shop_boxes(update, context, page)
-    elif query.data.startswith("shop_buy_box"):
-        page = int(query.data.split("_")[-1])
-        box = SHOP_BOXES[page]
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id, {})
         
-        if user_data.get("cents", 0) < box["price"]:
-            await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
-        else:
-            user_data["cents"] -= box["price"]
-            save_data(data)
-            await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+    elif query.data.startswith("shop_buy_box"):
+        try:
+            page = int(query.data.split("_")[-1])
+            box = SHOP_BOXES[page]
+            user_id = str(query.from_user.id)
+            data = load_data()
+            user_data = data["users"].get(user_id, {})
+            
+            if user_data.get("cents", 0) < box["price"]:
+                # ❌ Ошибка: недостаточно средств
+                await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
+                await context.bot.send_message(  # ← ДОБАВЛЕНО
+                    chat_id=query.message.chat_id,
+                    text="❌ **Ошибка покупки**\n\nНедостаточно бэт-коинов!",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                    ]]),
+                    parse_mode="Markdown"
+                )
+            else:
+                # ✅ Успешная покупка
+                user_data["cents"] -= box["price"]
+                save_data(data)
+                
+                await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+                await context.bot.send_message(  # ← ДОБАВЛЕНО
+                    chat_id=query.message.chat_id,
+                    text=(
+                        f"✅ **Покупка успешна!**\n\n"
+                        f"📦 Вы приобрели: **{box['name']}**\n"
+                        f"💰 Списано: {box['price']} бэт-коинов\n"
+                        f"💳 Остаток: {user_data['cents']} бэт-коинов"
+                    ),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                    ]]),
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            logger.error(f"Ошибка покупки бокса: {e}")
+            await query.answer("❌ Произошла ошибка", show_alert=True)
             
     elif query.data == "shop_buy_10_tries":
         user_id = str(query.from_user.id)
@@ -4173,14 +4206,36 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         if user_data.get("cents", 0) < 10000:
             await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
+            await context.bot.send_message(  # ← ДОБАВЛЕНО
+                chat_id=query.message.chat_id,
+                text="❌ **Ошибка покупки**\n\nНедостаточно бэт-коинов для покупки 10 попыток!",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад", callback_data="shop_tries")
+                ]]),
+                parse_mode="Markdown"
+            )
         else:
             user_data["cents"] -= 10000
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
             save_data(data)
+            
             await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
+            await context.bot.send_message(  # ← ДОБАВЛЕНО
+                chat_id=query.message.chat_id,
+                text=(
+                    f"✅ **Покупка успешна!**\n\n"
+                    f"🎟️ Добавлено: **10 бесплатных попыток**\n"
+                    f"💰 Списано: 10 000 бэт-коинов\n"
+                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
+                ),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад", callback_data="shop_tries")
+                ]]),
+                parse_mode="Markdown"
+            )
 
     elif query.data == "shop_info":
-        await query.answer("Выберите нужный бокс!", show_alert=False)
+        await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
 
 # ===== ЗАПУСК БОТА =====
 
