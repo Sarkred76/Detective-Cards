@@ -1207,6 +1207,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🔨 Крафт":
             await craft_menu(update, context)
             return
+                    
+        elif text == "🛍️ Магазин":
+            await shop_menu(update, context)
+            return
 
         if text == "🔍 Получить досье":
 
@@ -3996,7 +4000,130 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.error(f"Ошибка в basket_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+# ===== МАГАЗИН =====
+# 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
+SHOP_MAIN_IMAGE = "https://files.catbox.moe/e8verh.jpg"  # Главное меню
+SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
+SHOP_BOX_IMAGE = "https://files.catbox.moe/0qmfkc.jpg"         # Общая картинка бокса
 
+# Список боксов для навигации
+SHOP_BOXES = [
+    {"name": "Бокс Суща", "price": 100000, "image": SHOP_BOX_IMAGE},
+    {"name": "Бокс Игната", "price": 100000, "image": SHOP_BOX_IMAGE},
+    {"name": "Бокс Наруми", "price": 100000, "image": SHOP_BOX_IMAGE},
+    {"name": "Бокс Шадива", "price": 100000, "image": SHOP_BOX_IMAGE}
+]
+
+async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Главное меню магазина."""
+    keyboard = [
+        [InlineKeyboardButton("📦 Боксы", callback_data="shop_boxes")],
+        [InlineKeyboardButton("🎟️ Попытки", callback_data="shop_tries")],
+        [InlineKeyboardButton("💎 Донат", callback_data="shop_donate")],
+    ]
+    # Если вызов через callback, удаляем старое сообщение
+    if hasattr(update, 'callback_query') and update.callback_query:
+        try: await update.callback_query.message.delete()
+        except: pass
+        await context.bot.send_photo(chat_id=query.message.chat_id, photo=SHOP_MAIN_IMAGE, caption="🛍️ **Добро пожаловать в Магазин!**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    else:
+        await update.message.reply_photo(photo=SHOP_MAIN_IMAGE, caption="🛍️ **Добро пожаловать в Магазин!**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+async def shop_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Раздел Донат."""
+    keyboard = [[InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]]
+    if hasattr(update, 'callback_query') and update.callback_query:
+        try: await update.callback_query.message.delete()
+        except: pass
+        await context.bot.send_photo(chat_id=query.message.chat_id, photo=SHOP_DONATE_IMAGE, caption="💎 **Раздел Доната**\n\nЗдесь будет информация о донате.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    else:
+        await update.message.reply_photo(photo=SHOP_DONATE_IMAGE, caption="💎 **Раздел Доната**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+async def shop_tries(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Раздел Попытки."""
+    keyboard = [
+        [InlineKeyboardButton("🎟️ Купить 10 попыток за 10 000 бэт-коинов", callback_data="shop_buy_10_tries")],
+        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+    ]
+    text = "🎟️ **Покупка попыток**\n\nВыберите предложение:"
+    if hasattr(update, 'callback_query') and update.callback_query:
+        try: await update.callback_query.message.delete()
+        except: pass
+        await context.bot.send_message(chat_id=query.message.chat_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    else:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
+    """Раздел Боксы с навигацией."""
+    if not context.user_data.get("shop_box_index"):
+        context.user_data["shop_box_index"] = 0
+        
+    current_box = SHOP_BOXES[page]
+    keyboard = [
+        [InlineKeyboardButton(f"💰 Купить за {current_box['price']} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
+        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+    ]
+    
+    # Навигация ◀️ ▶️
+    nav_btns = []
+    if page > 0: nav_btns.append(InlineKeyboardButton("◀️", callback_data=f"shop_boxes_{page-1}"))
+    nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
+    if page < len(SHOP_BOXES) - 1: nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
+    
+    keyboard.insert(1, nav_btns)
+
+    text = f"📦 **{current_box['name']}**\n\nЦена: {current_box['price']} бэт-коинов"
+    if hasattr(update, 'callback_query') and update.callback_query:
+        try: await update.callback_query.message.delete()
+        except: pass
+        await context.bot.send_photo(chat_id=query.message.chat_id, photo=current_box["image"], caption=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    else:
+        await update.message.reply_photo(photo=current_box["image"], caption=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик всех кнопок магазина."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "shop_menu":
+        await shop_menu(update, context)
+    elif query.data == "shop_donate":
+        await shop_donate(update, context)
+    elif query.data == "shop_tries":
+        await shop_tries(update, context)
+    elif query.data.startswith("shop_boxes"):
+        page = int(query.data.split("_")[-1])
+        context.user_data["shop_box_index"] = page
+        await shop_boxes(update, context, page)
+    elif query.data.startswith("shop_buy_box"):
+        page = int(query.data.split("_")[-1])
+        box = SHOP_BOXES[page]
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        if user_data.get("cents", 0) < box["price"]:
+            await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
+        else:
+            user_data["cents"] -= box["price"]
+            save_data(data)
+            await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+            
+    elif query.data == "shop_buy_10_tries":
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        if user_data.get("cents", 0) < 10000:
+            await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
+        else:
+            user_data["cents"] -= 10000
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
+            save_data(data)
+            await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
+
+    elif query.data == "shop_info":
+        await query.answer("Выберите нужный бокс!", show_alert=False)
 
 # ===== ЗАПУСК БОТА =====
 
@@ -4057,6 +4184,7 @@ def main() -> None:
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
             CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
+            CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
         ]
 
         for handler in handlers:
