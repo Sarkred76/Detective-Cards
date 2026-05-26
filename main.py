@@ -60,16 +60,17 @@ BASKET_GAME_COST = 1000
 MAX_BASKET_DAILY_PLAYS = 5
 BASKET_HIT_THRESHOLD = 4 
 
-SACRIFICE_REWARDS = {
+# ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
+BURN_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
-    "Rare": {"cents": 100, "free_rolls": 0},
-    "Rare Team-up": {"cents": 100, "free_rolls": 0},
-    "Epic": {"cents": 100, "free_rolls": 0},
-    "Epic Team-up": {"cents": 100, "free_rolls": 0},
-    "Legendary": {"cents": 100, "free_rolls": 0},
-    "Legendary Team-up": {"cents": 100, "free_rolls": 0},
-    "Highlight": {"cents": 100, "free_rolls": 0},
-    "Limited": {"cents": 100, "free_rolls": 0},
+    "Rare": {"cents": 200, "free_rolls": 0},
+    "Rare Team-up": {"cents": 300, "free_rolls": 0},
+    "Epic": {"cents": 0, "free_rolls": 1},
+    "Epic Team-up": {"cents": 0, "free_rolls": 3},
+    "Legendary": {"cents": 0, "free_rolls": 5},
+    "Legendary Team-up": {"cents": 0, "free_rolls": 7},
+    "Highlight": {"cents": 0, "free_rolls": 10},
+    "Limited": {"cents": 0, "free_rolls": 15},  # бонус для редкой
 }
 
 # Бонусы по редкостям
@@ -362,6 +363,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("📁 Мой архив")],
             [KeyboardButton("🔨 Крафт")],
             [KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🔥 Сжигание")],
             [KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин")]
         ]
@@ -1188,6 +1190,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("📁 Мой архив")],
                 [KeyboardButton("🔨 Крафт")],
                 [KeyboardButton("🍺 Бар")],
+                [KeyboardButton("🔥 Сжигание")],
                 [KeyboardButton("🏰 Кланы")],
                 [KeyboardButton("🛍️ Магазин")]
             ]
@@ -1311,6 +1314,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🍺 Бар":
             await mini_games(update, context)
+
+        elif text == "🔥 Сжигание":
+            await burn_menu(update, context)
+            return
 
         elif text == "🎲 Бросить кубик":
             await dice(update, context)
@@ -4237,6 +4244,386 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif query.data == "shop_info":
         await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
 
+# ===== МЕНЮ СЖИГАНИЯ =====
+async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню выбора редкости для сжигания (3×3 сетка)."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') else None
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            text = "❌ У вас нет карт для сжигания!"
+            if query:
+                await query.edit_message_text(text)
+            else:
+                await update.message.reply_text(text)
+            return
+        
+        # ⭐ СЕТКА 3×3: 9 редкостей ⭐
+        rarities = [
+            "Common", "Rare", "Rare Team-up",
+            "Epic", "Epic Team-up", "Legendary",
+            "Legendary Team-up", "Highlight", "Limited"
+        ]
+        
+        keyboard = []
+        for i in range(0, len(rarities), 3):
+            row = []
+            for rarity in rarities[i:i+3]:
+                # Проверяем, есть ли у игрока карты этой редкости
+                has_cards = any(
+                    (c := find_card_by_id(cid, data["cards"])) and c.get("rarity") == rarity
+                    for cid in set(user_data["cards"])
+                )
+                emoji = "🔥" if has_cards else "⚪"
+                row.append(InlineKeyboardButton(
+                    f"{emoji} {rarity}",
+                    callback_data=f"burn_rarity_{rarity}"
+                ))
+            keyboard.append(row)
+        
+        # Кнопки "Все карты" и "Назад"
+        keyboard.append([
+            InlineKeyboardButton("📋 Все карты", callback_data="burn_all"),
+            InlineKeyboardButton("🔙 Назад", callback_data="burn_back")
+        ])
+        
+        caption = (
+            "🔥 **Меню сжигания**\n"
+            "Выберите редкость для просмотра карт:\n\n"
+            "💰 **Награды за сжигание:**\n"
+            "• Common: 100 бэт-коинов 💰\n"
+            "• Rare: 200 бэт-коинов 💰\n"
+            "• Rare Team-up: 300 бэт-коинов 💰\n"
+            "• Epic: 1 бесплатный найм 🎲\n"
+            "• Epic Team-up: 3 бесплатных найма 🎲\n"
+            "• Legendary: 5 бесплатных наймов 🎲\n"
+            "• Legendary Team-up: 7 бесплатных наймов 🎲\n"
+            "• Highlight: 10 бесплатных наймов 🎲"
+        )
+        
+        if query:
+            try:
+                await query.edit_message_text(
+                    caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            except:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await update.message.reply_text(
+                caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в burn_menu: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Ошибка при открытии меню сжигания")
+
+
+async def show_burn_cards(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    rarity: Optional[str] = None,
+    start_index: int = 0
+) -> None:
+    """Показывает карты для сжигания с навигацией."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') else None
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            if query:
+                await query.edit_message_text("❌ У вас нет карт!")
+            else:
+                await update.message.reply_text("❌ У вас нет карт!")
+            return
+        
+        # Считаем количество каждой карты (дубликаты)
+        card_counts = Counter(user_data["cards"])
+        unique_card_ids = list(card_counts.keys())
+        
+        # Фильтруем по редкости если нужно
+        if rarity and rarity != "all":
+            display_cards = [
+                cid for cid in unique_card_ids
+                if (c := find_card_by_id(cid, data["cards"])) and c.get("rarity") == rarity
+            ]
+        else:
+            display_cards = unique_card_ids
+        
+        if not display_cards:
+            msg = f"❌ У вас нет карт{' этой редкости' if rarity and rarity != 'all' else ''}!"
+            if query:
+                await query.edit_message_text(msg)
+            else:
+                await update.message.reply_text(msg)
+            return
+        
+        # Сортируем для стабильной навигации
+        display_cards.sort()
+        total_cards = len(display_cards)
+        
+        # Корректировка индекса
+        start_index = max(0, min(start_index, total_cards - 1))
+        
+        current_card_id = display_cards[start_index]
+        card = find_card_by_id(current_card_id, data["cards"])
+        count = card_counts[current_card_id]
+        
+        if not card:
+            if query:
+                await query.edit_message_text("❌ Ошибка: карта не найдена!")
+            else:
+                await update.message.reply_text("❌ Ошибка: карта не найдена!")
+            return
+        
+        # ⭐ НАГРАДА ЗА СЖИГАНИЕ ⭐
+        reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
+        reward_parts = []
+        if reward["cents"] > 0:
+            reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
+        if reward["free_rolls"] > 0:
+            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+        
+        caption = (
+            f"🔥 **{card['title']}**\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"📦 В коллекции: {count} шт.\n\n"
+            f"🎁 При сжигании вы получите:\n"
+            f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}"
+        )
+        
+        # ⭐ КЛАВИАТУРА: навигация + действия ⭐
+        nav_row = []
+        if start_index > 0:
+            nav_row.append(InlineKeyboardButton(
+                "◀️", callback_data=f"burn_prev_{rarity or 'all'}_{start_index - 1}"
+            ))
+        nav_row.append(InlineKeyboardButton(
+            f"{start_index + 1}/{total_cards}", callback_data="burn_info"
+        ))
+        if start_index < total_cards - 1:
+            nav_row.append(InlineKeyboardButton(
+                "▶️", callback_data=f"burn_next_{rarity or 'all'}_{start_index + 1}"
+            ))
+        
+        keyboard = [nav_row]
+        keyboard.append([
+            InlineKeyboardButton("🔥 Сжечь", callback_data=f"burn_confirm_{current_card_id}"),
+            InlineKeyboardButton("🔙 Назад", callback_data="burn_back")
+        ])
+        
+        if query:
+            try:
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption)
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                await query.edit_message_media(
+                    media=media,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await send_card(update, card, context, caption=caption, 
+                              reply_markup=InlineKeyboardMarkup(keyboard),
+                              chat_id=query.message.chat_id)
+        else:
+            await send_card(update, card, context, caption=caption, 
+                          reply_markup=InlineKeyboardMarkup(keyboard))
+            
+    except Exception as e:
+        logger.error(f"Ошибка в show_burn_cards: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка")
+
+
+async def burn_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, card_id: int) -> None:
+    """Показывает подтверждение сжигания."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await query.answer("❌ Карта не найдена!", show_alert=True)
+            return
+        
+        reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
+        reward_parts = []
+        if reward["cents"] > 0:
+            reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
+        if reward["free_rolls"] > 0:
+            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Подтвердить", callback_data=f"burn_execute_{card_id}"),
+                InlineKeyboardButton("❌ Отмена", callback_data=f"burn_show_{card['rarity']}")
+            ]
+        ]
+        
+        await query.edit_message_text(
+            f"❓ **Подтвердите сжигание**\n\n"
+            f"🃏 Карта: {card['title']}\n"
+            f"🌟 Редкость: {card['rarity']}\n\n"
+            f"🎁 Вы получите:\n"
+            f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
+            f"⚠️ Карта будет безвозвратно удалена из коллекции!",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в burn_confirm: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_id: int) -> None:
+    """Выполняет сжигание карты."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # Проверяем наличие карты
+        if card_id not in user_data.get("cards", []):
+            await query.answer("❌ У вас нет этой карты!", show_alert=True)
+            return
+        
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await query.answer("❌ Карта не найдена!", show_alert=True)
+            return
+        
+        # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
+        user_data["cards"].remove(card_id)
+        
+        # ⭐ ВЫДАЁМ НАГРАДУ ⭐
+        reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
+        user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward["free_rolls"]
+        
+        save_data(data)
+        
+        reward_parts = []
+        if reward["cents"] > 0:
+            reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
+        if reward["free_rolls"] > 0:
+            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+        
+        keyboard = [[InlineKeyboardButton("🔙 Назад в сжигание", callback_data="burn_back")]]
+        
+        await query.edit_message_text(
+            f"✅ **Сжигание успешно!** 🔥\n\n"
+            f"🗑️ Удалено: {card['title']}\n"
+            f"🌟 Редкость: {card['rarity']}\n\n"
+            f"🎁 Награда получена:\n"
+            f"{' | '.join(reward_parts)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Игрок {user_id} сжёг карту #{card_id} ({card['rarity']})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в burn_execute: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик всех callback кнопок сжигания."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        # Меню редкостей
+        if query.data == "burn_menu":
+            await burn_menu(update, context)
+            return
+        
+        # Выбор редкости
+        if query.data.startswith("burn_rarity_"):
+            rarity = query.data.replace("burn_rarity_", "")
+            await show_burn_cards(update, context, rarity=rarity, start_index=0)
+            return
+        
+        # Все карты
+        if query.data == "burn_all":
+            await show_burn_cards(update, context, rarity="all", start_index=0)
+            return
+        
+        # Навигация: ПРЕДЫДУЩАЯ
+        if query.data.startswith("burn_prev_"):
+            parts = query.data.replace("burn_prev_", "").split("_")
+            rarity = parts[0] if parts[0] != "all" else None
+            index = int(parts[1])
+            await show_burn_cards(update, context, rarity=rarity, start_index=index)
+            return
+        
+        # Навигация: СЛЕДУЮЩАЯ
+        if query.data.startswith("burn_next_"):
+            parts = query.data.replace("burn_next_", "").split("_")
+            rarity = parts[0] if parts[0] != "all" else None
+            index = int(parts[1])
+            await show_burn_cards(update, context, rarity=rarity, start_index=index)
+            return
+        
+        # Инфо
+        if query.data == "burn_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+            return
+        
+        # Подтверждение сжигания
+        if query.data.startswith("burn_confirm_"):
+            card_id = int(query.data.replace("burn_confirm_", ""))
+            await burn_confirm(update, context, card_id)
+            return
+        
+        # Выполнение сжигания
+        if query.data.startswith("burn_execute_"):
+            card_id = int(query.data.replace("burn_execute_", ""))
+            await burn_execute(update, context, card_id)
+            return
+        
+        # Возврат к показу карты после отмены
+        if query.data.startswith("burn_show_"):
+            rarity = query.data.replace("burn_show_", "")
+            await show_burn_cards(update, context, rarity=rarity if rarity != "None" else None, start_index=0)
+            return
+        
+        # Назад в меню сжигания
+        if query.data == "burn_back":
+            await burn_menu(update, context)
+            return
+            
+    except Exception as e:
+        logger.error(f"Ошибка в burn_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -4297,6 +4684,7 @@ def main() -> None:
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
             CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
             CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
+            CallbackQueryHandler(burn_callback, pattern=r"^burn_.*"),
         ]
 
         for handler in handlers:
