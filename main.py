@@ -4546,16 +4546,27 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
             reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в сжигание", callback_data="burn_back")]]
-        
-        await query.edit_message_text(
-            f"✅ **Сжигание успешно!** 🔥\n\n"
-            f"🗑️ Удалено: {card['title']}\n"
-            f"🌟 Редкость: {card['rarity']}\n\n"
-            f"🎁 Награда получена:\n"
-            f"{' | '.join(reward_parts)}",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
+
+        try:
+            await query.edit_message_text(
+                f"✅ **Сжигание успешно!** 🔥\n\n"
+                f"🗑️ Удалено: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n\n"
+                f"🎁 Награда получена:\n"
+                f"{' | '.join(reward_parts)}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        except Exception:
+            await query.edit_message_caption(
+                f"✅ **Сжигание успешно!** 🔥\n\n"
+                f"🗑️ Удалено: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n\n"
+                f"🎁 Награда получена:\n"
+                f"{' | '.join(reward_parts)}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         
         logger.info(f"Игрок {user_id} сжёг карту #{card_id} ({card['rarity']})")
         
