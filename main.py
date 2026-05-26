@@ -4483,17 +4483,29 @@ async def burn_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
                 InlineKeyboardButton("❌ Отмена", callback_data=f"burn_show_{card['rarity']}")
             ]
         ]
-        
-        await query.edit_message_text(
-            f"❓ **Подтвердите сжигание**\n\n"
-            f"🃏 Карта: {card['title']}\n"
-            f"🌟 Редкость: {card['rarity']}\n\n"
-            f"🎁 Вы получите:\n"
-            f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
-            f"⚠️ Карта будет безвозвратно удалена из коллекции!",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
+
+        try:
+            await query.edit_message_text(
+                f"❓ **Подтвердите сжигание**\n\n"
+                f"🃏 Карта: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n\n"
+                f"🎁 Вы получите:\n"
+                f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
+                f"⚠️ Карта будет безвозвратно удалена из коллекции!",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        except Exception:
+            await query.edit_message_caption(
+                f"❓ **Подтвердите сжигание**\n\n"
+                f"🃏 Карта: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n\n"
+                f"🎁 Вы получите:\n"
+                f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
+                f"⚠️ Карта будет безвозвратно удалена из коллекции!",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
     except Exception as e:
         logger.error(f"Ошибка в burn_confirm: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
