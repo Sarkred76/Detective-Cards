@@ -4284,10 +4284,9 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 ))
             keyboard.append(row)
         
-        # Кнопки "Все карты" и "Назад"
+        # Кнопка "Все карты"
         keyboard.append([
-            InlineKeyboardButton("📋 Все карты", callback_data="burn_all"),
-            InlineKeyboardButton("🔙 Назад", callback_data="burn_back")
+            InlineKeyboardButton("📋 Все карты", callback_data="burn_all")
         ])
         
         caption = (
@@ -4400,7 +4399,7 @@ async def show_burn_cards(
             reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
         
         caption = (
-            f"🔥 **{card['title']}**\n"
+            f"🔥 {card['title']}\n"
             f"🌟 Редкость: {card['rarity']}\n"
             f"📦 В коллекции: {count} шт.\n\n"
             f"🎁 При сжигании вы получите:\n"
