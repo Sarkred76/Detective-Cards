@@ -4669,7 +4669,6 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         "• Мишень имеет 5 зон: от 1 до 5 очков\n"
         "• Наберите 10+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
         "• Лимит: 5 игр в день (сброс в 00:00 МСК)\n"
-        "• Админы играют без ограничений"
     )
     if hasattr(update, 'callback_query') and update.callback_query:
         try: await update.callback_query.message.delete()
@@ -4729,7 +4728,7 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await asyncio.sleep(1.5)
             dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🎯")
             # Telegram 🎯 выдаёт 1-6. Адаптируем под 5 зон мишени (6 -> 5)
-            points = min(dice_msg.dice.value, 5)
+            points = min(dice_msg.dice.value, 6)
             total_points += points
             results.append(points)
 
