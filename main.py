@@ -1154,6 +1154,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await my_clan_view(update, context)
             return
 
+        elif text == "🏆 Топ кланов":
+            await top_clans(update, context)
+            return
+
         if text == "🔙 Назад в кланы":
             await clan_menu(update, context)
             return
@@ -3456,6 +3460,7 @@ async def clan_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         keyboard = [
             [KeyboardButton("➕ Создать клан")],
             [KeyboardButton("📋 Мой клан" if clan_name else "🔒 Мой клан (не в клане)")],
+            [KeyboardButton("🏆 Топ кланов")],
             [KeyboardButton("🔙 Назад в меню")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -4767,7 +4772,74 @@ async def darts_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка в darts_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+async def top_clans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает топ-10 кланов по очкам репутации."""
+    try:
+        data = load_data()
+        clans = data.get("clans", {})
+        users = data.get("users", {})
 
+        if not clans:
+            await update.message.reply_text("📭 Пока нет созданных кланов!")
+            return
+
+        clan_scores = []
+        for clan_id, clan_data in clans.items():
+            total_rep = 0
+            member_count = len(clan_data.get("members", {}))
+            
+            # Суммируем total_points всех участников
+            for member_id in clan_data.get("members", {}):
+                user_data = users.get(member_id, {})
+                total_rep += user_data.get("total_points", 0)
+                
+            clan_scores.append({
+                "id": clan_id,
+                "name": clan_data.get("name", "Без названия"),
+                "reputation": total_rep,
+                "members": member_count
+            })
+
+        # Сортировка по репутации (по убыванию)
+        clan_scores.sort(key=lambda x: x["reputation"], reverse=True)
+        top_10 = clan_scores[:10]
+
+        message_text = "🏆 **Топ кланов по репутации**\n\n"
+        for rank, clan in enumerate(top_10, 1):
+            if rank == 1: medal = "🥇"
+            elif rank == 2: medal = "🥈"
+            elif rank == 3: medal = "🥉"
+            else: medal = f"{rank}."
+
+            message_text += f"{medal} **{clan['name']}**\n"
+            message_text += f"   👥 Участников: {clan['members']}\n"
+            message_text += f"   💎 Репутация: {clan['reputation']}\n\n"
+
+        # Показываем место клана пользователя, если он в клане
+        user_id = str(update.effective_user.id)
+        user_clan_id = data.get("user_clan", {}).get(user_id)
+        if user_clan_id:
+            user_clan_rank = None
+            for i, c in enumerate(clan_scores, 1):
+                if c["id"] == user_clan_id:
+                    user_clan_rank = i
+                    break
+            
+            if user_clan_rank:
+                message_text += "\n" + "─" * 30 + "\n"
+                if user_clan_rank <= 10:
+                    message_text += f"✅ **Ваш клан в топе! Место: {user_clan_rank}**\n"
+                else:
+                    message_text += f"📍 **Ваш клан вне топ-10. Место: {user_clan_rank}**\n"
+                current_clan_data = next((c for c in clan_scores if c["id"] == user_clan_id), None)
+                if current_clan_data:
+                    message_text += f"💎 Репутация вашего клана: {current_clan_data['reputation']}"
+
+        await update.message.reply_text(message_text, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Ошибка в top_clans: {e}")
+        await update.message.reply_text("❌ Ошибка при загрузке топа кланов")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -4813,6 +4885,7 @@ def main() -> None:
             CommandHandler("promo", activate_promo_code),
             CommandHandler("craft", craft_menu),
             CommandHandler("accept_clan_invite", accept_clan_invite),
+            CommandHandler("topclans", top_clans),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
