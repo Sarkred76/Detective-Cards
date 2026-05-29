@@ -4729,6 +4729,7 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🎯")
             # Telegram 🎯 выдаёт 1-6. Адаптируем под 5 зон мишени (6 -> 5)
             points = min(dice_msg.dice.value, 6)
+            points -= 1
             total_points += points
             results.append(points)
 
