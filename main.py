@@ -128,6 +128,11 @@ CRAFT_RULES = {
 
 CRAFT_ITEMS_PER_PAGE = 5  # Сколько карт показывать на странице
 
+# ===== КОНСТАНТЫ ДАРТСА =====
+DARTS_GAME_COST = 500
+MAX_DARTS_DAILY_PLAYS = 5
+DARTS_WIN_THRESHOLD = 10
+
 # Настройка логирования
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -176,6 +181,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["casino_attempts"] = 10
                 if "basket_plays" not in user_data:
                     user_data["basket_plays"] = 0
+                if "darts_plays" not in user_data:
+                    user_data["darts_plays"] = 0
+                if "darts_last_reset" not in user_data:
+                    user_data["darts_last_reset"] = 0
                 if "basket_last_reset" not in user_data:
                     user_data["basket_last_reset"] = 0
                 if "last_casino_reset" not in user_data:
@@ -1329,6 +1338,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await basket_menu(update, context)
             return
 
+        elif text == "🎯 Дартс":
+            await darts_menu(update, context)
+            return
+
         elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             await top_players(update, context)
 
@@ -1930,6 +1943,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             [KeyboardButton("🎲 Бросить кубик")],
             [KeyboardButton("🎰 Казино")],
             [KeyboardButton("🏀 Баскет")],
+            [KeyboardButton("🎯 Дартс")],
             [KeyboardButton("🏆 Топ игроков")],
             [KeyboardButton("🔄 Трейд")],
             [KeyboardButton("🔙 Назад в меню")],
@@ -4644,6 +4658,115 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error(f"Ошибка в burn_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню и правила игры Дартс."""
+    keyboard = [[InlineKeyboardButton("🎯 Бросить дротики", callback_data="darts_play")]]
+    caption = (
+        "🎯 **Мини-игра «Дартс»**\n\n"
+        "📜 **Правила:**\n"
+        "• Стоимость игры: 500 бэт-коинов\n"
+        "• Бот бросает 3 дротика 🎯\n"
+        "• Мишень имеет 5 зон: от 1 до 5 очков\n"
+        "• Наберите 10+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
+        "• Лимит: 5 игр в день (сброс в 00:00 МСК)\n"
+        "• Админы играют без ограничений"
+    )
+    if hasattr(update, 'callback_query') and update.callback_query:
+        try: await update.callback_query.message.delete()
+        except: pass
+        await context.bot.send_message(
+            chat_id=update.callback_query.message.chat_id,
+            text=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            text=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
+async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Логика игры в Дартс."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data:
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
+            return
+
+        # Сброс дневного лимита в 00:00 МСК
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        now_msk = datetime.datetime.now(msk_tz)
+        last_reset = user_data.get("darts_last_reset", 0)
+        if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
+            user_data["darts_plays"] = 0
+            user_data["darts_last_reset"] = int(now_msk.timestamp())
+
+        is_admin_user = is_admin(user_id, data)
+        if not is_admin_user and user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
+            await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
+            return
+
+        if not is_admin_user and user_data.get("cents", 0) < DARTS_GAME_COST:
+            await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {DARTS_GAME_COST}. У вас: {user_data.get('cents', 0)}")
+            return
+
+        # Списание средств и учёт игры
+        if not is_admin_user:
+            user_data["cents"] -= DARTS_GAME_COST
+            user_data["darts_plays"] += 1
+        save_data(data)
+
+        await query.edit_message_text("🎯 Бросаем дротики...")
+        total_points = 0
+        results = []
+
+        for _ in range(3):
+            await asyncio.sleep(1.5)
+            dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🎯")
+            # Telegram 🎯 выдаёт 1-6. Адаптируем под 5 зон мишени (6 -> 5)
+            points = min(dice_msg.dice.value, 5)
+            total_points += points
+            results.append(points)
+
+        win = total_points >= DARTS_WIN_THRESHOLD
+        if win:
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
+            save_data(data)
+
+        await query.message.reply_text(
+            f"🎯 **Результаты бросков:** {', '.join(map(str, results))}\n"
+            f"📊 **Итого очков:** {total_points}/10\n"
+            f"{'✅ Победа! Получено 3 бесплатные попытки 🎲' if win else '😔 Не хватило очков. Попробуйте ещё раз.'}",
+            parse_mode="Markdown"
+        )
+
+        # Возвращаем меню
+        keyboard = [[InlineKeyboardButton("🎯 Сыграть ещё", callback_data="darts_play")]]
+        await query.message.reply_text(
+            "🎯 **Дартс**\nХотите сыграть ещё раз?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в darts_play: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def darts_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок игры Дартс."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        if query.data == "darts_play":
+            await darts_play(update, context)
+    except Exception as e:
+        logger.error(f"Ошибка в darts_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
 
 
 # ===== ЗАПУСК БОТА =====
@@ -4707,6 +4830,7 @@ def main() -> None:
             CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
             CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
             CallbackQueryHandler(burn_callback, pattern=r"^burn_.*"),
+            CallbackQueryHandler(darts_callback, pattern=r"^darts_.*"),
         ]
 
         for handler in handlers:
