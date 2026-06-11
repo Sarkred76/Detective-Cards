@@ -2099,10 +2099,8 @@ async def casino_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.error(f"Ошибка casino_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
-async def add_card_to_player(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Добавляет определённую карту определённому игроку."""
+async def add_card_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет определённую карту определённому игроку (по ID или @никнейму)."""
     try:
         data = load_data()
         if not is_admin(str(update.effective_user.id), data):
@@ -2112,22 +2110,35 @@ async def add_card_to_player(
         # Проверяем аргументы
         if not context.args or len(context.args) < 2:
             await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n\n"
-                "/add_card_to_player [ID_игрока] [ID_карты] [количество]\n\n"
+                "ℹ️ **Формат команды:**\n"
+                "/add_card_to_player [ID_или_@никнейм] [ID_карты] [количество]\n"
                 "**Примеры:**\n"
                 "/add_card_to_player 881692999 45 - добавить 1 карту\n"
-                "/add_card_to_player 881692999 45 5 - добавить 5 карт",
+                "/add_card_to_player @username 45 5 - добавить 5 карт",
                 parse_mode="Markdown",
             )
             return
-        target_user_id = context.args[0]
+
+        target_input = context.args[0]
         card_id = int(context.args[1])
         count = int(context.args[2]) if len(context.args) > 2 else 1
 
-        # Проверяем существование игрока
-        if target_user_id not in data["users"]:
-            await update.message.reply_text(f"⚠️ игрок {target_user_id} не найден!")
-            return
+        # ⭐ ОПРЕДЕЛЯЕМ ID ИГРОКА ⭐
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
 
         # Проверяем существование карты
         card = find_card_by_id(card_id, data["cards"])
@@ -2137,25 +2148,23 @@ async def add_card_to_player(
 
         # Добавляем карту(ы) в коллекцию игрока
         user_data = data["users"][target_user_id]
-
         if "cards" not in user_data:
             user_data["cards"] = []
-
         for _ in range(count):
             user_data["cards"].append(card_id)
         save_data(data)
 
         await update.message.reply_text(
-            f"✅ **Карта добавлена!**\n\n"
+            f"✅ **Карта добавлена!**\n"
             f"👤 Игрок: {target_user_id}\n"
             f"🃏 Карта: {card['title']} (#{card_id})\n"
             f"🌟 Редкость: {card['rarity']}\n"
-            f"📦 Количество: {count} шт.\n\n"
+            f"📦 Количество: {count} шт.\n"
             f"Всего карт у игрока: {len(user_data['cards'])}",
             parse_mode="Markdown",
         )
     except ValueError:
-        await update.message.reply_text("⚠️ ID должен быть числом!")
+        await update.message.reply_text("⚠️ ID карты и количество должны быть числами!")
     except Exception as e:
         logger.error(f"Ошибка добавления карты игроку: {e}")
         await update.message.reply_text("❌ Ошибка при добавлении карты")
@@ -2173,21 +2182,40 @@ async def add_rolls_to_player(
         # Проверяем аргументы
         if not context.args or len(context.args) < 2:
             await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n\n"
-                "/add_rolls_to_player [ID_игрока] [количество]\n\n"
+                "ℹ️ **Формат команды:**\n"
+                "/add_rolls_to_player [ID_или_@никнейм] [количество]\n"
                 "**Примеры:**\n"
                 "/add_rolls_to_player 881692999 10 - добавить 10 попыток\n"
-                "/add_rolls_to_player 881692999 100 - добавить 100 попыток",
+                "/add_rolls_to_player @username 10 - добавить 10 попыток",
                 parse_mode="Markdown",
             )
-
             return
-        target_user_id = context.args[0]
-        rolls_count = int(context.args[1])
 
-        # Проверяем существование игрока
+        target_input = context.args[0]
+        rolls_count = int(context.args[1])
+        
+        target_user_id = None
+        is_new_user = False
+
+        # ⭐ ЛОГИКА ПОИСКА ПО @НИКНЕЙМУ ⭐
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            # Если ввели ID
+            target_user_id = target_input
+            # Если игрока с таким ID нет, пометим для создания
+            if target_user_id not in data["users"]:
+                is_new_user = True
+
+        # Создаем игрока, если его нет (работает только для ID)
         if target_user_id not in data["users"]:
-            # Создаём нового игрока если не существует
             user_data = {
                 "username": "",
                 "first_name": "Admin Granted",
@@ -2203,31 +2231,28 @@ async def add_rolls_to_player(
                 "last_casino_reset": 0,
             }
             data["users"][target_user_id] = user_data
-            created = True
-            
         else:
             user_data = data["users"][target_user_id]
-            created = False
 
         # Добавляем попытки
         old_rolls = user_data.get("free_rolls", 0)
         user_data["free_rolls"] = old_rolls + rolls_count
         save_data(data)
+
         await update.message.reply_text(
-            f"✅ **Попытки добавлены!**\n\n"
-            f"👤 Игрок: {target_user_id}\n"
+            f"✅ **Наймы добавлены!**\n"
+            f"👤 Герой: {target_user_id}\n"
             f"🎲 Добавлено: {rolls_count}\n"
             f"📊 Было: {old_rolls}\n"
-            f"📈 Стало: {user_data['free_rolls']}\n\n"
-            f"{'🆕 Игрок создан!' if created else ''}",
+            f"📈 Стало: {user_data['free_rolls']}\n"
+            f"{'🆕 Герой создан!' if is_new_user else ''}",
             parse_mode="Markdown",
         )
-
     except ValueError:
         await update.message.reply_text("⚠️ Количество должно быть числом!")
     except Exception as e:
-        logger.error(f"Ошибка добавления попыток игроку: {e}")
-        await update.message.reply_text("❌ Ошибка при добавлении попыток")
+        logger.error(f"Ошибка добавления наймов герою: {e}")
+        await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает топ-10 игроков по очков репутации игроков по поинтам в сезоне (админы исключены)."""
