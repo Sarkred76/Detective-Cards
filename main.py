@@ -368,13 +368,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("🔍 Получить досье")],
-            [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📁 Мой архив")],
-            [KeyboardButton("🔨 Крафт")],
-            [KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🔥 Сжигание")],
-            [KeyboardButton("🏰 Кланы")],
-            [KeyboardButton("🛍️ Магазин")]
+            [KeyboardButton("📋 Меню")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1225,24 +1220,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await invite_clan_member(update, context)
             return
     
-        # ⭐ КНОПКА "🔙 НАЗАД В МЕНЮ" ⭐
-        if text == "🔙 Назад в меню":
-            # Возврат в главное меню
+        # ⭐ КНОПКА "🔙 НАЗАД В ГЛАВНОЕ МЕНЮ" ⭐
+        if text == "🔙 Назад в главное меню":
+            # Сбрасываем состояние поиска противника, если оно было активно
+            if user_id in context.user_data and context.user_data[user_id].get("step") == "battle_find_opponent":
+                del context.user_data[user_id]["step"]
+            
             keyboard = [
                 [KeyboardButton("🔍 Получить досье")],
-                [KeyboardButton("👤 Личное дело")],
                 [KeyboardButton("📁 Мой архив")],
-                [KeyboardButton("🔨 Крафт")],
-                [KeyboardButton("🍺 Бар")],
-                [KeyboardButton("🔥 Сжигание")],
-                [KeyboardButton("🏰 Кланы")],
-                [KeyboardButton("🛍️ Магазин")]
+                [KeyboardButton("📋 Меню")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🏠 Главное меню\n\nДобро пожаловать! Используйте кнопки ниже:",
+                "🏠 Главное меню\nДобро пожаловать! Используйте кнопки ниже:",
                 reply_markup=reply_markup
             )
+            return
+
+        elif text == "📋 Меню":
+            await submenu(update, context)
+            return
+
+        elif text == "🔙 Назад в меню":
+            await submenu(update, context)
             return
 
         elif text == "👤 Личное дело":
@@ -1250,6 +1251,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         elif text == "📁 Мой архив":
+            await archive_menu(update, context)
+            return
+
+        elif text == "📊 Просмотр архива":
             await show_user_cards(update, context)
             return
 
@@ -1357,7 +1362,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await send_card(update, card, context, caption=caption)
 
         elif text == "🍺 Бар":
-            await mini_games(update, context)
+            await bar_menu(update, context)
 
         elif text == "🔥 Сжигание":
             await burn_menu(update, context)
@@ -1970,7 +1975,7 @@ async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await dice(update, context)
 
 
-async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню Бара."""
     try:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
@@ -1981,6 +1986,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             [KeyboardButton("🎯 Дартс")],
             [KeyboardButton("🏆 Топ игроков")],
             [KeyboardButton("🔄 Трейд")],
+            [KeyboardButton("🔥 Сжигание")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1992,7 +1998,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 parse_mode="Markdown"
             )
     except Exception as e:
-        logger.error(f"Ошибка в mini_games: {e}")
+        logger.error(f"Ошибка в bar_menu: {e}")
         
 async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню казино."""
@@ -4896,6 +4902,40 @@ async def top_clans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в top_clans: {e}")
         await update.message.reply_text("❌ Ошибка при загрузке топа кланов")
+
+async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает подменю."""
+    try:
+        keyboard = [
+            [KeyboardButton("👤 Личное дело")],
+            [KeyboardButton("🏰 Кланы")],
+            [KeyboardButton("🛍️ Магазин")],
+            [KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🔙 Назад в главное меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(
+            "📋 Меню\nВыберите раздел:",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в submenu: {e}")
+
+async def archive_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню 'Мой архив'."""
+    try:
+        keyboard = [
+            [KeyboardButton("🔨 Крафт")],
+            [KeyboardButton("📊 Просмотр архива")],
+            [KeyboardButton("🔙 Назад в главное меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(
+            "📁 Мой архив\nВыберите действие:",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в archive_menu: {e}")
 
 # ===== ЗАПУСК БОТА =====
 
