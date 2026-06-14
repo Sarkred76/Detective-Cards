@@ -3427,6 +3427,7 @@ async def invite_player_to_clan(
                 f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\n"
                 f"Для принятия приглашения используйте команду:\n"
                 f"`/accept_clan_invite`"
+                f"⏳ *Приглашение действительно в течение 1 часа.*"
             ),
             parse_mode="Markdown"
         )
@@ -3858,32 +3859,43 @@ async def accept_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE)
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id, {})
-        
         invite = user_data.get("clan_invite_pending")
         if not invite:
             await update.message.reply_text("❌ У вас нет ожидающих приглашений в клан!")
             return
-        
+
+        # ⭐ ПРОВЕРКА СРОКА ДЕЙСТВИЯ ПРИГЛАШЕНИЯ (1 ЧАС) ⭐
+        invited_at = invite.get("invited_at", 0)
+        current_time = int(time.time())
+        if current_time - invited_at > 3600:  # 3600 секунд = 1 час
+            user_data["clan_invite_pending"] = None
+            save_data(data)
+            await update.message.reply_text(
+                "❌ Срок действия приглашения в клан истёк (прошло больше 1 часа).\n"
+                "Попросите главу клана отправить новое приглашение."
+            )
+            return
+        # ⭐ КОНЕЦ ПРОВЕРКИ ⭐
+
         clan_name = invite["clan_name"]
         inviter_id = invite["inviter_id"]
-        
+
         # Проверки
         if get_user_clan(user_id, data):
             await update.message.reply_text("❌ Вы уже состоите в клане!")
             return
-        
+
         clan = get_clan_data(clan_name, data)
         if not clan:
             await update.message.reply_text("❌ Клан больше не существует!")
             return
-        
+
         # Добавляем пользователя в клан
         clan["members"][user_id] = {"joined_at": int(time.time()), "role": "member"}
         data["user_clan"][user_id] = clan_name
         user_data["clan_invite_pending"] = None
-        
         save_data(data)
-        
+
         # Уведомляем лидера
         try:
             await context.bot.send_message(
@@ -3893,13 +3905,12 @@ async def accept_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         except:
             pass
-        
+
         await update.message.reply_text(
-            f"🎉 Вы успешно вступили в клан **{clan_name}**!\n\n"
+            f"🎉 Вы успешно вступили в клан **{clan_name}**!\n"
             f"Используйте кнопку «📋 Мой клан» для просмотра участников.",
             parse_mode="Markdown"
         )
-        
     except Exception as e:
         logger.error(f"Ошибка в accept_clan_invite: {e}")
         await update.message.reply_text("❌ Ошибка при принятии приглашения")
