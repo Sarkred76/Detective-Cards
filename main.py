@@ -192,6 +192,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["last_casino_reset"] = 0
                 if "used_promo_codes" not in user_data:
                     user_data["used_promo_codes"] = []
+                if "referral_invites" not in user_data:
+                    user_data["referral_invites"] = []
+                if "referral_rewards_claimed" not in user_data:
+                    user_data["referral_rewards_claimed"] = []
             return data
             
         except Exception as e:
@@ -390,17 +394,106 @@ async def edit_card_message(
     await query.edit_message_media(media=media, reply_markup=reply_markup)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик команды /start."""
+    """Обработчик команды /start с поддержкой реферальной системы."""
     try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Инициализация пользователя, если его нет
+        if user_id not in data["users"]:
+            data["users"][user_id] = {
+                "username": update.effective_user.username or "",
+                "first_name": update.effective_user.first_name or "",
+                "last_name": update.effective_user.last_name or "",
+                "cards": [],
+                "total_points": 0,
+                "season_points": 0,
+                "cents": 0,
+                "last_card_time": 0,
+                "free_rolls": 0,
+                "last_dice_time": 0,
+                "referral_invites": [],
+                "referral_rewards_claimed": []
+            }
+            save_data(data)
+
+        user_data = data["users"][user_id]
+
+        # ⭐ ОБРАБОТКА РЕФЕРАЛЬНОЙ ССЫЛКИ ⭐
+        referrer_id = None
+        if context.args and context.args[0].startswith("ref_"):
+            referrer_id = context.args[0].replace("ref_", "")
+
+        if referrer_id and referrer_id in data["users"] and referrer_id != user_id:
+            referrer_data = data["users"][referrer_id]
+            
+            # Инициализация полей реферала у приглашающего (на случай старых пользователей)
+            if "referral_invites" not in referrer_data:
+                referrer_data["referral_invites"] = []
+            if "referral_rewards_claimed" not in referrer_data:
+                referrer_data["referral_rewards_claimed"] = []
+
+            # Если пользователь еще не был приглашен этим реферером
+            if user_id not in referrer_data["referral_invites"]:
+                referrer_data["referral_invites"].append(user_id)
+                
+                new_user_name = update.effective_user.username or update.effective_user.first_name
+                
+                # 1. Уведомление рефереру о новом игроке
+                try:
+                    await context.bot.send_message(
+                        chat_id=referrer_id,
+                        text=f"🎉 По вашей реферальной ссылке перешёл новый игрок: **@{new_user_name}**!",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.warning(f"Не удалось уведомить реферера {referrer_id}: {e}")
+
+                # 2. Проверка и выдача наград
+                invite_count = len(referrer_data["referral_invites"])
+                claimed = referrer_data["referral_rewards_claimed"]
+                reward_card = None
+                reward_milestone = 0
+
+                if invite_count >= 1 and 1 not in claimed:
+                    reward_card = get_random_available_card_by_rarity(data, "Epic")
+                    reward_milestone = 1
+                elif invite_count >= 3 and 3 not in claimed:
+                    reward_card = get_random_available_card_by_rarity(data, "Epic Team-up")
+                    reward_milestone = 3
+
+                if reward_card:
+                    claimed.append(reward_milestone)
+                    referrer_data["referral_rewards_claimed"] = claimed
+                    referrer_data["cards"].append(reward_card["id"])
+                    save_data(data)
+                    
+                    # Отправляем карту рефереру
+                    try:
+                        caption = f"🎁 **Награда за реферала!**\nВы получили случайную карту редкости **{reward_card['rarity']}** за {reward_milestone}-го приглашенного!"
+                        # Создаем фиктивный update для send_card, если нужно, или отправляем напрямую
+                        await context.bot.send_photo(
+                            chat_id=referrer_id,
+                            photo=reward_card["image_url"],
+                            caption=caption,
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        logger.error(f"Ошибка отправки реферальной награды: {e}")
+                else:
+                    save_data(data)
+
+        # Показываем главное меню
         keyboard = [
             [KeyboardButton("🔍 Получить досье")],
             [KeyboardButton("📁 Мой архив")],
-            [KeyboardButton("📋 Меню")]
+            [KeyboardButton("📋 Меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "Добро пожаловать! Используйте кнопки ниже:", reply_markup=reply_markup
-        )
+        
+        welcome_text = f"🏠 Главное меню\nДобро пожаловать, {update.effective_user.first_name}! Используйте кнопки ниже:"
+        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+        
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
 
@@ -1390,6 +1483,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🍺 Бар":
             await bar_menu(update, context)
 
+        elif text == "🔗 Реферальная система":
+            await referral_menu(update, context)
+
         elif text == "🔥 Сжигание":
             await burn_menu(update, context)
             return
@@ -2057,7 +2153,7 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик"), KeyboardButton("🎰 Казино"), KeyboardButton("🏀 Баскет")],
             [KeyboardButton("🎯 Дартс"), KeyboardButton("🏆 Топ игроков"), KeyboardButton("🔄 Трейд")],
-            [KeyboardButton("🔥 Сжигание"), KeyboardButton("🔙 Назад в меню")],
+            [KeyboardButton("🔥 Сжигание"), [KeyboardButton("🔗 Реферальная система"), KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -4981,6 +5077,73 @@ async def archive_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except Exception as e:
         logger.error(f"Ошибка в archive_menu: {e}")
 
+def get_random_available_card_by_rarity(data: Dict, rarity: str) -> Optional[Dict]:
+    """Возвращает случайную доступную карту указанной редкости."""
+    available_cards = [
+        c for c in data.get("cards", []) 
+        if c.get("rarity") == rarity and c.get("available", True)
+    ]
+    if available_cards:
+        return random.choice(available_cards)
+    return None
+
+async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Меню реферальной системы."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+
+        bot_username = context.bot.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+
+        invites = user_data.get("referral_invites", [])
+        count = len(invites)
+        claimed = user_data.get("referral_rewards_claimed", [])
+
+        # Формируем список приглашенных
+        if invites:
+            lines = []
+            for i, inv_id in enumerate(invites, 1):
+                inv_user = data["users"].get(inv_id, {})
+                name = inv_user.get("username")
+                if not name:
+                    name = inv_user.get("first_name", f"Пользователь {inv_id}")
+                else:
+                    name = f"@{name}"
+                lines.append(f"{i}. {name}")
+            invite_list_text = "\n".join(lines)
+        else:
+            invite_list_text = "Список пуст"
+
+        # Статусы наград
+        reward_1 = "✅ Получено" if 1 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 1 else "🔒 За 1 приглашение")
+        reward_3 = "✅ Получено" if 3 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 3 else "🔒 За 3 приглашения")
+
+        text = (
+            f"🔗 **Реферальная система**\n\n"
+            f"Приглашайте друзей и получайте ценные награды!\n\n"
+            f"📎 **Ваша уникальная ссылка:**\n`{ref_link}`\n\n"
+            f"👥 **Всего приглашено:** {count}\n"
+            f"📋 **Список приглашенных:**\n{invite_list_text}\n\n"
+            f"🎁 **Награды:**\n"
+            f"1️⃣ 1 приглашение: Случайная карта редкости **Epic**\n"
+            f"   Статус: {reward_1}\n"
+            f"3️⃣ 3 приглашения: Случайная карта редкости **Epic Team-up**\n"
+            f"   Статус: {reward_3}\n\n"
+            f"💡 *Награды выдаются автоматически в момент приглашения нового игрока!*"
+        )
+
+        keyboard = [[InlineKeyboardButton("🔙 Назад в Личное дело", callback_data="my_profile")]]
+        
+        if update.callback_query:
+            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        else:
+            await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            
+    except Exception as e:
+        logger.error(f"Ошибка в referral_menu: {e}")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -5047,7 +5210,8 @@ def main() -> None:
         ]
 
         for handler in handlers:
-            application.add_handler(handler) 
+            application.add_handler(handler)
+            application.add_handler(CallbackQueryHandler(referral_menu, pattern="^referral_menu$"))
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
