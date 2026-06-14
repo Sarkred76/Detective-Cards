@@ -1407,7 +1407,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 data["users"][user_id] = user_data
 
-            COOLDOWN_SECONDS = 2 * 60 * 60
+            COOLDOWN_SECONDS = 3 * 60 * 60
             current_time = int(time.time())
             time_passed = current_time - user_data.get("last_card_time", 0)
 
