@@ -1949,11 +1949,12 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("❌ Ошибка при удалении администратора")
         
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Бросок кубика для получения бесплатных попыток."""
+    """Бросок кубика для получения бесплатных попыток (раз в неделю, сброс в понедельник 00:00 МСК)."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
+        
         if not user_data:
             user_data = {
                 "username": update.effective_user.username or "",
@@ -1967,46 +1968,81 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "free_rolls": 0,
                 "last_dice_time": 0,
             }
-
             data["users"][user_id] = user_data
 
-        # Проверка кулдауна (6 часов)
-        DICE_COOLDOWN = 12 * 60 * 60
+        # ⭐ ПРОВЕРКА ЕЖЕНЕДЕЛЬНОГО СБРОСА ⭐
+        check_dice_reset(user_data)
+        
         current_time = int(time.time())
-        time_passed = current_time - user_data.get("last_dice_time", 0)
-
-        if time_passed < DICE_COOLDOWN:
-            remaining = DICE_COOLDOWN - time_passed
-            hours = remaining // 3600
-            minutes = (remaining % 3600) // 60
+        last_dice_time = user_data.get("last_dice_time", 0)
+        
+        # Если last_dice_time != 0, значит на этой неделе игрок уже бросал кубик
+        if last_dice_time != 0:
+            import datetime
+            msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+            now_msk = datetime.datetime.now(msk_tz)
+            
+            # Вычисляем, сколько дней осталось до следующего понедельника
+            days_until_monday = (7 - now_msk.weekday()) % 7
+            if days_until_monday == 0:
+                days_until_monday = 7  # Если сегодня понедельник, но бросок уже был, ждем 7 дней
+                
+            next_monday = now_msk.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=days_until_monday)
+            remaining_seconds = int((next_monday - now_msk).total_seconds())
+            
+            days = remaining_seconds // 86400
+            hours = (remaining_seconds % 86400) // 3600
+            minutes = (remaining_seconds % 3600) // 60
+            
+            time_text = ""
+            if days > 0:
+                time_text += f"{days} дн. "
+            time_text += f"{hours} ч {minutes} мин"
+            
             await update.message.reply_text(
-                f"⏳ Следующий бросок через: {hours} ч {minutes} мин\n\n"
+                f"⏳ Вы уже бросали кубик на этой неделе!\n"
+                f"Следующий бросок будет доступен в понедельник.\n"
+                f"Осталось ждать: {time_text}\n"
                 f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных попыток"
             )
             return
 
         # ⭐ ОТПРАВЛЯЕМ НАСТОЯЩИЙ КУБИК TELEGRAM ⭐
-        sent_dice = await context.bot.send_dice(
-            chat_id=update.effective_chat.id, emoji="🎲"  # Именно кубик!
-        )
-
-        # ⭐ ПОЛУЧАЕМ РЕАЛЬНОЕ ЗНАЧЕНИЕ ИЗ КУБИКА ⭐
+        sent_dice = await context.bot.send_dice(chat_id=update.effective_chat.id, emoji="🎲")
         dice_value = sent_dice.dice.value  # Значение от 1 до 6
-
+        
         # Добавляем бесплатные попытки (ровно столько, сколько выпало)
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + dice_value
         user_data["last_dice_time"] = current_time
         save_data(data)
+        
         await asyncio.sleep(4)
         await update.message.reply_text(
-            f"🎲 Выпало: {dice_value}!\n\n"
+            f"🎲 Выпало: {dice_value}!\n"
             f"✨ Получено бесплатных попыток: {dice_value}\n"
-            f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n\n"
-            f"⏳ Следующий бросок через 12 часов"
+            f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n"
+            f"⏳ Следующий бросок доступен в следующий понедельник в 00:00 МСК"
         )
     except Exception as e:
         logger.error(f"Ошибка броска кубика: {e}")
         await update.message.reply_text("❌ Произошла ошибка")
+
+def check_dice_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает возможность броска кубика в понедельник в 00:00 по МСК."""
+    import datetime
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    
+    # Получаем текущий год и номер недели по ISO (понедельник - первый день недели)
+    current_year, current_week, _ = now_msk.isocalendar()
+    last_year = user_data.get("last_dice_reset_year", 0)
+    last_week = user_data.get("last_dice_reset_week", 0)
+    
+    # Если год или неделя изменились, сбрасываем время последнего броска
+    if last_year == 0 or current_year != last_year or current_week != last_week:
+        user_data["last_dice_time"] = 0
+        user_data["last_dice_reset_year"] = current_year
+        user_data["last_dice_reset_week"] = current_week
 
 
 async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
