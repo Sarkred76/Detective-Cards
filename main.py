@@ -231,12 +231,32 @@ def check_casino_reset(user_data: Dict) -> None:
         user_data["last_casino_reset"] = int(now_msk.timestamp())
 
 def save_data(data: Dict[str, Any]) -> None:
-    """Сохраняет данные в файл."""
+    """Сохраняет данные в файл, компактно оформляя списки."""
     try:
+        # 1. Сначала превращаем данные в JSON строку с отступами
+        json_str = json.dumps(data, ensure_ascii=False, indent=4)
+        
+        # 2. Используем регулярное выражение, чтобы найти все списки [...] 
+        # и удалить внутри них переносы строк, оставив только пробелы
+        # Это сделает вид: "cards": [1, 2, 3, 4, 5] вместо многострочного списка
+        
+        def replace_newlines_in_lists(match):
+            content = match.group(0)
+            # Заменяем переносы строк и табуляции на пробелы внутри найденного блока
+            cleaned = re.sub(r'[\n\r\t]+', ' ', content)
+            # Убираем лишние пробелы
+            cleaned = re.sub(r'\s+', ' ', cleaned)
+            return cleaned
+
+        # Ищем паттерны списков. Внимание: это упрощенный регекс, он работает для простых списков чисел/строк
+        # Для вложенных структур может потребоваться более сложный парсер, но для ID карт подойдет
+        json_str_compact = re.sub(r'\[.*?\]', replace_newlines_in_lists, json_str, flags=re.DOTALL)
+
         with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()  # ⭐ СБРАСЫВАЕМ БУФЕР ⭐
-            os.fsync(f.fileno())  # ⭐ ГАРАНТИРУЕМ ЗАПИСЬ НА ДИСК ⭐
+            f.write(json_str_compact)
+            f.flush()
+            os.fsync(f.fileno())
+            
     except Exception as e:
         logger.error(f"Ошибка сохранения данных: {e}")
 
