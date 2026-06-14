@@ -62,8 +62,13 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update.message.reply_text("❌ У вас нет существ для трейда!")
             return
         
+        # ⭐ ДОБАВЛЕНЫ КНОПКИ ДЛЯ 2v2, 3v3, 4v4, 5v5 ⭐
         keyboard = [
             [InlineKeyboardButton("1 ↔ 1", callback_data="trade_1v1")],
+            [InlineKeyboardButton("2 ↔ 2", callback_data="trade_2v2")],
+            [InlineKeyboardButton("3 ↔ 3", callback_data="trade_3v3")],
+            [InlineKeyboardButton("4 ↔ 4", callback_data="trade_4v4")],
+            [InlineKeyboardButton("5 ↔ 5", callback_data="trade_5v5")],
             [InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")],
         ]
         
@@ -71,6 +76,10 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "🔄 **Трейд существ**\n\n"
             "Выберите тип обмена:\n"
             "• 1 ↔ 1 - обмен 1 существо на 1\n"
+            "• 2 ↔ 2 - обмен 2 существа на 2\n"
+            "• 3 ↔ 3 - обмен 3 существа на 3\n"
+            "• 4 ↔ 4 - обмен 4 существа на 4\n"
+            "• 5 ↔ 5 - обмен 5 существ на 5\n\n"
             "📝 После выбора нужно будет указать героя и выбрать существ.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -671,9 +680,9 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.answer()
         user_id = str(query.from_user.id)
         
-        # ⭐ ОБРАБОТКА ВЫБОРА ТИПА ТРЕЙДА
-        if query.data in ["trade_1v1", "trade_2v2", "trade_3v3"]:
-            trade_type = query.data.split("_")[1]  # "1v1", "2v2", "3v3"
+        # ⭐ ОБРАБОТКА ВЫБОРА ТИПА ТРЕЙДА (ДОБАВЛЕНЫ 4v4 И 5v5) ⭐
+        if query.data in ["trade_1v1", "trade_2v2", "trade_3v3", "trade_4v4", "trade_5v5"]:
+            trade_type = query.data.split("_")[1]  # "1v1", "2v2", "3v3", "4v4", "5v5"
             await select_trade_partner(update, context, trade_type)
             return
         
