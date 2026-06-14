@@ -1995,42 +1995,7 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в bar_menu: {e}")
         
-async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню казино."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            await query.edit_message_text("❌ Вы ещё не начали игру!")
-            return
 
-        # Проверяем сброс попыток
-        check_casino_reset(user_data)
-        save_data(data)
-        attempts = user_data.get("casino_attempts", 10)
-        cents = user_data.get("cents", 0)
-        keyboard = [
-            [InlineKeyboardButton("🎰 Сыграть", callback_data="casino_play")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            f"🎰 **Казино**\n\n"
-            f"📜 **Правила:**\n"
-            f"• Стоимость игры: 3000 бэт-коинов\n"
-            f"• Крутите слот и получите 3 одинаковых значения\n"
-            f"• При победе: 10 бесплатных попыток\n"
-            f"• Игр сегодня: {attempts}/10\n"
-            f"• Сброс в 00:00 МСК\n\n"
-            f"💰 Ваш баланс: {cents} бэт-коинов\n"
-            f"🎲 Осталось игр: {attempts}",
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
-        )
-    except Exception as e:
-        logger.error(f"Ошибка в casino_menu: {e}")
 
 async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Игра в казино."""
