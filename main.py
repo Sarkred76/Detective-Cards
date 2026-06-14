@@ -299,10 +299,6 @@ def generate_card_caption(
         caption += f"\n_\"{card['catchphrase']}\"_"
         
     caption += f"\n🌟 Редкость: {card['rarity']}"
-    
-    # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
-    if card.get("faction"):
-        caption += f"\n⚔️ Фракция: {card['faction']}"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -1407,66 +1403,64 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
-            
+        
         full_text = update.message.text
         lines = full_text.split("\n")
         
-        # ⭐ ИЗМЕНЕНО: Требуется 6 строк (добавлена цитата) ⭐
-        if len(lines) < 6:
+        if len(lines) < 5 :
             await update.message.reply_text(
                 "ℹ️ Формат:\n"
                 "/add_card\n"
                 "URL\n"
                 "Название\n"
                 "Редкость\n"
-                "Фракция (или 'нет')\n"
                 "Цитата (или 'нет')"
             )
             return
-            
+        
         url = lines[1].strip()
         title = lines[2].strip()
         rarity = lines[3].strip()
-        faction = lines[4].strip()
-        catchphrase = lines[5].strip() # ⭐ НОВОЕ ⭐
         
         if rarity not in RARITY_BONUSES:
             await update.message.reply_text(
                 f"⚠️ Допустимые редкости: {', '.join(RARITY_BONUSES.keys())}"
             )
             return
-            
+        
         data = load_data()
+        
+        # Вычисляем новый ID
         if data["cards"]:
             new_id = max(card["id"] for card in data["cards"]) + 1
         else:
             new_id = 1
-            
+        
         media_type = determine_media_type(url, rarity)
         
-        # ⭐ ДОБАВЛЯЕМ ВСЕ АТРИБУТЫ (включая catchphrase) ⭐
+        # ⭐ ДОБАВЛЯЕМ ВСЕ АТРИБУТЫ ⭐
         new_card = {
             "id": new_id,
             "image_url": url,
             "title": title,
             "rarity": rarity,
-            "faction": faction if faction.lower() != "нет" else None,
-            "catchphrase": catchphrase if catchphrase.lower() != "нет" else None, # ⭐ НОВОЕ ⭐
+            "catchphrase": catchphrase if catchphrase.lower() != "нет" else None,
             "available": True,
             "media_type": media_type,
         }
+        
         data["cards"].append(new_card)
         save_data(data)
-        
-        faction_text = f"\n⚔️ {faction}" if faction.lower() != "нет" else ""
+
         catchphrase_text = f"\n💬 {catchphrase}" if catchphrase.lower() != "нет" else ""
         
         await update.message.reply_text(
             f"✅ Карточка #{new_id} добавлена!\n"
             f"🏷 {title}{catchphrase_text}\n"
-            f"🌟 {rarity}{faction_text}\n"
+            f"🌟 {rarity}\n"
             f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}"
         )
+        
     except Exception as e:
         logger.error(f"Ошибка добавления карточки: {e}")
         await update.message.reply_text("❌ Ошибка при добавлении")
@@ -1728,7 +1722,8 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
-            
+        
+        # Проверяем аргументы
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
@@ -1736,43 +1731,47 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "**Параметры:**\n"
                 "• title - название карты\n"
                 "• url - URL изображения\n"
-                "• rarity - редкость\n"
-                "• faction - фракция (текст)\n"
-                "• catchphrase - цитата (текст, или 'нет' для удаления)\n" # ⭐ НОВОЕ ⭐
-                "• available - статус (true/false)",
+                "• rarity - редкость (Common - Highlight, Limited)\n"
+                "• catchphrase - цитата (текст, или 'нет' для удаления)\n"
+                "• available - статус (true/false)\n",
                 parse_mode="HTML",
             )
             return
-            
+        
         card_id = int(context.args[0])
         param = context.args[1].lower()
         new_value = " ".join(context.args[2:])
         
+        # Находим карту
         card = find_card_by_id(card_id, data["cards"])
         if not card:
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
             return
-            
-        # ⭐ ОБНОВЛЕННЫЙ СПИСОК ПАРАМЕТРОВ ⭐
-        valid_params = ["title", "url", "rarity", "faction", "available", "catchphrase"]
+        
+        # Обновляем параметр
+        valid_params = [
+            "title", "url", "rarity", "available", "catchphrase"
+        ]
         if param not in valid_params:
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
             )
             return
-            
+        
+        # Сохраняем старое значение
         old_value = card.get(param, "не задано")
         
-        # ⭐ ОБРАБОТКА ПАРАМЕТРОВ ⭐
+        # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         if param == "available":
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
-        elif param == "catchphrase": # ⭐ НОВОЕ ⭐
+        elif param == "catchphrase":
             card[param] = new_value if new_value.lower() != "нет" else None
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
                 await update.message.reply_text(
-                    f"⚠️ Недопустимая редкость!\nДоступные: {', '.join(RARITY_BONUSES.keys())}"
+                    f"⚠️ Недопустимая редкость!\n"
+                    f"Доступные: {', '.join(RARITY_BONUSES.keys())}"
                 )
                 return
             card[param] = new_value
@@ -1781,10 +1780,12 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             card["image_url"] = new_value
             card["media_type"] = determine_media_type(new_value, card.get("rarity", ""))
         else:
+            # title или faction
             card[param] = new_value
-            
+        
         save_data(data)
         
+        # Формируем ответ
         response = (
             f"✅ **Карта #{card_id} обновлена!**\n"
             f"📝 Параметр: {param}\n"
@@ -1793,13 +1794,13 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🏷 {card.get('title')}\n"
             f"🌟 {card.get('rarity')}"
         )
-        if card.get("faction"):
-            response += f"\n⚔️ {card['faction']}"
+
         if card.get("catchphrase"):
-            response += f"\n💬 _\"{card['catchphrase']}\"_" # ⭐ НОВОЕ ⭐
-            
-        response += f"\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
-        await update.message.reply_text(response, parse_mode="Markdown") # Изменил на Markdown для курсива
+            response += f"\n💬 _\"{card['catchphrase']}\"_"
+        
+        response += f"\n\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
+        
+        await update.message.reply_text(response, parse_mode="Markdown")
         
     except ValueError:
         await update.message.reply_text("⚠️ ID должен быть числом!")
@@ -1813,40 +1814,39 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not context.args:
             await update.message.reply_text("ℹ️ Используйте: /card_info [ID]")
             return
-            
+        
         card_id = int(context.args[0])
         data = load_data()
         card = find_card_by_id(card_id, data["cards"])
+        
         if not card:
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
             return
-            
+        
+        # Считаем у скольких игроков есть эта карта
         players_count = 0
         for user_data in data["users"].values():
             if card_id in user_data.get("cards", []):
                 players_count += 1
-                
+        
         info_text = (
             f"📊 **Информация о карте #{card_id}**\n"
             f"🏷 **Название:** {card.get('title')}\n"
+            f"🌟 **Редкость:** {card.get('rarity')}\n"
         )
-        
-        # ⭐ НОВОЕ: ОТОБРАЖЕНИЕ ЦИТАТЫ ⭐
+
         if card.get("catchphrase"):
             info_text += f"💬 _\"{card['catchphrase']}\"_\n"
-            
-        info_text += f"🌟 **Редкость:** {card.get('rarity')}\n"
         
-        if card.get("faction"):
-            info_text += f"⚔️ **Фракция:** {card['faction']}\n"
-            
         info_text += (
             f"📺 **Тип:** {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
             f"{'✅ **Статус:** Включена\n' if card.get('available') else '❌ **Статус:** Выключена\n'}"
             f"🔗 **URL:** `{card.get('image_url')}`\n"
             f"👥 **Есть у игроков:** {players_count}\n"
         )
+        
         await update.message.reply_text(info_text, parse_mode="Markdown")
+        
     except ValueError:
         await update.message.reply_text("⚠️ ID должен быть числом!")
     except Exception as e:
