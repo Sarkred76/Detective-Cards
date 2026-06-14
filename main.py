@@ -2013,7 +2013,7 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         attempts = user_data.get("casino_attempts", 10)
         cents = user_data.get("cents", 0)
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (3000 бэт-коинов)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Сыграть", callback_data="casino_play")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
@@ -2774,7 +2774,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         cents = user_data.get("cents", 0) if user_data else 0
         
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (3000 бэт-коинов)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Сыграть)", callback_data="casino_play")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -2784,9 +2784,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
             f"• Стоимость игры: 3000 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных попыток\n"
-            f"• Игр сегодня: {attempts}/10\n"
-            f"• Сброс в 00:00 МСК\n"
-            f"💰 Ваш баланс: {cents} бэт-коинов\n",
+            f"• Лимит: 10 игр в день (сброс в 00:00 МСК)\n",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
@@ -4722,7 +4720,7 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню и правила игры Дартс."""
-    keyboard = [[InlineKeyboardButton("🎯 Бросить дротики", callback_data="darts_play")]]
+    keyboard = [[InlineKeyboardButton("🎯 Сыграть", callback_data="darts_play")]]
     caption = (
         "🎯 **Мини-игра «Дартс»**\n\n"
         "📜 **Правила:**\n"
