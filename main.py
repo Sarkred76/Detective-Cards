@@ -4509,7 +4509,7 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         keyboard.append([
             InlineKeyboardButton("📋 Все карты", callback_data="burn_all")
         ])
-         keyboard.append([InlineKeyboardButton("🔥 Сжечь ВСЁ", callback_data="burn_all_preview")])
+        keyboard.append([InlineKeyboardButton("🔥 Сжечь ВСЁ", callback_data="burn_all_preview")]
         
         caption = (
             "🔥 **Меню сжигания**\n"
