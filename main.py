@@ -298,7 +298,7 @@ def generate_card_caption(
     if card.get("catchphrase"):
         caption += f"\n_\"{card['catchphrase']}\"_"
         
-    caption += f"\n🌟 Редкость: {card['rarity']}"
+    caption += f"\nРедкость: {card['rarity']}"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
