@@ -702,8 +702,8 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         # Обновлённый список редкостей в нужном порядке
         main_rarities = [
-            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", 
-            "Legendary", "Legendary Team-up", "Highlight", "Limited"
+            "Common", "Rare", "Epic", "Legendary",  "Highlight", "Limited", "Rare Team-up", "Epic Team-up", 
+             "Legendary Team-up"
         ]
         
         for rarity in main_rarities:
@@ -1980,14 +1980,9 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
         keyboard = [
-            [KeyboardButton("🎲 Бросить кубик")],
-            [KeyboardButton("🎰 Казино")],
-            [KeyboardButton("🏀 Баскет")],
-            [KeyboardButton("🎯 Дартс")],
-            [KeyboardButton("🏆 Топ игроков")],
-            [KeyboardButton("🔄 Трейд")],
-            [KeyboardButton("🔥 Сжигание")],
-            [KeyboardButton("🔙 Назад в меню")],
+            [KeyboardButton("🎲 Бросить кубик"), KeyboardButton("🎰 Казино"), KeyboardButton("🏀 Баскет")],
+            [KeyboardButton("🎯 Дартс"), KeyboardButton("🏆 Топ игроков"), KeyboardButton("🔄 Трейд")],
+            [KeyboardButton("🔥 Сжигание"), KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
