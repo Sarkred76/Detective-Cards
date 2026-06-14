@@ -2153,7 +2153,7 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик"), KeyboardButton("🎰 Казино"), KeyboardButton("🏀 Баскет")],
             [KeyboardButton("🎯 Дартс"), KeyboardButton("🏆 Топ игроков"), KeyboardButton("🔄 Трейд")],
-            [KeyboardButton("🔥 Сжигание"), [KeyboardButton("🔗 Реферальная система"), KeyboardButton("🔙 Назад в меню")],
+            [KeyboardButton("🔥 Сжигание"), KeyboardButton("🔗 Реферальная система"), KeyboardButton("🔙 Назад в меню")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
