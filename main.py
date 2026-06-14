@@ -1445,6 +1445,7 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         url = lines[1].strip()
         title = lines[2].strip()
         rarity = lines[3].strip()
+        catchphrase = lines[4].strip()
         
         if rarity not in RARITY_BONUSES:
             await update.message.reply_text(
