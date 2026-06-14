@@ -293,12 +293,12 @@ def generate_card_caption(
         caption = f"⚔️ {card['title']}"
     else:
         caption = f"🔍 У Вас новый подозреваемый!\n\n{card['title']}"
+
+    caption += f"\nРедкость: {card['rarity']}"
     
     # ⭐ НОВОЕ: ДОБАВЛЯЕМ ЦИТАТУ (курсив в кавычках) ⭐
     if card.get("catchphrase"):
         caption += f"\n_\"{card['catchphrase']}\"_"
-        
-    caption += f"\nРедкость: {card['rarity']}"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
