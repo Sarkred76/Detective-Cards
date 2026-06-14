@@ -292,7 +292,7 @@ def generate_card_caption(
     if user_data is None:
         caption = f"⚔️ {card['title']}"
     else:
-        caption = f"🔍 У Вас новый подозреваемый!\n{card['title']}"
+        caption = f"🔍 У Вас новый подозреваемый!\n\n{card['title']}"
     
     # ⭐ НОВОЕ: ДОБАВЛЯЕМ ЦИТАТУ (курсив в кавычках) ⭐
     if card.get("catchphrase"):
@@ -303,7 +303,7 @@ def generate_card_caption(
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} очков репутации"
+        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} очков репутации"
         
     # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО, ЕСЛИ ЕСТЬ ДУБЛИКАТЫ ⭐
     if count > 1:
@@ -312,7 +312,7 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ОПЫТ ТОЛЬКО ЕСЛИ ЕСТЬ user_data ⭐
     if user_data is not None:
         caption += (
-            f"\nОчков репутации в этом сезоне: {user_data.get('season_points', 0)}"
+            f"\n\nОчков репутации в этом сезоне: {user_data.get('season_points', 0)}"
             f"\nОчков репутации за все время: {user_data.get('total_points', 0)}"
         )
     return caption
