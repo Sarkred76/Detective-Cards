@@ -76,14 +76,14 @@ BURN_REWARDS = {
 
 # Бонусы по редкостям
 RARITY_BONUSES = {
-    "Common": {"cents": 100, "points": 100, "probability": 55},
-    "Rare": {"cents": 250, "points": 250, "probability": 22},
-    "Rare Team-up": {"cents": 500, "points": 500, "probability": 10},
-    "Epic": {"cents": 500, "points": 500, "probability": 6},
-    "Epic Team-up": {"cents": 1000, "points": 1000, "probability": 3.2},
-    "Legendary": {"cents": 1000, "points": 1000, "probability": 2.7},
-    "Legendary Team-up": {"cents": 2000, "points": 2000, "probability": 0.8},
-    "Highlight": {"cents": 2000, "points": 2000, "probability": 0.3},
+    "Common": {"cents": 100, "points": 200, "probability": 57},
+    "Rare": {"cents": 250, "points": 300, "probability": 22.5},
+    "Rare Team-up": {"cents": 500, "points": 600, "probability": 10},
+    "Epic": {"cents": 750, "points": 1000, "probability": 6},
+    "Epic Team-up": {"cents": 1000, "points": 1250, "probability": 2.2},
+    "Legendary": {"cents": 1250, "points": 1750, "probability": 1.7},
+    "Legendary Team-up": {"cents": 2000, "points": 2500, "probability": 0.4},
+    "Highlight": {"cents": 3000, "points": 4000, "probability": 0.2},
     "Limited": {"cents": 0, "points": 0, "probability": 0},
 }
 
