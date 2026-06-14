@@ -332,7 +332,8 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
                 chat_id=chat_id,
                 video=url,
                 caption=caption,
-                reply_markup="Markdown",
+                parse_mode="Markdown",
+                reply_markup=reply_markup,
                 supports_streaming=True,  # Включает inline-плеер
                 width=400,  # Опционально: размер превью
                 height=400
@@ -342,7 +343,8 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
                 chat_id=chat_id,
                 photo=url,
                 caption=caption,
-                reply_markup="Markdown",
+                parse_mode="Markdown",
+                reply_markup=reply_markup
             )
     except Exception as e:
         # ⭐ Если видео не загрузилось, отправляем как документ/фото с fallback
@@ -351,7 +353,8 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
             chat_id=chat_id,
             photo=url,
             caption=caption,
-            reply_markup="Markdown",
+            parse_mode="Markdown",
+            reply_markup=reply_markup
         )
 
 async def edit_card_message(
