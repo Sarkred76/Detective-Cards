@@ -4,6 +4,7 @@ import asyncio
 import threading
 import os
 import re
+import html
 import random
 import time
 import datetime
@@ -317,13 +318,15 @@ def generate_card_caption(
     if user_data is None:
         caption = f"⚔️ {card['title']}"
     else:
-        caption = f"🔍 У Вас новый\n подозреваемый!\n\n{card['title']}"
+        caption = f"🔍 У Вас новый\n подозреваемый!\n\n{html.escape(card['title'])}"
 
     caption += f"\nРедкость: {card['rarity']}"
     
-    # ⭐ НОВОЕ: ДОБАВЛЯЕМ ЦИТАТУ (курсив в кавычках) ⭐
+    # ⭐ НОВОЕ: ЦИТАТА ЧЕРЕЗ BLOCKQUOTE (HTML-тег) ⭐
     if card.get("catchphrase"):
-        caption += f"\n_\"{card['catchphrase']}\"_"
+        # <blockquote> — это и есть "цитата" в Telegram
+        # <i> внутри — курсив
+        caption += f"\n<blockquote><i>{html.escape(card['catchphrase'])}</i></blockquote>"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -357,7 +360,7 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
                 chat_id=chat_id,
                 video=url,
                 caption=caption,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=reply_markup,
                 supports_streaming=True,  # Включает inline-плеер
                 width=400,  # Опционально: размер превью
@@ -368,7 +371,7 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
                 chat_id=chat_id,
                 photo=url,
                 caption=caption,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=reply_markup
             )
     except Exception as e:
@@ -378,7 +381,7 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
             chat_id=chat_id,
             photo=url,
             caption=caption,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=reply_markup
         )
 
