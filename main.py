@@ -289,22 +289,22 @@ def create_cards_keyboard(
         
     nav_buttons = []
 
-            # Кнопка "<" появляется только если это не первая карта
-            if new_index > 0:
-                nav_buttons.append(
-                    InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}")
-                )
+    # Кнопка "<" появляется только если это не первая карта
+    if new_index > 0:
+        nav_buttons.append(
+            InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}")
+        )
 
-            # Кнопка с номером карты
-            nav_buttons.append(
-                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info")
-            )
+    # Кнопка с номером карты
+    nav_buttons.append(
+        InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info")
+    )
 
-            # Кнопка ">" появляется только если это не последняя карта
-            if new_index < total_cards - 1:
-                nav_buttons.append(
-                    InlineKeyboardButton(">", callback_data=f"card_next_{new_index}")
-                )
+    # Кнопка ">" появляется только если это не последняя карта
+    if new_index < total_cards - 1:
+        nav_buttons.append(
+            InlineKeyboardButton(">", callback_data=f"card_next_{new_index}")
+        )
     return InlineKeyboardMarkup([nav_buttons])
 
 def determine_media_type(url: str, rarity: str) -> str:
