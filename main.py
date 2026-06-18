@@ -874,16 +874,28 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await query.edit_message_text("У вас пока нет существ!")
                 return
             
+            # ⭐ СОРТИРУЕМ ДЛЯ СТАБИЛЬНОЙ НАВИГАЦИИ ⭐
+            unique_card_ids.sort()
+            
             card = find_card_by_id(unique_card_ids[0], data["cards"])
             if not card:
                 await query.edit_message_text("Ошибка: существо не найдено")
                 return
             
-            nav_buttons = [
-                InlineKeyboardButton("<", callback_data=f"card_prev_0"),
-                InlineKeyboardButton(f"1/{len(unique_card_ids)}", callback_data="card_info"),
-                InlineKeyboardButton(">", callback_data=f"card_next_0"),
-            ]
+            # ⭐ ЛИНЕЙНАЯ НАВИГАЦИЯ (как в сортировке по редкости) ⭐
+            nav_buttons = []
+            
+            # Кнопка "<" отсутствует для первой карты
+            nav_buttons.append(
+                InlineKeyboardButton(f"1/{len(unique_card_ids)}", callback_data="card_info")
+            )
+            
+            # Кнопка ">" появляется только если карт больше 1
+            if len(unique_card_ids) > 1:
+                nav_buttons.append(
+                    InlineKeyboardButton(">", callback_data=f"card_next_0")
+                )
+            
             keyboard = InlineKeyboardMarkup([
                 nav_buttons,
                 [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
@@ -893,7 +905,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             
             try:
-                # ⭐ ПРОВЕРКА ТИПА МЕДИА + parse_mode="HTML" ⭐
                 if card.get("media_type") == "animation":
                     media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
                 else:
@@ -901,7 +912,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
-                # Игнорируем ошибку, если сообщение не изменилось
                 if "Message is not modified" in str(edit_error):
                     return
                 logger.error(f"Ошибка редактирования: {edit_error}")
@@ -910,7 +920,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 except:
                     pass
                 
-                # ⭐ FALLBACK С parse_mode="HTML" ⭐
                 if card.get("media_type") == "animation":
                     await context.bot.send_animation(
                         chat_id=query.message.chat_id,
@@ -959,15 +968,25 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             user_card_ids = user_data["cards"]
             card_counts = Counter(user_card_ids)
             unique_card_ids = list(card_counts.keys())
+            
+            # ⭐ СОРТИРУЕМ ДЛЯ СТАБИЛЬНОЙ НАВИГАЦИИ ⭐
+            unique_card_ids.sort()
+            
             total_cards = len(unique_card_ids)
             
             action = "prev" if "prev" in query.data else "next"
             current_index = int(query.data.split("_")[-1])
             
+            # ⭐ ЛИНЕЙНАЯ НАВИГАЦИЯ (без циклического перехода) ⭐
             if action == "prev":
-                new_index = (current_index - 1) % total_cards
+                new_index = current_index - 1
             else:
-                new_index = (current_index + 1) % total_cards
+                new_index = current_index + 1
+            
+            # Проверка границ
+            if new_index < 0 or new_index >= total_cards:
+                await query.answer("Нельзя пролистнуть дальше", show_alert=True)
+                return
             
             card = find_card_by_id(unique_card_ids[new_index], data["cards"])
             if not card:
@@ -977,18 +996,32 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             count = card_counts[card["id"]]
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             
-            nav_buttons = [
-                InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}"),
-                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info"),
-                InlineKeyboardButton(">", callback_data=f"card_next_{new_index}"),
-            ]
+            # ⭐ ФОРМИРУЕМ КНОПКИ С УЧЁТОМ ГРАНИЦ ⭐
+            nav_buttons = []
+            
+            # Кнопка "<" появляется только если это не первая карта
+            if new_index > 0:
+                nav_buttons.append(
+                    InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}")
+                )
+            
+            # Кнопка с номером карты
+            nav_buttons.append(
+                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info")
+            )
+            
+            # Кнопка ">" появляется только если это не последняя карта
+            if new_index < total_cards - 1:
+                nav_buttons.append(
+                    InlineKeyboardButton(">", callback_data=f"card_next_{new_index}")
+                )
+            
             keyboard = InlineKeyboardMarkup([
                 nav_buttons,
                 [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
             ])
             
             try:
-                # ⭐ ПРОВЕРКА ТИПА МЕДИА + parse_mode="HTML" ⭐
                 if card.get("media_type") == "animation":
                     media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
                 else:
@@ -1004,7 +1037,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 except:
                     pass
                 
-                # ⭐ FALLBACK С parse_mode="HTML" ⭐
                 if card.get("media_type") == "animation":
                     await context.bot.send_animation(
                         chat_id=query.message.chat_id,
