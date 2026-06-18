@@ -512,38 +512,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         except Exception as e:
             logger.error(f"Ошибка проверки админа: {e}")
             admin = False
-
-        # ⭐ ВОССТАНАВЛИВАЕМ ПЕРЕМЕННУЮ response ⭐
-        response = "📜 Доступные команды:\n"
-        
-        # Основные команды
-        response += "🎮 Основные команды:\n"
-        response += "⚔️ Нанять существо - нанять существо\n"
-        response += "🛡 Казарма - посмотреть нанятых существ\n"
-        response += "👑 Мой герой - статистика героя\n"
-        response += "🏆 Топ героев - рейтинг по опыту\n"
-        response += "🎲 Бросить кубик - получить бесплатные наймы\n"
-        response += "🍺 Таверна - казино, трейд и другие игры\n"
-        response += "🔨 Крафт - скрафтить новое существо из 2 дубликатов\n"
-        response += "🔄 Трейд - обмен картами с героями\n"
-        response += "🏆 Достижения - награды за сбор карт фракций\n"
-        
-        # Команды для всех
-        response += "📝 Команды:\n"
-        response += "/start - начать работу с ботом\n"
-        response += "/help - показать это сообщение\n"
-        response += "/profile - мой профиль\n"
-        response += "/dice - бросить кубик\n"
-        response += "/craft - крафт существ\n"
-        response += "/top - топ героев\n"
-        response += "/trade - трейд существ\n"
-        response += "/trade_accept - принять трейд\n"
-        response += "/trade_decline - отклонить трейд\n"
-        response += "/promo [КОД] - активировать промокод\n"
         
         # Админ-команды
         if admin:
-            response += "⚙️ Админ-команды:\n"
+            response = "⚙️ Админ-команды:\n"
             response += "/add_card - добавить карточку в систему\n"
             response += "/edit_card - редактировать карту\n"
             response += "/card_info - информация о карте\n"
@@ -564,11 +536,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/create_promo [КОД] [ID/random] [лимит] - создать промокод\n"
             response += "/delete_promo [КОД] - удалить промокод\n"
             response += "/list_promo - список всех промокодов\n"
-            response += "/set_achievement_cards [Фракция] [ID...] - настроить достижение\n"
-            response += "/mercenary_add [ID] [цена] - добавить в Гильдию Наёмников\n"
-            response += "/mercenary_remove [ID] - удалить из Гильдии\n"
-            response += "/mercenary_list - список Гильдии\n"
-            response += "/mercenary_price [ID] [цена] - обновить цену\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -771,14 +738,16 @@ async def show_cards_by_rarity(
                         chat_id=query.message.chat_id,
                         animation=card["image_url"],
                         caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard)
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="HTML" 
                     )
                 else:
                     await context.bot.send_photo(
                         chat_id=query.message.chat_id,
                         photo=card["image_url"],
                         caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard)
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="HTML" 
                     )
         else:
             # ⭐ ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ИСПОЛЬЗУЕМ send_card ⭐
