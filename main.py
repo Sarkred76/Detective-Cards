@@ -879,7 +879,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await query.edit_message_text("Ошибка: существо не найдено")
                 return
             
-            # ⭐ ИСПРАВЛЕНИЕ: создаём клавиатуру сразу с кнопкой "Назад" ⭐
             nav_buttons = [
                 InlineKeyboardButton("<", callback_data=f"card_prev_0"),
                 InlineKeyboardButton(f"1/{len(unique_card_ids)}", callback_data="card_info"),
@@ -894,25 +893,40 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             
             try:
-                media = InputMediaPhoto(
-                    media=card["image_url"], 
-                    caption=caption,
-                    parse_mode="HTML" 
-                )
+                # ⭐ ПРОВЕРКА ТИПА МЕДИА + parse_mode="HTML" ⭐
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
+                # Игнорируем ошибку, если сообщение не изменилось
+                if "Message is not modified" in str(edit_error):
+                    return
                 logger.error(f"Ошибка редактирования: {edit_error}")
                 try:
                     await query.message.delete()
                 except:
                     pass
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"  # ← И ЗДЕСЬ
-                )
+                
+                # ⭐ FALLBACK С parse_mode="HTML" ⭐
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
             return
         
         # Кнопка "Назад в казарму" → вернуться в главное меню
@@ -949,7 +963,11 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
             action = "prev" if "prev" in query.data else "next"
             current_index = int(query.data.split("_")[-1])
-            new_index = ((current_index - 1) % total_cards if action == "prev" else (current_index + 1) % total_cards)
+            
+            if action == "prev":
+                new_index = (current_index - 1) % total_cards
+            else:
+                new_index = (current_index + 1) % total_cards
             
             card = find_card_by_id(unique_card_ids[new_index], data["cards"])
             if not card:
@@ -970,25 +988,39 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ])
             
             try:
-                media = InputMediaPhoto(
-                    media=card["image_url"], 
-                    caption=caption,
-                    parse_mode="HTML"
-                )
+                # ⭐ ПРОВЕРКА ТИПА МЕДИА + parse_mode="HTML" ⭐
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
+                if "Message is not modified" in str(edit_error):
+                    return
                 logger.error(f"Ошибка редактирования: {edit_error}")
                 try:
                     await query.message.delete()
                 except:
                     pass
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
+                
+                # ⭐ FALLBACK С parse_mode="HTML" ⭐
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
             return
         
     except Exception as e:
