@@ -685,7 +685,7 @@ async def show_cards_by_rarity(
             nav_buttons.append(
                 InlineKeyboardButton(
                     "<",
-                    callback_data=f"mycards_nav_{rarity}_{start_index - 1}"
+                    callback_data=f"barracks_rarity_nav_{rarity}_{start_index - 1}"
                 )
             )
         nav_buttons.append(
@@ -698,7 +698,7 @@ async def show_cards_by_rarity(
             nav_buttons.append(
                 InlineKeyboardButton(
                     ">",
-                    callback_data=f"mycards_nav_{rarity}_{start_index + 1}"
+                    callback_data=f"barracks_rarity_nav_{rarity}_{start_index + 1}"
                 )
             )
         
@@ -707,20 +707,28 @@ async def show_cards_by_rarity(
         keyboard.append([
             InlineKeyboardButton(
                 "🔙 Назад",
-                callback_data="mycards_back_to_rarities"
+                callback_data="barracks_back"
             )
         ])
         
-        # Генерируем описание
+        # Генерируем описание (уже содержит HTML-теги для catchphrase)
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
 
         if query:
             try:
-                # ⭐ ПРОВЕРЯЕМ ТИП МЕДИа ⭐
+                # ⭐ ДОБАВЛЕНО parse_mode="HTML" В InputMedia ⭐
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption)
+                    media = InputMediaAnimation(
+                        media=card["image_url"], 
+                        caption=caption,
+                        parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
+                    )
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                    media = InputMediaPhoto(
+                        media=card["image_url"], 
+                        caption=caption,
+                        parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
+                    )
         
                 await query.edit_message_media(
                     media=media,
@@ -876,7 +884,12 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             
             try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                # ⭐ ДОБАВЛЕНО parse_mode="HTML" ⭐
+                media = InputMediaPhoto(
+                    media=card["image_url"], 
+                    caption=caption,
+                    parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
+                )
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
@@ -888,7 +901,8 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     chat_id=query.message.chat_id,
                     photo=card["image_url"],
                     caption=caption,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
+                    parse_mode="HTML"  # ← И ЗДЕСЬ
                 )
             return
         
@@ -899,81 +913,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             except:
                 pass
             await show_user_cards(update, context)
-            return
-        
-        # ⭐ СТАРАЯ ЛОГИКА (mycards_) ⭐
-        
-        # Кнопка "Все карты" (старая)
-        elif query.data == "mycards_all":
-            if not user_data or not user_data.get("cards"):
-                await query.edit_message_text("У вас пока нет существ!")
-                return
-            
-            user_card_ids = user_data["cards"]
-            card_counts = Counter(user_card_ids)
-            unique_card_ids = list(card_counts.keys())
-            
-            if not unique_card_ids:
-                await query.edit_message_text("У вас пока нет существ!")
-                return
-            
-            card = find_card_by_id(unique_card_ids[0], data["cards"])
-            if not card:
-                await query.edit_message_text("Ошибка: существо не найдено")
-                return
-            
-            # ⭐ ИСПРАВЛЕНИЕ: создаём клавиатуру сразу с кнопкой "Назад" ⭐
-            nav_buttons = [
-                InlineKeyboardButton("<", callback_data=f"card_prev_0"),
-                InlineKeyboardButton(f"1/{len(unique_card_ids)}", callback_data="card_info"),
-                InlineKeyboardButton(">", callback_data=f"card_next_0"),
-            ]
-            keyboard = InlineKeyboardMarkup([
-                nav_buttons,
-                [InlineKeyboardButton("🔙 Назад к редкостям", callback_data="mycards_back_to_rarities")]
-            ])
-            
-            count = card_counts[card["id"]]
-            caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
-            
-            try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=keyboard)
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=keyboard
-                )
-            return
-        
-        # Кнопка "Назад к редкостям" (старая)
-        elif query.data == "mycards_back_to_rarities":
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await show_user_cards(update, context)
-            return
-        
-        # Выбор редкости (старая логика)
-        elif query.data.startswith("mycards_rarity_"):
-            rarity = query.data.replace("mycards_rarity_", "")
-            await show_cards_by_rarity(update, context, rarity, start_index=0)
-            return
-        
-        # Навигация по картам редкости (старая логика)
-        elif query.data.startswith("mycards_nav_"):
-            parts = query.data.replace("mycards_nav_", "").split("_")
-            rarity = parts[0]
-            index = int(parts[1]) if len(parts) > 1 else 0
-            await show_cards_by_rarity(update, context, rarity, start_index=index)
             return
         
         # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_) ⭐
@@ -990,10 +929,66 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await show_cards_by_rarity(update, context, rarity, start_index=0)
             return
         
+        # ⭐ ОБРАБОТКА НАВИГАЦИИ "ВСЕ КАРТЫ" (card_prev / card_next) ⭐
+        elif query.data.startswith("card_prev_") or query.data.startswith("card_next_"):
+            if not user_data or not user_data.get("cards"):
+                await query.edit_message_text("У вас пока нет существ!")
+                return
+            
+            user_card_ids = user_data["cards"]
+            card_counts = Counter(user_card_ids)
+            unique_card_ids = list(card_counts.keys())
+            total_cards = len(unique_card_ids)
+            
+            action = "prev" if "prev" in query.data else "next"
+            current_index = int(query.data.split("_")[-1])
+            new_index = ((current_index - 1) % total_cards if action == "prev" else (current_index + 1) % total_cards)
+            
+            card = find_card_by_id(unique_card_ids[new_index], data["cards"])
+            if not card:
+                await query.edit_message_text("Ошибка: существо не найдено")
+                return
+            
+            count = card_counts[card["id"]]
+            caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+            
+            nav_buttons = [
+                InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}"),
+                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info"),
+                InlineKeyboardButton(">", callback_data=f"card_next_{new_index}"),
+            ]
+            keyboard = InlineKeyboardMarkup([
+                nav_buttons,
+                [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
+            ])
+            
+            try:
+                # ⭐ ДОБАВЛЕНО parse_mode="HTML" ⭐
+                media = InputMediaPhoto(
+                    media=card["image_url"], 
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+                await query.edit_message_media(media=media, reply_markup=keyboard)
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            return
+        
     except Exception as e:
         logger.error(f"Ошибка в mycards_callback: {e}")
         await query.answer("Произошла ошибка", show_alert=True)
-
+        
 async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает профиль пользователя."""
     try:
