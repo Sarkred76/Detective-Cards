@@ -385,16 +385,28 @@ async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes
             reply_markup=reply_markup
         )
 
-async def edit_card_message(
-    query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup
-) -> None:
+async def edit_card_message(query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup) -> None:
     """Редактирует сообщение с карточкой."""
-    if card.get("media_type") == "animation":
-        media = InputMediaAnimation(media=card["image_url"], caption=caption)
-        
-    else:
-        media = InputMediaPhoto(media=card["image_url"], caption=caption)
-    await query.edit_message_media(media=media, reply_markup=reply_markup)
+    try:
+        if card.get("media_type") == "animation":
+            media = InputMediaAnimation(
+                media=card["image_url"], 
+                caption=caption,
+                parse_mode="HTML"  # ← ДОБАВЛЕНО
+            )
+        else:
+            media = InputMediaPhoto(
+                media=card["image_url"], 
+                caption=caption,
+                parse_mode="HTML"  # ← ДОБАВЛЕНО
+            )
+        await query.edit_message_media(media=media, reply_markup=reply_markup)
+    except Exception as e:
+        # ⭐ ИГНОРИРУЕМ ОШИБКУ "Message is not modified" ⭐
+        if "Message is not modified" in str(e):
+            logger.debug(f"Сообщение не изменилось, пропускаем редактирование")
+            return
+        logger.error(f"Ошибка редактирования сообщения: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start с поддержкой реферальной системы."""
