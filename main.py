@@ -287,13 +287,24 @@ def create_cards_keyboard(
     if total_cards <= 0:
         return None
         
-    nav_buttons = [
-        InlineKeyboardButton("<", callback_data=f"card_prev_{current_index}"),
-        InlineKeyboardButton(
-            f"{current_index + 1}/{total_cards}", callback_data="card_info"
-        ),
-        InlineKeyboardButton(">", callback_data=f"card_next_{current_index}"),
-    ]
+    nav_buttons = []
+
+            # Кнопка "<" появляется только если это не первая карта
+            if new_index > 0:
+                nav_buttons.append(
+                    InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}")
+                )
+
+            # Кнопка с номером карты
+            nav_buttons.append(
+                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info")
+            )
+
+            # Кнопка ">" появляется только если это не последняя карта
+            if new_index < total_cards - 1:
+                nav_buttons.append(
+                    InlineKeyboardButton(">", callback_data=f"card_next_{new_index}")
+                )
     return InlineKeyboardMarkup([nav_buttons])
 
 def determine_media_type(url: str, rarity: str) -> str:
@@ -1188,11 +1199,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if query.data and ("card_prev" in query.data or "card_next" in query.data):
             action = "prev" if "prev" in query.data else "next"
             current_index = int(query.data.split("_")[-1])
-            new_index = (
-                (current_index - 1) % total_cards
-                if action == "prev"
-                else (current_index + 1) % total_cards
-            )
+            if action == "prev":
+                new_index = current_index - 1
+            else:
+                new_index = current_index + 1
+
+            # Проверка границ
+            if new_index < 0 or new_index >= total_cards:
+                await query.answer("Нельзя пролистнуть дальше", show_alert=True)
+                return
             card = find_card_by_id(unique_card_ids[new_index], data["cards"])
 
             if not card:
@@ -1203,11 +1218,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             caption = generate_card_caption(
                 card, user_data, count=count, show_bonus=False
             )
-            nav_buttons = [
-                InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}"),
-                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info"),
-                InlineKeyboardButton(">", callback_data=f"card_next_{new_index}"),
-            ]
+            nav_buttons = []
+
+            # Кнопка "<" появляется только если это не первая карта
+            if new_index > 0:
+                nav_buttons.append(
+                    InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}")
+                )
+
+            # Кнопка с номером карты
+            nav_buttons.append(
+                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info")
+            )
+
+            # Кнопка ">" появляется только если это не последняя карта
+            if new_index < total_cards - 1:
+                nav_buttons.append(
+                    InlineKeyboardButton(">", callback_data=f"card_next_{new_index}")
+                )
             keyboard = InlineKeyboardMarkup([
                 nav_buttons,
                 [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
