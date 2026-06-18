@@ -317,7 +317,7 @@ def generate_card_caption(
     if user_data is None:
         caption = f"⚔️ {card['title']}"
     else:
-        caption = f"🔍 У Вас новый подозреваемый!\n\n{card['title']}"
+        caption = f"🔍 У Вас новый\n подозреваемый!\n\n{card['title']}"
 
     caption += f"\nРедкость: {card['rarity']}"
     
