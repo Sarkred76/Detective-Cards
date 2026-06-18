@@ -843,8 +843,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ НОВЫЕ КНОПКИ КАЗАРМЫ (barracks_) ⭐
-        
         # Кнопка "По редкости" → показать меню редкостей
         if query.data == "barracks_rarity":
             await show_rarity_menu(update, context)
@@ -884,11 +882,10 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             
             try:
-                # ⭐ ДОБАВЛЕНО parse_mode="HTML" ⭐
                 media = InputMediaPhoto(
                     media=card["image_url"], 
                     caption=caption,
-                    parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
+                    parse_mode="HTML" 
                 )
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
@@ -915,7 +912,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_user_cards(update, context)
             return
         
-        # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_) ⭐
         elif query.data.startswith("barracks_rarity_"):
             if query.data.startswith("barracks_rarity_nav_"):
                 # Навигация внутри редкости
@@ -929,7 +925,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await show_cards_by_rarity(update, context, rarity, start_index=0)
             return
         
-        # ⭐ ОБРАБОТКА НАВИГАЦИИ "ВСЕ КАРТЫ" (card_prev / card_next) ⭐
         elif query.data.startswith("card_prev_") or query.data.startswith("card_next_"):
             if not user_data or not user_data.get("cards"):
                 await query.edit_message_text("У вас пока нет существ!")
@@ -963,7 +958,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ])
             
             try:
-                # ⭐ ДОБАВЛЕНО parse_mode="HTML" ⭐
                 media = InputMediaPhoto(
                     media=card["image_url"], 
                     caption=caption,
