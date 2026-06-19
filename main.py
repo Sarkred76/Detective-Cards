@@ -5603,13 +5603,6 @@ async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await quests_daily_view(update, context)
         elif query.data == "quests_weekly":
             await quests_weekly_view(update, context)
-            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="📆 <b>Еженедельные квесты</b>\n\n",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
         elif query.data == "quests_seasonal":
             await query.message.delete()
             keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
