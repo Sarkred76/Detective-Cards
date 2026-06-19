@@ -197,6 +197,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["referral_invites"] = []
                 if "referral_rewards_claimed" not in user_data:
                     user_data["referral_rewards_claimed"] = []
+                if "daily_quests" not in user_data:
+                    user_data["daily_quests"] = []
+                if "daily_quests_last_reset" not in user_data:
+                    user_data["daily_quests_last_reset"] = 0
             return data
             
         except Exception as e:
@@ -1445,6 +1449,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🔨 Крафт":
             await craft_menu(update, context)
             return
+
+        elif text == "📜 Квесты":
+            await quests_menu(update, context)
+            return
                     
         elif text == "🛍️ Магазин":
             await shop_menu(update, context)
@@ -1542,6 +1550,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             save_data(data)
+            await update_quest_progress(context, user_id, "cards_4", 1)
+            if card["rarity"] == "Rare":
+                await update_quest_progress(context, user_id, "card_rare", 1)
+            if card["rarity"] in EPIC_PLUS_RARITIES:
+                await update_quest_progress(context, user_id, "card_epic_plus", 1)
+            # Прогресс репутации
+            await update_quest_progress(context, user_id, "rep_1000", bonus["points"])
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
 
@@ -2252,6 +2267,9 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         check_casino_reset(user_data)
         attempts = user_data.get("casino_attempts", 0)
         cents = user_data.get("cents", 0)
+
+        await update_quest_progress(context, user_id, "casino_1", 1)
+        
         
         # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКИ ⭐
         if not is_super_admin:
@@ -2279,6 +2297,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             user_data["cents"] -= 3000
             user_data["casino_attempts"] -= 1
         save_data(data)
+        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
         
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
@@ -3269,6 +3288,8 @@ async def craft_execute(
         await _send_craft_select_menu(context, query.message.chat_id, user_id, rule_key, page=0)
         
         logger.info(f"Игрок {user_id} выполнил крафт: {rule_key}, карта #{card_id} → #{new_card['id']}")
+
+        await update_quest_progress(context, user_id, "craft_1", 1)
         
     except Exception as e:
         logger.error(f"Ошибка в craft_execute: {e}")
@@ -3812,6 +3833,7 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
                 "• Без специальных символов",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
+            await update_quest_progress(context, user_id, "spend_1500", amount_spent)
         elif text == "❌ Отмена":
             if user_id in context.user_data:
                 del context.user_data[user_id]
@@ -4250,6 +4272,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["cents"] -= BASKET_GAME_COST
         user_data["basket_plays"] += 1
         save_data(data)
+        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
@@ -4474,6 +4497,7 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 user_data["cents"] -= box["price"]
                 save_data(data)
                 
+                await update_quest_progress(context, user_id, "spend_1500", amount_spent)
                 await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
                 await context.bot.send_message(  # ← ДОБАВЛЕНО
                     chat_id=query.message.chat_id,
@@ -4511,6 +4535,7 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             user_data["cents"] -= 10000
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
             save_data(data)
+            await update_quest_progress(context, user_id, "spend_1500", amount_spent)
             
             await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
             await context.bot.send_message(  # ← ДОБАВЛЕНО
@@ -5106,6 +5131,7 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["cents"] -= DARTS_GAME_COST
             user_data["darts_plays"] += 1
         save_data(data)
+        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
@@ -5124,6 +5150,7 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if win:
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
             save_data(data)
+            await update_quest_progress(context, user_id, "darts_win_2", 1)
 
         await query.message.reply_text(
             f"🎯 **Результаты бросков:** {', '.join(map(str, results))}\n"
@@ -5228,6 +5255,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("👤 Личное дело")],
+            [KeyboardButton("📜 Квесты")], 
             [KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин")],
             [KeyboardButton("🍺 Бар")],
@@ -5324,6 +5352,266 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Ошибка в referral_menu: {e}")
 
+# ===== ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
+
+DAILY_QUESTS_POOL = [
+    {"id": "casino_1", "desc": "Сыграть в казино 1 раз", "reward_type": "cents", "reward_amount": 250, "target": 1},
+    {"id": "rep_1000", "desc": "Получить 1000 очков репутации", "reward_type": "cents", "reward_amount": 500, "target": 1000},
+    {"id": "spend_1500", "desc": "Потратить 1500 Бэт-коинов", "reward_type": "cents", "reward_amount": 500, "target": 1500},
+    {"id": "trade_3", "desc": "Провести 3 трейда", "reward_type": "cents", "reward_amount": 250, "target": 3},
+    {"id": "darts_win_2", "desc": "Победить в дартсе 2 раза", "reward_type": "free_rolls", "reward_amount": 1, "target": 2},
+    {"id": "craft_1", "desc": "Совершить 1 крафт", "reward_type": "cents", "reward_amount": 250, "target": 1},
+    {"id": "card_epic_plus", "desc": "Получить карту редкости Epic или выше", "reward_type": "free_rolls", "reward_amount": 1, "target": 1},
+    {"id": "card_rare", "desc": "Получить карту редкости Rare", "reward_type": "cents", "reward_amount": 500, "target": 1},
+    {"id": "cards_4", "desc": "Получить 4 карты через «🔍 Получить досье»", "reward_type": "cents", "reward_amount": 250, "target": 4},
+]
+
+EPIC_PLUS_RARITIES = ["Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited"]
+
+def check_daily_quests_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает ежедневные квесты в 00:00 МСК."""
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    
+    last_reset = user_data.get("daily_quests_last_reset", 0)
+    last_reset_dt = datetime.datetime.fromtimestamp(last_reset, msk_tz) if last_reset else None
+    
+    # Если сегодня ещё не сбрасывали
+    if not last_reset_dt or now_msk.date() != last_reset_dt.date():
+        # Выбираем 3 случайных квеста
+        selected = random.sample(DAILY_QUESTS_POOL, 3)
+        user_data["daily_quests"] = []
+        for q in selected:
+            user_data["daily_quests"].append({
+                "id": q["id"],
+                "desc": q["desc"],
+                "reward_type": q["reward_type"],
+                "reward_amount": q["reward_amount"],
+                "target": q["target"],
+                "progress": 0,
+                "completed": False,
+                "claimed": False
+            })
+        user_data["daily_quests_last_reset"] = int(now_msk.timestamp())
+
+
+async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: int, quest: Dict) -> None:
+    """Отправляет отдельное уведомление о выполнении квеста."""
+    reward_text = ""
+    if quest["reward_type"] == "cents":
+        reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
+    elif quest["reward_type"] == "free_rolls":
+        reward_text = f"{quest['reward_amount']} бесплатная попытка 🎲"
+    
+    text = (
+        f"✅ <b>Выполнен квест!</b>\n\n"
+        f"📋 {quest['desc']}\n"
+        f"🎁 Ваша награда: {reward_text}"
+    )
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления о квесте: {e}")
+
+
+async def update_quest_progress(
+    context: ContextTypes.DEFAULT_TYPE,
+    user_id: str,
+    quest_id: str,
+    amount: int = 1
+) -> None:
+    """
+    Обновляет прогресс квеста. Вызывается из игровых функций.
+    ⚡ ВАЖНО: Добавляйте вызов этой функции в соответствующие места:
+    
+    - casino_play()       → update_quest_progress(..., "casino_1", 1)
+    - handle_message() после получения карты → 
+          update_quest_progress(..., "cards_4", 1)
+          update_quest_progress(..., "card_rare", 1)   # если rarity == "Rare"
+          update_quest_progress(..., "card_epic_plus", 1) # если rarity в EPIC_PLUS_RARITIES
+    - craft_execute()     → update_quest_progress(..., "craft_1", 1)
+    - darts_play() при победе → update_quest_progress(..., "darts_win_2", 1)
+    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_3", 1)
+    - Любое списание cents → update_quest_progress(..., "spend_1500", amount_spent)
+    - Любое начисление season_points → update_quest_progress(..., "rep_1000", points_gained)
+    """
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return
+    
+    check_daily_quests_reset(user_data)
+    
+    quests = user_data.get("daily_quests", [])
+    changed = False
+    
+    for quest in quests:
+        if quest["id"] == quest_id and not quest["completed"]:
+            quest["progress"] = min(quest["progress"] + amount, quest["target"])
+            if quest["progress"] >= quest["target"]:
+                quest["completed"] = True
+                # Выдаём награду
+                if quest["reward_type"] == "cents":
+                    user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "free_rolls":
+                    user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                
+                changed = True
+                save_data(data)
+                
+                # Отправляем уведомление
+                await notify_quest_completed(context, int(user_id), quest)
+                logger.info(f"Игрок {user_id} выполнил квест {quest_id}")
+            else:
+                changed = True
+    
+    if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
+        save_data(data)
+
+
+async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню квестов с тремя разделами."""
+    keyboard = [
+        [InlineKeyboardButton("📅 Ежедневные", callback_data="quests_daily")],
+        [InlineKeyboardButton("📆 Еженедельные", callback_data="quests_weekly")],
+        [InlineKeyboardButton("🏆 Сезонные", callback_data="quests_seasonal")],
+        [InlineKeyboardButton("🔙 Назад в меню", callback_data="quests_back")]
+    ]
+    text = (
+        "📜 <b>Квесты</b>\n\n"
+        "Выберите раздел:\n\n"
+        "• 📅 <b>Ежедневные</b> — обновляются каждый день в 00:00 МСК\n"
+        "• 📆 <b>Еженедельные</b> — скоро\n"
+        "• 🏆 <b>Сезонные</b> — скоро"
+    )
+    
+    if hasattr(update, 'callback_query') and update.callback_query:
+        query = update.callback_query
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+
+async def quests_daily_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает список активных ежедневных квестов."""
+    query = update.callback_query if hasattr(update, 'callback_query') else None
+    user_id = str(query.from_user.id if query else update.effective_user.id)
+    chat_id = query.message.chat_id if query else update.effective_chat.id
+    
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        text = "❌ Вы ещё не начали игру!"
+        if query:
+            await query.edit_message_text(text)
+        else:
+            await update.message.reply_text(text)
+        return
+    
+    check_daily_quests_reset(user_data)
+    save_data(data)
+    
+    quests = user_data.get("daily_quests", [])
+    
+    # Определяем время до следующего сброса
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    tomorrow = (now_msk + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    remaining = int((tomorrow - now_msk).total_seconds())
+    hours = remaining // 3600
+    minutes = (remaining % 3600) // 60
+    
+    text = f"📅 <b>Ежедневные квесты</b>\n⏳ Обновление через: {hours}ч {minutes}мин\n\n"
+    
+    for quest in quests:
+        status_icon = "✅" if quest["completed"] else "⬜"
+        progress_bar_len = 10
+        filled = int((quest["progress"] / quest["target"]) * progress_bar_len) if quest["target"] > 0 else 0
+        bar = "█" * filled + "░" * (progress_bar_len - filled)
+        
+        reward_text = ""
+        if quest["reward_type"] == "cents":
+            reward_text = f"{quest['reward_amount']} 💰"
+        elif quest["reward_type"] == "free_rolls":
+            reward_text = f"{quest['reward_amount']} 🎲"
+        
+        text += (
+            f"{status_icon} {quest['desc']}\n"
+            f"   [{bar}] {quest['progress']}/{quest['target']}\n"
+            f"   🎁 Награда: {reward_text}\n\n"
+        )
+    
+    keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+    
+    if query:
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+
+async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок квестов."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "quests_menu":
+            await quests_menu(update, context)
+        elif query.data == "quests_daily":
+            await quests_daily_view(update, context)
+        elif query.data == "quests_weekly":
+            await query.message.delete()
+            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="📆 <b>Еженедельные квесты</b>\n\n🔒 Скоро появятся!",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        elif query.data == "quests_seasonal":
+            await query.message.delete()
+            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="🏆 <b>Сезонные квесты</b>\n\n🔒 Скоро появятся!",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        elif query.data == "quests_back":
+            await query.message.delete()
+            await submenu(update, context)
+    except Exception as e:
+        logger.error(f"Ошибка в quests_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+# ===== КОНЕЦ БЛОКА ЕЖЕДНЕВНЫХ КВЕСТОВ =====
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -5386,6 +5674,7 @@ def main() -> None:
             CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
             CallbackQueryHandler(burn_callback, pattern=r"^burn_.*"),
             CallbackQueryHandler(darts_callback, pattern=r"^darts_.*"),
+            CallbackQueryHandler(quests_callback, pattern=r"^quests_.*"),
         ]
 
         for handler in handlers:
