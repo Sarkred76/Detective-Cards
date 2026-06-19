@@ -59,7 +59,7 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            await update.message.reply_text("❌ У вас нет существ для трейда!")
+            await update.message.reply_text("❌ У вас нет карт для трейда!")
             return
         
         # ⭐ ДОБАВЛЕНЫ КНОПКИ ДЛЯ 2v2, 3v3, 4v4, 5v5 ⭐
@@ -73,14 +73,9 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         ]
         
         await update.message.reply_text(
-            "🔄 **Трейд существ**\n\n"
-            "Выберите тип обмена:\n"
-            "• 1 ↔ 1 - обмен 1 существо на 1\n"
-            "• 2 ↔ 2 - обмен 2 существа на 2\n"
-            "• 3 ↔ 3 - обмен 3 существа на 3\n"
-            "• 4 ↔ 4 - обмен 4 существа на 4\n"
-            "• 5 ↔ 5 - обмен 5 существ на 5\n\n"
-            "📝 После выбора нужно будет указать героя и выбрать существ.",
+            "🔄 **Трейд**\n\n"
+            "Выберите тип обмена:\n\n"
+            "📝 После выбора нужно будет указать игрока и выбрать картв.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -110,7 +105,7 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
         }
         
         await message.reply_text(
-            "👤 **Введите @никнейм героя**\n\n"
+            "👤 **Введите @никнейм игрока**\n\n"
             "Пример:\n"
             "• @username\n\n",
             parse_mode="Markdown"
@@ -125,7 +120,7 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def process_partner_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработка выбора партнёра или поиска существа."""
+    """Обработка выбора партнёра или поиска карт."""
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
@@ -142,7 +137,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             if step == "search_mode":
                 # Если была команда отмены в режиме поиска
                 trade_info["step"] = "select_cards" # Возвращаемся к выбору
-                await update.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками:")
+                await update.message.reply_text("❌ Поиск отменён\nВыберите карту кнопками:")
                 # Здесь можно повторно вызвать функцию показа текущей карты для выбора
                 # await show_current_card_for_trade(update, context) # Если реализуете
                 return
@@ -181,23 +176,23 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             if not partner_id:
                 if user_id in context.user_data:
                     del context.user_data[user_id] # Удаляем сессию, так как ошибка
-                await update.message.reply_text("⚠️ Герой с таким @никнеймом не найден!\nНачните трейд заново /trade")
+                await update.message.reply_text("⚠️ Игрок с таким @никнеймом не найден!\nНачните трейд заново /trade")
                 return # Выходим после ошибки
         else:
             # Если текст не начинается с @, и не была обработана команда /cancel,
             # и не был вызван поиск, то это ошибка на этапе выбора партнера.
-            # Но теперь, если пользователь ввел название существа, мы не должны сюда попадать,
+            # Но теперь, если пользователь ввел название карты, мы не должны сюда попадать,
             # потому что шаг "search_mode" обрабатывается выше.
             # Однако, если он ввел что-то неожиданное на шаге "select_partner",
             # сообщим ему об этом.
-            await update.message.reply_text("⚠️ Введите @никнейм героя для выбора партнера.")
+            await update.message.reply_text("⚠️ Введите @никнейм игрока для выбора партнера.")
             return # Выходим, не продолжая логику выбора партнера
 
         # 5. Если partner_id найден и прошли все проверки
         if partner_id:
             # Проверяем существование партнёра
             if partner_id not in data["users"]:
-                await update.message.reply_text("⚠️ Герой не найден!")
+                await update.message.reply_text("⚠️ Игрок не найден!")
                 # Удаляем сессию, если нужно
                 if user_id in context.user_data:
                      del context.user_data[user_id]
@@ -219,10 +214,10 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 
             await update.message.reply_text(
                 f"✅ Партнёр: {partner_id}\n"
-                f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n"
+                f"🐦‍🔥 Выберите {cards_count} карты для обмена.\n"
                 f"Используйте кнопки для навигации:\n"
-                f"• [<] [>] - листать существ\n"
-                f"• [✅ Выбрать] - добавить существо\n"
+                f"• [<] [>] - листать карты\n"
+                f"• [✅ Выбрать] - добавить карту\n"
                 f"• [🔍 Поиск] - найти по названию\n"
                 f"• [➡️ Далее] - завершить выбор",
                 parse_mode="Markdown"
@@ -231,7 +226,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             user_data = data["users"][user_id]
             user_card_ids = user_data.get("cards", [])
             if len(user_card_ids) < cards_count:
-                await update.message.reply_text("❌ Недостаточно существ для трейда!")
+                await update.message.reply_text("❌ Недостаточно карт для трейда!")
                 del context.user_data[user_id]
                 return
 
@@ -260,7 +255,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                          reply_markup=InlineKeyboardMarkup(keyboard)
                      )
             else:
-                 await update.message.reply_text("❌ У вас нет существ для трейда.")
+                 await update.message.reply_text("❌ У вас нет карт для трейда.")
                  del context.user_data[user_id]
 
     except Exception as e:
@@ -279,7 +274,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
              pass
 
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Поиск существ по названию во время трейда."""
+    """Поиск карт по названию во время трейда."""
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
@@ -301,10 +296,10 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data or not user_data.get("cards"):
-            await update.message.reply_text("❌ У вас нет существ для трейда!")
+            await update.message.reply_text("❌ У вас нет карт для трейда!")
             return
         
-        # Ищем существ по названию
+        # Ищем карты по названию
         search_query = text.lower()
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
@@ -317,16 +312,16 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         
         if not found_creatures:
             await update.message.reply_text(
-                f"❌ Существ с названием \"{text}\" не найдено!\n"
+                f"❌ Карт с названием \"{text}\" не найдено!\n"
                 "Попробуйте другой запрос или введите @никнейм для выбора партнёра.")
             if step == "search_mode":
                 trade_info["step"] = "select_cards" # Возвращаемся к выбору
-                await update.message.reply_text(" 🐦‍🔥 Выберите существо кнопками:")
+                await update.message.reply_text(" 🐦‍🔥 Выберите карту кнопками:")
             return
         
         # Показываем результаты поиска
         if len(found_creatures) == 1:
-            # Если найдено одно существо — показываем его сразу
+            # Если найдена одна карта — показываем его сразу
             card, count, card_id = found_creatures[0]
             
             # Проверяем, сколько карт нужно выбрать
@@ -342,7 +337,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             trade_info["search_query"] = search_query
             await update.message.reply_photo(
                 photo=card["image_url"],
-                caption=f"{card['title']}\nРедкость: {card['rarity']}\n🛡 В казарме: {count} шт.",
+                caption=f"{card['title']}\nРедкость: {card['rarity']}\n🛡 В архиве: {count} шт.",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
@@ -358,9 +353,9 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
             
             await update.message.reply_text(
-                f"🔍 **Найдено существ: {len(found_creatures)}**\n\n"
+                f"🔍 **Найдено карт: {len(found_creatures)}**\n\n"
                 f"По запросу: \"{text}\"\n\n"
-                f"Выберите существо для трейда:",
+                f"Выберите карту для трейда:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
@@ -371,10 +366,10 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         
     except Exception as e:
         logger.error(f"Ошибка search_creatures_for_trade: {e}")
-        await update.message.reply_text("❌ Ошибка при поиске существ")
+        await update.message.reply_text("❌ Ошибка при поиске карт")
 
 async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик выбора существа из поиска."""
+    """Обработчик выбора карт из поиска."""
     try:
         query = update.callback_query
         await query.answer()
@@ -401,12 +396,12 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
             data = load_data() # <-- ЭТА СТРОКА БЫЛА ПРОПУЩЕНА ИЛИ НЕПРАВИЛЬНО РАСПОЛОЖЕНА
             # ---------------------------------
 
-            # Проверяем, есть ли у игрока это существо
+            # Проверяем, есть ли у игрока эта карта
             user_data = data["users"].get(user_id)
             if not user_data or card_id not in user_data.get("cards", []):
                 # Попробуем отредактировать текстовое сообщение
                 try:
-                    await query.edit_message_text(text="❌ У вас нет этого существа!")
+                    await query.edit_message_text(text="❌ У вас нет этой карты!")
                 except:
                     # Если не получилось (например, уже удалено), просто выйдем
                     pass
@@ -429,7 +424,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
             # Проверяем, не превышено ли количество выбранных карт
             if len(selected_cards) >= cards_count:
-                await query.answer(f"❌ Вы уже выбрали {cards_count} существ!", show_alert=True)
+                await query.answer(f"❌ Вы уже выбрали {cards_count} карт!", show_alert=True)
                 return
 
             # Проверяем, не выбрана ли уже эта карта
@@ -438,12 +433,12 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                  card_index = user_card_ids.index(card_id)
             except ValueError:
-                 # Карта есть в казарме (проверено выше), но не в user_card_ids сессии?
+                 # Карта есть в архиве (проверено выше), но не в user_card_ids сессии?
                  await query.answer("❌ Ошибка: карта не найдена в списке.", show_alert=True)
                  return
 
             if card_index in selected_cards:
-                await query.answer("❌ Это существо уже выбрано!", show_alert=True)
+                await query.answer("❌ Эта карта уже выбрана!", show_alert=True)
                 return
 
             # Добавляем индекс карты в выбранные
@@ -464,10 +459,10 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                      card_in_user_deck = card_counts.get(card["id"], 0)
                      await query.message.edit_caption(
                          caption=(
-                             f"🔍 **Найдено существо:**\n"
+                             f"🔍 **Найдена карта:**\n"
                              f"🏷 {card['title']}\n"
                              f"🌟 Редкость: {card['rarity']}\n"
-                             f"🛡 В казарме: {card_in_user_deck} шт.\n"
+                             f"🛡 В архиве: {card_in_user_deck} шт.\n"
                              f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n"
                              f"✅ Выбрано: {card['title']}"
                          ),
@@ -478,7 +473,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
                      # Если набрали нужное количество, возвращаемся к основному выбору
                      if len(selected_cards) >= cards_count:
-                          await query.answer(f"✅ Выбрано {cards_count} существ! Нажмите '➡️ Далее'.", show_alert=False)
+                          await query.answer(f"✅ Выбрано {cards_count} карт! Нажмите '➡️ Далее'.", show_alert=False)
                           # Возвращаем step к предыдущему ("select_cards" или "select_return_cards")
                           trade_info["step"] = prev_step
                           # Удаляем предыдущий шаг, так как он использован
@@ -506,7 +501,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                               caption = (
                                   f"{card_to_display['title']}\n"
                                   f"Редкость: {card_to_display['rarity']}\n"
-                                  f"📦 В казарме: {card_in_collection} шт.\n\n"
+                                  f"📦 В архиве: {card_in_collection} шт.\n\n"
                                   f"📊 Выбрано: {selected_count_now}/{cards_count}"
                               )
 
@@ -551,10 +546,10 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                      card_counts = Counter(user_data["cards"])
                      card_in_user_deck = card_counts.get(card["id"], 0)
                      new_text = (
-                         f"🔍 **Найдено существо:**\n"
+                         f"🔍 **Найдена карта:**\n"
                          f"🏷 {card['title']}\n"
                          f"🌟 Редкость: {card['rarity']}\n"
-                         f"🛡 В казарме: {card_in_user_deck} шт.\n"
+                         f"🛡 В архиве: {card_in_user_deck} шт.\n"
                          f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n"
                          f"✅ Выбрано: {card['title']}"
                      )
@@ -566,7 +561,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
                      # Если набрали нужное количество, возвращаемся к основному выбору
                      if len(selected_cards) >= cards_count:
-                          await query.answer(f"✅ Выбрано {cards_count} существ! Нажмите '➡️ Далее'.", show_alert=False)
+                          await query.answer(f"✅ Выбрано {cards_count} карт! Нажмите '➡️ Далее'.", show_alert=False)
                           # Возвращаем step к предыдущему ("select_cards" или "select_return_cards")
                           trade_info["step"] = prev_step
                           # Удаляем предыдущий шаг, так как он использован
@@ -591,7 +586,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                               caption = (
                                   f"{card_to_display['title']}\n"
                                   f"Редкость: {card_to_display['rarity']}\n"
-                                  f"📦 В казарме: {card_in_collection} шт.\n\n"
+                                  f"📦 В архиве: {card_in_collection} шт.\n\n"
                                   f"📊 Выбрано: {selected_count_now}/{cards_count}"
                               )
 
@@ -654,7 +649,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 except:
                     pass # Игнорируем, если не удалось удалить
                 # Отправляем сообщение и показываем интерфейс выбора карт снова
-                await query.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками:")
+                await query.message.reply_text("❌ Поиск отменён\nВыберите карту кнопками:")
                 # Важно: шаг изменен.
             return # Важно выйти после обработки отмены
 
@@ -708,7 +703,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_card_ids = trade_info.get("user_card_ids", [])
             
             if not user_card_ids:
-                await query.answer("❌ Существа не найдены!", show_alert=True)
+                await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
             
             if action == "prev":
@@ -730,7 +725,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
+                    f"🛡 В архиве: {card_in_collection} шт.\n\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
                 
@@ -761,7 +756,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 selected_cards.remove(card_index)
             else:
                 if len(selected_cards) >= cards_count:
-                    await query.answer("❌ Максимум существ выбрано!", show_alert=True)
+                    await query.answer("❌ Максимум карт выбрано!", show_alert=True)
                     return
                 selected_cards.append(card_index)
             
@@ -778,7 +773,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
+                    f"🛡 В архиве: {card_in_collection} шт.\n\n"
                     f"{len(selected_cards)}/{cards_count} выбрано"
                 )
                 
@@ -807,11 +802,9 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
                 trade_info["previous_step_before_search"] = trade_info["step"]
                 trade_info["step"] = "search_mode"
-            await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+            await query.answer("🔍 Введите название карты для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 **Поиск существ**\n"
-                "Введите часть названия существа:\n"
-                "Например: \"дракон\", \"демон\", \"огр\"\n"
+                "🔍 **Поиск карт**\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown"
             )
@@ -826,7 +819,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             partner_id = trade_info["partner_id"]
             
             if len(selected_cards) != cards_count:
-                await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
+                await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
                 return
             
             # Переходим к подтверждению
@@ -845,7 +838,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
-                    f"✅ Вы выбрали {cards_count} существ\n\n"
+                    f"✅ Вы выбрали {cards_count} карт\n\n"
                     f"👤 Партнёр: {trade_info['partner_id']}\n\n"
                     f"📩 Отправляю запрос на обмен..."
                 ),
@@ -878,7 +871,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             try:
                 # Получаем имя отправителя
                 sender_data = data["users"].get(user_id, {})
-                sender_name = sender_data.get("first_name", "Герой")
+                sender_name = sender_data.get("first_name", "Игрок")
                 if sender_data.get("last_name"):
                     sender_name += f" {sender_data['last_name']}"
                 if sender_data.get("username"):
@@ -891,7 +884,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     if card:
                         cards_info.append(f"• {card['title']} ({card['rarity']})")
     
-                cards_text = "\n".join(cards_info) if cards_info else "Нет существ"
+                cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
     
                 # ⭐ ДОБАВЛЯЕМ ИНЛАЙН-КНОПКИ ⭐
                 keyboard = [
@@ -906,7 +899,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     text=(
                         f"🔄 **Вам предложили обмен!**\n\n"
                         f"👤 От: {sender_name}\n"
-                        f"🐦‍🔥 Существ в обмене: {cards_count}\n\n"
+                        f"🐦‍🔥 карт в обмене: {cards_count}\n\n"
                         f"📋 **Карты отправителя:**\n"
                         f"{cards_text}\n\n"
                         f"Нажмите кнопку для действия:"
@@ -916,7 +909,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 )
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
-                await query.message.reply_text("⚠️ Не удалось уведомить героя")
+                await query.message.reply_text("⚠️ Не удалось уведомить игрока")
     
     except Exception as e:
         logger.error(f"Ошибка trade_callback: {e}")
@@ -949,7 +942,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             if from_user not in data["users"]:
                 del data["active_trades"][user_id]
                 save_data(data)
-                await query.edit_message_text("❌ Герой, который отправил трейд, больше не существует!")
+                await query.edit_message_text("❌ Игрок, который отправил трейд, больше не существует!")
                 return
             
             # Проверяем, что карты ещё существуют у отправителя
@@ -961,7 +954,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             
             # Получаем имя отправителя
             sender_data = data["users"].get(from_user, {})
-            sender_name = sender_data.get("first_name", "Герой")
+            sender_name = sender_data.get("first_name", "Игрок")
             if sender_data.get("last_name"):
                 sender_name += f" {sender_data['last_name']}"
             
@@ -979,8 +972,8 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             
             await query.edit_message_text(
                 f"✅ **Запрос принят от {sender_name}**\n\n"
-                f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
-                f"📋 **Просмотрите существ ниже:**\n"
+                f"🐦‍🔥 Карт в обмене: {len(cards_offered)}\n\n"
+                f"📋 **Просмотрите карты ниже:**\n"
                 f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
@@ -1042,7 +1035,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                 await context.bot.send_message(
                     chat_id=from_user,
-                    text=f"❌ Герой отклонил ваш запрос на обмен."
+                    text=f"❌ Игрок отклонил ваш запрос на обмен."
                 )
             except:
                 pass
@@ -1070,7 +1063,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         
         cards_offered = trade_info.get("received_cards", [])
         if not cards_offered:
-            await query.answer("❌ Существа не найдены!", show_alert=True)
+            await query.answer("❌ Карты не найдены!", show_alert=True)
             return
         
         # Навигация
@@ -1135,7 +1128,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             await query.message.reply_text(
                 f"✅ Запрос принят!\n\n"
-                f"🐦‍🔥 Теперь выберите {cards_count} существ для обмена\n\n"
+                f"🐦‍🔥 Теперь выберите {cards_count} карты для обмена\n\n"
                 "Используйте кнопки для выбора...",
                 parse_mode="Markdown"
             )
@@ -1146,8 +1139,8 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             if len(user_card_ids) < cards_count:
                 await query.message.reply_text(
-                    f"❌ Недостаточно существ для трейда!\n"
-                    f"У вас: {len(user_card_ids)} существ, нужно: {cards_count}"
+                    f"❌ Недостаточно карт для трейда!\n"
+                    f"У вас: {len(user_card_ids)} карт, нужно: {cards_count}"
                 )
                 if "incoming_trade" in context.user_data.get(user_id, {}):
                     del context.user_data[user_id]["incoming_trade"]
@@ -1160,7 +1153,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             # Показываем первую карту
             if not user_card_ids:
-                await query.message.reply_text("❌ У вас нет существ!")
+                await query.message.reply_text("❌ У вас нет карт!")
                 return
             
             card = find_card_by_id(user_card_ids[0], data["cards"])
@@ -1194,7 +1187,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 try:
                     await context.bot.send_message(
                         chat_id=from_user,
-                        text=f"❌ Герой отклонил ваш запрос на обмен."
+                        text=f"❌ Игрок отклонил ваш запрос на обмен."
                     )
                 except:
                     pass
@@ -1223,7 +1216,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             action = "prev" if "prev" in query.data else "next"
             current_index = trade_info.get("current_index", 0)
             if not user_card_ids:
-                await query.answer("❌ Существа не найдены!", show_alert=True)
+                await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
             if action == "prev":
                 current_index = (current_index - 1) % len(user_card_ids)
@@ -1239,7 +1232,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"🛡 В казарме: {card_in_collection} шт.\n"
+                    f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
                 is_selected = current_index in trade_info.get("selected_cards", [])
@@ -1264,7 +1257,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 selected_cards.remove(card_index)
             else:
                 if len(selected_cards) >= cards_count:
-                    await query.answer("❌ Максимум существ выбрано!", show_alert=True)
+                    await query.answer("❌ Максимум карт выбрано!", show_alert=True)
                     return
                 selected_cards.append(card_index)
             trade_info["selected_cards"] = selected_cards
@@ -1276,7 +1269,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"🛡 В казарме: {card_in_collection} шт.\n"
+                    f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{len(selected_cards)}/{cards_count} выбрано"
                 )
                 is_selected = current_index in selected_cards
@@ -1299,11 +1292,9 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
                 trade_info["previous_step_before_search"] = trade_info["step"]
                 trade_info["step"] = "search_mode"
-            await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+            await query.answer("🔍 Введите название карты для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 **Поиск существ**\n"
-                "Введите часть названия существа:\n"
-                "Например: \"дракон\", \"демон\", \"огр\"\n"
+                "🔍 **Поиск карт**\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown"
             )
@@ -1313,7 +1304,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
             if len(selected_cards) != cards_count:
-                await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
+                await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
                 return
             # Получаем выбранные карты
             selected_card_ids = [user_card_ids[i] for i in selected_cards]
@@ -1336,7 +1327,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             # Отправляем уведомление отправителю (Игрок А)
             try:
                 sender_data = data["users"].get(user_id, {})
-                sender_name = sender_data.get("first_name", "Герой")
+                sender_name = sender_data.get("first_name", "Игрок")
                 if sender_data.get("last_name"):
                     sender_name += f" {sender_data['last_name']}"
                 # Информация о картах получателя
@@ -1363,7 +1354,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Герой готов к обмену!**\n"
+                        f"🔄 **Игрок готов к обмену!**\n"
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n"
                         f"📋 **Ваше предложение:**\n"
@@ -1443,8 +1434,8 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 del context.user_data[partner_id]
             await query.edit_message_text(
                 "✅ **Обмен завершён!**\n"
-                f"🐦‍🔥 Вы отдали: {len(received_cards)} существ\n"
-                f"🐦‍🔥 Вы получили: {len(selected_return_cards)} существ",
+                f"🐦‍🔥 Вы отдали: {len(received_cards)} карт\n"
+                f"🐦‍🔥 Вы получили: {len(selected_return_cards)} карт",
                 parse_mode="Markdown"
             )
             # Уведомляем получателя
@@ -1453,8 +1444,8 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     chat_id=partner_id,
                     text=(
                         "✅ **Обмен завершён!**\n"
-                        f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} существ\n"
-                        f"🐦‍🔥 Вы получили: {len(received_cards)} существ"
+                        f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} карт\n"
+                        f"🐦‍🔥 Вы получили: {len(received_cards)} карт"
                     ),
                     parse_mode="Markdown"
                 )
