@@ -235,7 +235,16 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             if user_card_ids: # Проверяем, что список не пуст
                  card = find_card_by_id(user_card_ids[0], data["cards"])
                  if card:
-                     caption = f"{card['title']}\nРедкость: {card['rarity']}\n0/{cards_count} выбрано"
+                     # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В АРХИВЕ ⭐
+                     card_counts = Counter(user_card_ids)
+                     card_in_collection = card_counts.get(card["id"], 1)
+                     
+                     caption = (
+                         f"{card['title']}\n"
+                         f"Редкость: {card['rarity']}\n"
+                         f"🛡 В архиве: {card_in_collection} шт.\n\n"
+                         f"0/{cards_count} выбрано"
+                     )
                      keyboard = [
                          [
                              InlineKeyboardButton("<", callback_data=f"trade_prev_0"),
