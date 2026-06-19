@@ -381,6 +381,87 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         logger.error(f"Ошибка search_creatures_for_trade: {e}")
         await update.message.reply_text("❌ Ошибка при поиске карт")
 
+async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок из результатов поиска."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+
+        if user_id not in context.user_data:
+            await query.edit_message_text(text="❌ Сессия трейда истекла!")
+            return
+
+        trade_info = context.user_data[user_id]
+
+        # --- Обработка отмены поиска ---
+        if query.data == "trade_search_cancel":
+            prev_step = trade_info.get("previous_step_before_search", "select_cards")
+            if prev_step not in ["select_cards", "select_return_cards"]:
+                prev_step = "select_cards"
+
+            trade_info["step"] = prev_step
+            if "previous_step_before_search" in trade_info:
+                del trade_info["previous_step_before_search"]
+
+            # Удаляем сообщение поиска
+            try:
+                await query.message.delete()
+            except:
+                pass
+
+            # Возвращаем ПОЛНЫЙ список карт
+            data = load_data()
+            user_data = data["users"].get(user_id)
+            full_card_ids = user_data.get("cards", []) if user_data else []
+            trade_info["user_card_ids"] = full_card_ids
+            trade_info["current_index"] = 0
+
+            await query.message.reply_text("❌ Поиск отменён. Показан полный список карт.")
+            
+            # Показываем первую карту через универсальную функцию
+            # (если вы её добавили) или дублируем логику отображения
+            if full_card_ids:
+                card = find_card_by_id(full_card_ids[0], data["cards"])
+                if card:
+                    card_counts = Counter(full_card_ids)
+                    caption = (
+                        f"{card['title']}\n"
+                        f"Редкость: {card['rarity']}\n"
+                        f"🛡 В архиве: {card_counts.get(card['id'], 1)} шт.\n\n"
+                        f"0/{trade_info.get('cards_count', 1)} выбрано"
+                    )
+                    button_prefix = "trade_return_" if prev_step == "select_return_cards" else "trade_"
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("<", callback_data=f"{button_prefix}prev_0"),
+                            InlineKeyboardButton("✅ Выбрать", callback_data=f"{button_prefix}select_0"),
+                            InlineKeyboardButton(">", callback_data=f"{button_prefix}next_0"),
+                        ],
+                        [InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish")],
+                        [InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button")],
+                    ]
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+            return
+
+        # Если вдруг пришла старая кнопка выбора из поиска — игнорируем
+        # (выбор теперь идёт через обычные кнопки навигации)
+        if query.data.startswith("trade_search_select_"):
+            await query.answer("⚠️ Используйте кнопки навигации для выбора", show_alert=True)
+            return
+
+    except Exception as e:
+        logger.error(f"Ошибка trade_search_callback: {e}")
+        try:
+            await query.answer("❌ Ошибка при обработке поиска", show_alert=True)
+        except:
+            pass
+
 
 async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок трейда (отправитель)."""
