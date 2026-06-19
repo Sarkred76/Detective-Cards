@@ -1393,6 +1393,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик финального подтверждения трейда."""
     try:
+        from main import update_quest_progress
         query = update.callback_query
         await query.answer()
         user_id = str(query.from_user.id)  # Это ОТПРАВИТЕЛЬ (Игрок А)
@@ -1431,6 +1432,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             partner_data["cards"].extend(received_cards)
             save_data(data)
             await update_quest_progress(context, user_id, "trade_3", 1)
+            data = load_data()
             # Очищаем трейд
             del data["active_trades"][user_id]
             save_data(data)
