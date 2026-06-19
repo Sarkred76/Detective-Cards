@@ -172,6 +172,16 @@ def load_data() -> Dict[str, Any]:
             for user_id, user_data in data.get("users", {}).items():
                 if "clan_invite_pending" not in user_data:
                     user_data["clan_invite_pending"] = None  # Для хранения ожидающего приглашения
+                if "weekly_quests" not in user_data:
+                    user_data["weekly_quests"] = []
+                if "weekly_quests_last_reset_year" not in user_data:
+                    user_data["weekly_quests_last_reset_year"] = 0
+                if "weekly_quests_last_reset_week" not in user_data:
+                    user_data["weekly_quests_last_reset_week"] = 0
+                if "daily_quests_streak" not in user_data:
+                    user_data["daily_quests_streak"] = 0
+                if "last_streak_date" not in user_data:
+                    user_data["last_streak_date"] = ""
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -1558,6 +1568,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await update_quest_progress(context, user_id, "card_epic_plus", 1)
             # Прогресс репутации
             await update_quest_progress(context, user_id, "rep_1000", bonus["points"])
+            await update_weekly_quest_progress(context, user_id, "weekly_dossier_25", 1)
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
 
@@ -2321,6 +2332,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"🎲 Осталось игр в казино: {user_data['casino_attempts']}",
                 parse_mode="Markdown",
             )
+            await update_weekly_quest_progress(context, user_id, "weekly_casino_win", 1)
 
         else:
             await asyncio.sleep(2)
@@ -5465,6 +5477,12 @@ async def update_quest_progress(
     
     if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
         save_data(data)
+        # ⭐ ПРОВЕРКА СТРИКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ ⭐
+        # Перезагружаем данные, чтобы получить актуальное состояние daily_quests
+        data_fresh = load_data()
+        user_data_fresh = data_fresh["users"].get(user_id)
+        if user_data_fresh:
+            await check_daily_quests_all_completed(user_data_fresh, user_id, context)
 
 
 async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -5584,11 +5602,11 @@ async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif query.data == "quests_daily":
             await quests_daily_view(update, context)
         elif query.data == "quests_weekly":
-            await query.message.delete()
+            await quests_weekly_view(update, context)
             keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text="📆 <b>Еженедельные квесты</b>\n\n🔒 Скоро появятся!",
+                text="📆 <b>Еженедельные квесты</b>\n\n",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="HTML"
             )
@@ -5609,6 +5627,248 @@ async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 # ===== КОНЕЦ БЛОКА ЕЖЕДНЕВНЫХ КВЕСТОВ =====
+
+# ===== ЕЖЕНЕДЕЛЬНЫЕ КВЕСТЫ =====
+
+WEEKLY_QUESTS_POOL = [
+    {
+        "id": "weekly_streak_3",
+        "desc": "Выполнить все ежедневные квесты 3 дня подряд",
+        "reward_type": "free_rolls",
+        "reward_amount": 3,
+        "target": 3
+    },
+    {
+        "id": "weekly_casino_win",
+        "desc": "Победить в казино 1 раз",
+        "reward_type": "rep_points",
+        "reward_amount": 600,
+        "target": 1
+    },
+    {
+        "id": "weekly_dossier_25",
+        "desc": "Получить досье 25 раз",
+        "reward_type": "free_rolls",
+        "reward_amount": 5,
+        "target": 25
+    },
+]
+
+
+def check_weekly_quests_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает еженедельные квесты в понедельник 00:00 МСК."""
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    
+    current_year, current_week, _ = now_msk.isocalendar()
+    
+    last_year = user_data.get("weekly_quests_last_reset_year", 0)
+    last_week = user_data.get("weekly_quests_last_reset_week", 0)
+    
+    # Если год или неделя изменились — сбрасываем
+    if last_year == 0 or current_year != last_year or current_week != last_week:
+        # Выбираем все 3 еженедельных квеста (их всего 3, берём без random.sample)
+        user_data["weekly_quests"] = []
+        for q in WEEKLY_QUESTS_POOL:
+            user_data["weekly_quests"].append({
+                "id": q["id"],
+                "desc": q["desc"],
+                "reward_type": q["reward_type"],
+                "reward_amount": q["reward_amount"],
+                "target": q["target"],
+                "progress": 0,
+                "completed": False,
+                "claimed": False
+            })
+        
+        # ⭐ ВАЖНО: Сбрасываем стрик при недельном сбросе ⭐
+        user_data["daily_quests_streak"] = 0
+        
+        user_data["weekly_quests_last_reset_year"] = current_year
+        user_data["weekly_quests_last_reset_week"] = current_week
+
+
+async def update_weekly_quest_progress(
+    context: ContextTypes.DEFAULT_TYPE,
+    user_id: str,
+    quest_id: str,
+    amount: int = 1
+) -> None:
+    """Обновляет прогресс еженедельного квеста."""
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return
+    
+    check_weekly_quests_reset(user_data)
+    
+    quests = user_data.get("weekly_quests", [])
+    changed = False
+    
+    for quest in quests:
+        if quest["id"] == quest_id and not quest["completed"]:
+            quest["progress"] = min(quest["progress"] + amount, quest["target"])
+            if quest["progress"] >= quest["target"]:
+                quest["completed"] = True
+                # Выдаём награду
+                if quest["reward_type"] == "cents":
+                    user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "free_rolls":
+                    user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "rep_points":
+                    user_data["season_points"] = user_data.get("season_points", 0) + quest["reward_amount"]
+                    user_data["total_points"] = user_data.get("total_points", 0) + quest["reward_amount"]
+                
+                changed = True
+                save_data(data)
+                
+                # Отправляем уведомление
+                reward_text = ""
+                if quest["reward_type"] == "cents":
+                    reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
+                elif quest["reward_type"] == "free_rolls":
+                    reward_text = f"{quest['reward_amount']} бесплатных попыток 🎲"
+                elif quest["reward_type"] == "rep_points":
+                    reward_text = f"{quest['reward_amount']} очков репутации 💥"
+                
+                text = (
+                    f"✅ <b>Выполнен еженедельный квест!</b>\n\n"
+                    f"📋 {quest['desc']}\n"
+                    f"🎁 Ваша награда: {reward_text}"
+                )
+                try:
+                    await context.bot.send_message(chat_id=int(user_id), text=text, parse_mode="HTML")
+                except Exception as e:
+                    logger.error(f"Ошибка отправки уведомления о недельном квесте: {e}")
+                
+                logger.info(f"Игрок {user_id} выполнил недельный квест {quest_id}")
+            else:
+                changed = True
+    
+    if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
+        save_data(data)
+
+
+async def check_daily_quests_all_completed(user_data: Dict, user_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Проверяет, выполнены ли ВСЕ ежедневные квесты за сегодня.
+    Если да — увеличивает стрик и обновляет недельный квест.
+    Вызывается ПОСЛЕ выполнения каждого ежедневного квеста.
+    """
+    daily_quests = user_data.get("daily_quests", [])
+    if not daily_quests:
+        return
+    
+    # Проверяем, все ли дейлики выполнены
+    all_completed = all(q.get("completed", False) for q in daily_quests)
+    if not all_completed:
+        return
+    
+    # Проверяем, не засчитан ли уже сегодняшний день (чтобы не инкрементировать дважды)
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    today_str = now_msk.strftime("%Y-%m-%d")
+    
+    last_streak_date = user_data.get("last_streak_date", "")
+    if last_streak_date == today_str:
+        return  # Уже засчитано сегодня
+    
+    # Увеличиваем стрик
+    streak = user_data.get("daily_quests_streak", 0) + 1
+    user_data["daily_quests_streak"] = streak
+    user_data["last_streak_date"] = today_str
+    
+    save_data(load_data())  # Сохраняем стрик
+    
+    # Обновляем недельный квест стрика
+    await update_weekly_quest_progress(context, user_id, "weekly_streak_3", 1)
+    
+    logger.info(f"Игрок {user_id}: стрик ежедневных квестов = {streak}")
+
+
+async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает список активных еженедельных квестов."""
+    query = update.callback_query if hasattr(update, 'callback_query') else None
+    user_id = str(query.from_user.id if query else update.effective_user.id)
+    chat_id = query.message.chat_id if query else update.effective_chat.id
+    
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        text = "❌ Вы ещё не начали игру!"
+        if query:
+            await query.edit_message_text(text)
+        else:
+            await update.message.reply_text(text)
+        return
+    
+    check_weekly_quests_reset(user_data)
+    save_data(data)
+    
+    quests = user_data.get("weekly_quests", [])
+    
+    # Определяем время до следующего понедельника
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    days_until_monday = (7 - now_msk.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    next_monday = now_msk.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=days_until_monday)
+    remaining = int((next_monday - now_msk).total_seconds())
+    days = remaining // 86400
+    hours = (remaining % 86400) // 3600
+    minutes = (remaining % 3600) // 60
+    
+    streak = user_data.get("daily_quests_streak", 0)
+    
+    text = (
+        f"📆 <b>Еженедельные квесты</b>\n"
+        f"⏳ Обновление через: {days}д {hours}ч {minutes}мин\n"
+        f"🔥 Стрик ежедневных квестов: {streak}/3\n\n"
+    )
+    
+    for quest in quests:
+        status_icon = "✅" if quest["completed"] else "⬜"
+        progress_bar_len = 10
+        filled = int((quest["progress"] / quest["target"]) * progress_bar_len) if quest["target"] > 0 else 0
+        bar = "█" * filled + "░" * (progress_bar_len - filled)
+        
+        reward_text = ""
+        if quest["reward_type"] == "cents":
+            reward_text = f"{quest['reward_amount']} 💰"
+        elif quest["reward_type"] == "free_rolls":
+            reward_text = f"{quest['reward_amount']} 🎲"
+        elif quest["reward_type"] == "rep_points":
+            reward_text = f"{quest['reward_amount']} 💥"
+        
+        text += (
+            f"{status_icon} {quest['desc']}\n"
+            f"   [{bar}] {quest['progress']}/{quest['target']}\n"
+            f"   🎁 Награда: {reward_text}\n\n"
+        )
+    
+    keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+    
+    if query:
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+
+# ===== КОНЕЦ БЛОКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ =====
 
 # ===== ЗАПУСК БОТА =====
 
