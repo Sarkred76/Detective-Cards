@@ -4271,7 +4271,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["cents"] -= BASKET_GAME_COST
         user_data["basket_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+        await update_quest_progress(context, user_id, "spend_1500", 1000)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
