@@ -1150,7 +1150,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"🔢 Всего получено: {len(user_card_ids)}\n"
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
-            f"🎲 Бесплатные попытки: {user_data.get('free_rolls', 0)}\n"
+            f"🔍 Бесплатные попытки: {user_data.get('free_rolls', 0)}\n"
         )
         
         # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
@@ -2191,7 +2191,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"⏳ Вы уже бросали кубик на этой неделе!\n"
                 f"Следующий бросок будет доступен в понедельник.\n"
                 f"Осталось ждать: {time_text}\n"
-                f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных попыток"
+                f"🔍 У вас есть {user_data.get('free_rolls', 0)} бесплатных попыток"
             )
             return
 
@@ -2207,7 +2207,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await asyncio.sleep(4)
         await update.message.reply_text(
             f"🎲 Выпало: {dice_value}!\n"
-            f"✨ Получено бесплатных попыток: {dice_value}\n"
+            f"🔍 Получено бесплатных попыток: {dice_value}\n"
             f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n"
             f"⏳ Следующий бросок доступен в следующий понедельник в 00:00 МСК"
         )
@@ -2505,7 +2505,7 @@ async def add_rolls_to_player(
         await update.message.reply_text(
             f"✅ **Наймы добавлены!**\n"
             f"👤 Герой: {target_user_id}\n"
-            f"🎲 Добавлено: {rolls_count}\n"
+            f"🔍 Добавлено: {rolls_count}\n"
             f"📊 Было: {old_rolls}\n"
             f"📈 Стало: {user_data['free_rolls']}\n"
             f"{'🆕 Герой создан!' if is_new_user else ''}",
@@ -5411,7 +5411,7 @@ async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: in
     if quest["reward_type"] == "cents":
         reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
     elif quest["reward_type"] == "free_rolls":
-        reward_text = f"{quest['reward_amount']} бесплатная попытка 🎲"
+        reward_text = f"{quest['reward_amount']} бесплатная попытка 🔍"
     
     text = (
         f"✅ <b>Выполнен квест!</b>\n\n"
@@ -5830,7 +5830,7 @@ async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if quest["reward_type"] == "cents":
             reward_text = f"{quest['reward_amount']} 💰"
         elif quest["reward_type"] == "free_rolls":
-            reward_text = f"{quest['reward_amount']} 🎲"
+            reward_text = f"{quest['reward_amount']} 🔍"
         elif quest["reward_type"] == "rep_points":
             reward_text = f"{quest['reward_amount']} 💥"
         
