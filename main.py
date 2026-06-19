@@ -2297,7 +2297,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             user_data["cents"] -= 3000
             user_data["casino_attempts"] -= 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+        await update_quest_progress(context, user_id, "spend_1500", 3000)
         
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
