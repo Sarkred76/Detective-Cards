@@ -2266,10 +2266,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # Проверяем сброс попыток
         check_casino_reset(user_data)
         attempts = user_data.get("casino_attempts", 0)
-        cents = user_data.get("cents", 0)
-
-        await update_quest_progress(context, user_id, "casino_1", 1)
-        
+        cents = user_data.get("cents", 0)        
         
         # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКИ ⭐
         if not is_super_admin:
@@ -2297,6 +2294,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             user_data["cents"] -= 3000
             user_data["casino_attempts"] -= 1
         save_data(data)
+        await update_quest_progress(context, user_id, "casino_1", 1)
         await update_quest_progress(context, user_id, "spend_1500", 3000)
         
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
