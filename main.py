@@ -5131,7 +5131,7 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["cents"] -= DARTS_GAME_COST
             user_data["darts_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+        await update_quest_progress(context, user_id, "spend_1500", DARTS_GAME_COST)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
