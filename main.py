@@ -37,6 +37,7 @@ from trade_functions import (
     trade_return_callback,
     trade_final_callback,
     _show_trade_card,
+    trade_search_callback, 
     search_creatures_for_trade,
 )
 from telegram.error import NetworkError, TimedOut
@@ -5662,6 +5663,7 @@ def main() -> None:
             CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
             CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
             CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),
+            CallbackQueryHandler(trade_search_callback, pattern=r"^trade_search_.*"),
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
