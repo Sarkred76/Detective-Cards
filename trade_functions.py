@@ -1430,6 +1430,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             # Добавляем карты от отправителя получателю
             partner_data["cards"].extend(received_cards)
             save_data(data)
+            await update_quest_progress(context, user_id, "trade_3", 1)
             # Очищаем трейд
             del data["active_trades"][user_id]
             save_data(data)
