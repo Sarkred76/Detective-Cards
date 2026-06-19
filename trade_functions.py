@@ -75,7 +75,7 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(
             "🔄 **Трейд**\n\n"
             "Выберите тип обмена:\n\n"
-            "📝 После выбора нужно будет указать игрока и выбрать картв.",
+            "📝 После выбора нужно будет указать игрока и выбрать карты.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
