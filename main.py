@@ -5720,7 +5720,7 @@ async def update_weekly_quest_progress(
                 if quest["reward_type"] == "cents":
                     reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
                 elif quest["reward_type"] == "free_rolls":
-                    reward_text = f"{quest['reward_amount']} бесплатных попыток 🎲"
+                    reward_text = f"{quest['reward_amount']} бесплатных попыток 🔍"
                 elif quest["reward_type"] == "rep_points":
                     reward_text = f"{quest['reward_amount']} очков репутации 💥"
                 
