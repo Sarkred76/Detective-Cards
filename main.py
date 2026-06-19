@@ -3832,7 +3832,7 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
                 "• Без специальных символов",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
-            await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+            await update_quest_progress(context, user_id, "spend_1500", 30000)
         elif text == "❌ Отмена":
             if user_id in context.user_data:
                 del context.user_data[user_id]
@@ -4496,7 +4496,7 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 user_data["cents"] -= box["price"]
                 save_data(data)
                 
-                await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+                await update_quest_progress(context, user_id, "spend_1500", box["price"])
                 await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
                 await context.bot.send_message(  # ← ДОБАВЛЕНО
                     chat_id=query.message.chat_id,
@@ -4534,7 +4534,7 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             user_data["cents"] -= 10000
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
             save_data(data)
-            await update_quest_progress(context, user_id, "spend_1500", amount_spent)
+            await update_quest_progress(context, user_id, "spend_1500", 10000)
             
             await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
             await context.bot.send_message(  # ← ДОБАВЛЕНО
