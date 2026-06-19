@@ -73,7 +73,7 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         ]
         
         await update.message.reply_text(
-            "🔄 **Трейд**\n\n"
+            "🔄 Трейд\n\n"
             "Выберите тип обмена:\n\n"
             "📝 После выбора нужно будет указать игрока и выбрать карты.",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -105,7 +105,7 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
         }
         
         await message.reply_text(
-            "👤 **Введите @никнейм игрока**\n\n"
+            "👤 Введите @никнейм игрока\n\n"
             "Пример:\n"
             "• @username\n\n",
             parse_mode="Markdown"
@@ -362,7 +362,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
             
             await update.message.reply_text(
-                f"🔍 **Найдено карт: {len(found_creatures)}**\n\n"
+                f"🔍 Найдено карт: {len(found_creatures)}\n\n"
                 f"По запросу: \"{text}\"\n\n"
                 f"Выберите карту для трейда:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
@@ -476,7 +476,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                      card_in_user_deck = card_counts.get(card["id"], 0)
                      await query.message.edit_caption(
                          caption=(
-                             f"🔍 **Найдена карта:**\n"
+                             f"🔍 Найдена карта:\n"
                              f"🏷 {card['title']}\n"
                              f"🌟 Редкость: {card['rarity']}\n"
                              f"🛡 В архиве: {card_in_user_deck} шт.\n"
@@ -563,7 +563,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                      card_counts = Counter(user_data["cards"])
                      card_in_user_deck = card_counts.get(card["id"], 0)
                      new_text = (
-                         f"🔍 **Найдена карта:**\n"
+                         f"🔍 Найдена карта:\n"
                          f"🏷 {card['title']}\n"
                          f"🌟 Редкость: {card['rarity']}\n"
                          f"🛡 В архиве: {card_in_user_deck} шт.\n"
@@ -821,7 +821,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 trade_info["step"] = "search_mode"
             await query.answer("🔍 Введите название карты для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 **Поиск карт**\n"
+                "🔍 Поиск карт\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown"
             )
@@ -914,10 +914,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Вам предложили обмен!**\n\n"
+                        f"🔄 Вам предложили обмен!\n\n"
                         f"👤 От: {sender_name}\n"
-                        f"🐦‍🔥 карт в обмене: {cards_count}\n\n"
-                        f"📋 **Карты отправителя:**\n"
+                        f"🐦‍🔥 Карт в обмене: {cards_count}\n\n"
+                        f"📋 Карты отправителя:\n"
                         f"{cards_text}\n\n"
                         f"Нажмите кнопку для действия:"
                     ),
@@ -988,9 +988,9 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             save_data(data)
             
             await query.edit_message_text(
-                f"✅ **Запрос принят от {sender_name}**\n\n"
+                f"✅ Запрос принят от {sender_name}\n\n"
                 f"🐦‍🔥 Карт в обмене: {len(cards_offered)}\n\n"
-                f"📋 **Просмотрите карты ниже:**\n"
+                f"📋 Просмотрите карты ниже:\n"
                 f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
@@ -1311,7 +1311,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 trade_info["step"] = "search_mode"
             await query.answer("🔍 Введите название карты для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 **Поиск карт**\n"
+                "🔍 Поиск карт\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown"
             )
@@ -1371,10 +1371,10 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Игрок готов к обмену!**\n"
+                        f"🔄 Игрок готов к обмену!\n"
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n"
-                        f"📋 **Ваше предложение:**\n"
+                        f"📋 Ваше предложение:\n"
                         f"{offered_cards_text}\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
@@ -1450,9 +1450,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
             await query.edit_message_text(
-                "✅ **Обмен завершён!**\n"
-                f"🐦‍🔥 Вы отдали: {len(received_cards)} карт\n"
-                f"🐦‍🔥 Вы получили: {len(selected_return_cards)} карт",
+                "✅ Обмен завершён!\n",
                 parse_mode="Markdown"
             )
             # Уведомляем получателя
@@ -1460,9 +1458,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        "✅ **Обмен завершён!**\n"
-                        f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} карт\n"
-                        f"🐦‍🔥 Вы получили: {len(received_cards)} карт"
+                        "✅ Обмен завершён!\n"
                     ),
                     parse_mode="Markdown"
                 )
