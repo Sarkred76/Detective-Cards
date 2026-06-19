@@ -5660,7 +5660,6 @@ def main() -> None:
             CallbackQueryHandler(casino_callback, pattern=r"^casino_.*"),
             CallbackQueryHandler(top_callback, pattern=r"^top_.*"),
             CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
-            CallbackQueryHandler(trade_search_callback, pattern=r"^trade_search_.*"),
             CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
             CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
