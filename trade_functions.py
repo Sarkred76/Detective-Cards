@@ -436,21 +436,29 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.answer(f"❌ Вы уже выбрали {cards_count} карт!", show_alert=True)
                 return
 
-            # Проверяем, не выбрана ли уже эта карта
-            # Для отправителя и получателя selected_cards содержит индексы в user_card_ids
+            # ⭐ ИСПРАВЛЕНИЕ: ПОДДЕРЖКА ВЫБОРА ДУБЛИКАТОВ ⭐
             user_card_ids = trade_info.get(user_card_ids_key, [])
-            try:
-                 card_index = user_card_ids.index(card_id)
-            except ValueError:
-                 # Карта есть в архиве (проверено выше), но не в user_card_ids сессии?
-                 await query.answer("❌ Ошибка: карта не найдена в списке.", show_alert=True)
-                 return
-
-            if card_index in selected_cards:
-                await query.answer("❌ Эта карта уже выбрана!", show_alert=True)
+            
+            # Находим ВСЕ индексы этой карты в списке пользователя
+            available_indices = [i for i, cid in enumerate(user_card_ids) if cid == card_id]
+            
+            if not available_indices:
+                await query.answer("❌ Ошибка: карта не найдена в списке.", show_alert=True)
                 return
-
-            # Добавляем индекс карты в выбранные
+            
+            # Находим первый свободный индекс (который ещё не выбран)
+            card_index = None
+            for idx in available_indices:
+                if idx not in selected_cards:
+                    card_index = idx
+                    break
+            
+            if card_index is None:
+                # Все копии этой карты уже выбраны
+                await query.answer(f"❌ Вы уже выбрали все доступные копии этой карты!", show_alert=True)
+                return
+            
+            # Добавляем конкретный индекс копии
             selected_cards.append(card_index)
             trade_info[selected_cards_key] = selected_cards # Обновляем список
 
