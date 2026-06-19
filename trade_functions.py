@@ -119,55 +119,55 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("❌ Ошибка при выборе партнёра")
 
 
+# ... (импорты и вспомогательные функции без изменений) ...
+
 async def process_partner_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработка выбора партнёра или поиска карт."""
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
 
-        # Проверяем, есть ли активный трейд
         if user_id not in context.user_data:
-            return # Если сессия закончилась, просто выходим
+            return
 
         trade_info = context.user_data[user_id]
         step = trade_info.get("step", "")
 
-        # 1. Проверяем команду отмены (/cancel)
+        # 1. Обработка /cancel
         if text.lower() == "/cancel":
             if step == "search_mode":
-                # Если была команда отмены в режиме поиска
-                trade_info["step"] = "select_cards" # Возвращаемся к выбору
-                await update.message.reply_text("❌ Поиск отменён\nВыберите карту кнопками:")
-                # Здесь можно повторно вызвать функцию показа текущей карты для выбора
-                # await show_current_card_for_trade(update, context) # Если реализуете
+                # ⭐ ПРИ ОТМЕНЕ ПОИСКА ВОЗВРАЩАЕМ ПОЛНЫЙ СПИСОК ⭐
+                data = load_data()
+                user_data = data["users"].get(user_id)
+                full_card_ids = user_data.get("cards", []) if user_data else []
+                
+                trade_info["step"] = "select_cards"
+                trade_info["user_card_ids"] = full_card_ids  # Восстанавливаем полный список
+                trade_info["current_index"] = 0
+                
+                await update.message.reply_text("❌ Поиск отменён. Показан полный список карт.")
+                # Показываем первую карту из полного списка
+                await _show_trade_card(update, context, trade_info, full_card_ids, 0)
                 return
             elif step == "select_partner":
-                # Если была команда отмены на этапе выбора партнера
                 del context.user_data[user_id]
                 await update.message.reply_text("❌ Трейд отменён")
                 return
             else:
-                # Для других шагов можно игнорировать /cancel или обработать по-другому
                 return
 
-        # 2. Если пользователь в режиме поиска, вызываем функцию поиска
+        # 2. Если пользователь в режиме поиска
         if step == "search_mode":
-            # ВАЖНО: вызываем функцию поиска, передав update и context
             await search_creatures_for_trade(update, context)
-            # Завершаем выполнение этой функции, чтобы не выполнялась остальная логика
             return
 
-        # 3. Если пользователь не в режиме поиска, но не в "select_partner", выходим
         if step != "select_partner":
-            # Это может быть лишним, если другие шаги обрабатываются в другом месте,
-            # но пусть будет для ясности.
             return
 
-        # 4. Логика выбора партнера (если step == "select_partner")
+        # 4. Логика выбора партнера (без изменений)
         partner_id = None
         data = load_data()
         if text.startswith("@"):
-            # Поиск партнера по username
             for uid, udata in data["users"].items():
                 if udata.get("username") and udata["username"] == text[1:]:
                     partner_id = uid
@@ -175,25 +175,16 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 
             if not partner_id:
                 if user_id in context.user_data:
-                    del context.user_data[user_id] # Удаляем сессию, так как ошибка
+                    del context.user_data[user_id]
                 await update.message.reply_text("⚠️ Игрок с таким @никнеймом не найден!\nНачните трейд заново /trade")
-                return # Выходим после ошибки
+                return
         else:
-            # Если текст не начинается с @, и не была обработана команда /cancel,
-            # и не был вызван поиск, то это ошибка на этапе выбора партнера.
-            # Но теперь, если пользователь ввел название карты, мы не должны сюда попадать,
-            # потому что шаг "search_mode" обрабатывается выше.
-            # Однако, если он ввел что-то неожиданное на шаге "select_partner",
-            # сообщим ему об этом.
             await update.message.reply_text("⚠️ Введите @никнейм игрока для выбора партнера.")
-            return # Выходим, не продолжая логику выбора партнера
+            return
 
-        # 5. Если partner_id найден и прошли все проверки
         if partner_id:
-            # Проверяем существование партнёра
             if partner_id not in data["users"]:
                 await update.message.reply_text("⚠️ Игрок не найден!")
-                # Удаляем сессию, если нужно
                 if user_id in context.user_data:
                      del context.user_data[user_id]
                 return
@@ -202,11 +193,8 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 await update.message.reply_text("⚠️ Нельзя трейдиться с самим собой!")
                 return
 
-            # Сохраняем партнёра и переходим к следующему шагу
             trade_info["partner_id"] = partner_id
             trade_info["step"] = "select_cards"
-            # ... (остальная логика из оригинального кода для выбора карт)
-            # Пример продолжения (может отличаться в вашем коде):
             trade_type = trade_info["trade_type"]
             cards_count = int(trade_type.split("v")[0])
             trade_info["cards_count"] = cards_count
@@ -222,7 +210,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 f"• [➡️ Далее] - завершить выбор",
                 parse_mode="Markdown"
             )
-            # Показываем первую карту для выбора
+            
             user_data = data["users"][user_id]
             user_card_ids = user_data.get("cards", [])
             if len(user_card_ids) < cards_count:
@@ -232,49 +220,16 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 
             trade_info["user_card_ids"] = user_card_ids
             trade_info["current_index"] = 0
-            if user_card_ids: # Проверяем, что список не пуст
-                 card = find_card_by_id(user_card_ids[0], data["cards"])
-                 if card:
-                     # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В АРХИВЕ ⭐
-                     card_counts = Counter(user_card_ids)
-                     card_in_collection = card_counts.get(card["id"], 1)
-                     
-                     caption = (
-                         f"{card['title']}\n"
-                         f"Редкость: {card['rarity']}\n"
-                         f"🛡 В архиве: {card_in_collection} шт.\n\n"
-                         f"0/{cards_count} выбрано"
-                     )
-                     keyboard = [
-                         [
-                             InlineKeyboardButton("<", callback_data=f"trade_prev_0"),
-                             InlineKeyboardButton("✅ Выбрать", callback_data=f"trade_select_0"),
-                             InlineKeyboardButton(">", callback_data=f"trade_next_0"),
-                         ],
-                         [
-                             InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select"),
-                         ],
-                         [
-                             InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search"), # Кнопка поиска
-                         ]
-                     ]
-                     await update.message.reply_photo(
-                         photo=card["image_url"],
-                         caption=caption,
-                         reply_markup=InlineKeyboardMarkup(keyboard)
-                     )
-            else:
-                 await update.message.reply_text("❌ У вас нет карт для трейда.")
-                 del context.user_data[user_id]
+            
+            # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ КАРТУ ЧЕРЕЗ ОБЩУЮ ФУНКЦИЮ ⭐
+            await _show_trade_card(update, context, trade_info, user_card_ids, 0)
 
     except Exception as e:
         logger.error(f"Ошибка process_partner_selection: {e}")
-        # Попробуем уведомить пользователя, но аккуратно, чтобы не вызвать рекурсию
         try:
              await update.message.reply_text("❌ Ошибка при обработке вашего запроса.")
         except:
-             pass # Игнорируем ошибку при отправке сообщения об ошибке
-        # Удаляем сессию, чтобы избежать зависания в некорректном состоянии
+             pass
         try:
              user_id = str(update.effective_user.id)
              if user_id in context.user_data:
@@ -282,13 +237,94 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         except:
              pass
 
+
+async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, index):
+    """
+    ⭐ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КАРТЫ ДЛЯ ТРЕЙДА ⭐
+    Используется и для обычного просмотра, и для результатов поиска.
+    """
+    if not card_ids_list:
+        if hasattr(update_or_query, 'message'):
+            await update_or_query.message.reply_text("❌ Карты не найдены!")
+        return
+
+    # Корректировка индекса
+    index = max(0, min(index, len(card_ids_list) - 1))
+    trade_info["current_index"] = index
+    
+    card_id = card_ids_list[index]
+    data = load_data()
+    card = find_card_by_id(card_id, data["cards"])
+    
+    if not card:
+        return
+
+    user_id = str(trade_info.get("user_id", ""))
+    if not user_id and hasattr(update_or_query, 'from_user'):
+        user_id = str(update_or_query.from_user.id)
+        
+    user_data = data["users"].get(user_id, {})
+    all_user_cards = user_data.get("cards", [])
+    
+    # Считаем количество в архиве (по полному списку, а не по фильтрованному)
+    card_counts = Counter(all_user_cards)
+    card_in_collection = card_counts.get(card["id"], 1)
+    
+    selected_cards = trade_info.get("selected_cards", [])
+    cards_count = trade_info.get("cards_count", 1)
+    
+    caption = (
+        f"{card['title']}\n"
+        f"Редкость: {card['rarity']}\n"
+        f"🛡 В архиве: {card_in_collection} шт.\n\n"
+        f"{len(selected_cards)}/{cards_count} выбрано"
+    )
+    
+    is_selected = index in selected_cards
+    select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+    
+    # Определяем префикс кнопок
+    step = trade_info.get("step", "select_cards")
+    button_prefix = "trade_return_" if step == "select_return_cards" else "trade_"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("<", callback_data=f"{button_prefix}prev_{index}"),
+            InlineKeyboardButton(select_text, callback_data=f"{button_prefix}select_{index}"),
+            InlineKeyboardButton(">", callback_data=f"{button_prefix}next_{index}"),
+        ],
+        [InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish")],
+        [InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button")],
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Отправка или редактирование сообщения
+    if hasattr(update_or_query, 'edit_message_media'):
+        # Это callback query
+        try:
+            media = InputMediaPhoto(media=card["image_url"], caption=caption)
+            await update_or_query.edit_message_media(media=media, reply_markup=reply_markup)
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка редактирования в _show_trade_card: {e}")
+    elif hasattr(update_or_query, 'message'):
+        # Это обычное сообщение (текстовое)
+        await update_or_query.message.reply_photo(
+            photo=card["image_url"],
+            caption=caption,
+            reply_markup=reply_markup
+        )
+
+
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Поиск карт по названию во время трейда."""
+    """
+    ⭐ ОБНОВЛЁННЫЙ ПОИСК: ФИЛЬТРУЕТ СПИСОК ВМЕСТО ВЫВОДА МЕНЮ ⭐
+    """
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
         
-        # Проверяем, находится ли пользователь в режиме выбора карт для трейда
         if user_id not in context.user_data:
             await update.message.reply_text("❌ Вы не находитесь в режиме трейда!\nНачните с команды /trade")
             return
@@ -296,428 +332,88 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         trade_info = context.user_data[user_id]
         step = trade_info.get("step", "")
         if step not in ["select_cards", "select_return_cards", "search_mode"]:
-            if step != "search_mode":
-                if step not in ["select_cards", "select_return_cards", "search_mode"]:
-                    await update.message.reply_text(f"❌ Невозможно выполнить поиск. Текущий шаг трейда: '{step}'.")
-                    return
+            await update.message.reply_text(f"❌ Невозможно выполнить поиск. Текущий шаг трейда: '{step}'.")
+            return
         
-        # Проверяем, есть ли данные пользователя
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data or not user_data.get("cards"):
             await update.message.reply_text("❌ У вас нет карт для трейда!")
             return
         
-        # Ищем карты по названию
         search_query = text.lower()
-        user_card_ids = user_data["cards"]
-        card_counts = Counter(user_card_ids)
+        full_card_ids = user_data["cards"]
         
-        found_creatures = []
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
+        # ⭐ ФИЛЬТРУЕМ СПИСОК, СОХРАНЯЯ ВСЕ ДУБЛИКАТЫ ⭐
+        filtered_ids = []
+        for cid in full_card_ids:
+            card = find_card_by_id(cid, data["cards"])
             if card and search_query in card["title"].lower():
-                found_creatures.append((card, count, card_id))
+                filtered_ids.append(cid)
         
-        if not found_creatures:
+        if not filtered_ids:
             await update.message.reply_text(
                 f"❌ Карт с названием \"{text}\" не найдено!\n"
-                "Попробуйте другой запрос или введите @никнейм для выбора партнёра.")
-            if step == "search_mode":
-                trade_info["step"] = "select_cards" # Возвращаемся к выбору
-                await update.message.reply_text(" 🐦‍🔥 Выберите карту кнопками:")
+                "Попробуйте другой запрос или нажмите /cancel для возврата."
+            )
             return
         
-        # Показываем результаты поиска
-        if len(found_creatures) == 1:
-            # Если найдена одна карта — показываем его сразу
-            card, count, card_id = found_creatures[0]
-            
-            # Проверяем, сколько карт нужно выбрать
-            cards_count = trade_info.get("cards_count", 1)
-            selected_cards = trade_info.get("selected_cards", [])
-            
-            keyboard = [
-                [InlineKeyboardButton(f"✅ Выбрать: {card['title']}", callback_data=f"trade_search_select_{card_id}")]
-            ]
-            keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
-            
-            trade_info["step"] = "search_results"
-            trade_info["search_query"] = search_query
-            await update.message.reply_photo(
-                photo=card["image_url"],
-                caption=f"{card['title']}\nРедкость: {card['rarity']}\n🛡 В архиве: {count} шт.",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-        else:
-            # Если найдено несколько — показываем список
-            keyboard = []
-            for card, count, card_id in found_creatures[:10]:  # Показываем максимум 10
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"{card['title']} ({count} шт.)",
-                        callback_data=f"trade_search_select_{card_id}"
-                    )
-                ])
-            keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
-            
-            await update.message.reply_text(
-                f"🔍 Найдено карт: {len(found_creatures)}\n\n"
-                f"По запросу: \"{text}\"\n\n"
-                f"Выберите карту для трейда:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+        # ⭐ ЗАМЕНЯЕМ СПИСОК В СЕССИИ НА ОТФИЛЬТРОВАННЫЙ ⭐
+        trade_info["user_card_ids"] = filtered_ids
+        trade_info["current_index"] = 0
         
-        # Сохраняем информацию о поиске
-        trade_info["step"] = "search_results"
-        trade_info["search_query"] = search_query
+        # Возвращаемся к шагу выбора (чтобы кнопки работали корректно)
+        prev_step = trade_info.get("previous_step_before_search", "select_cards")
+        trade_info["step"] = prev_step
+        if "previous_step_before_search" in trade_info:
+            del trade_info["previous_step_before_search"]
+        
+        await update.message.reply_text(
+            f"🔍 Найдено карт: {len(filtered_ids)}\n"
+            f"По запросу: \"{text}\"\n\n"
+            f"Выберите карту кнопками ниже:"
+        )
+        
+        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ НАЙДЕННУЮ КАРТУ ЧЕРЕЗ ОБЩУЮ ФУНКЦИЮ ⭐
+        await _show_trade_card(update, context, trade_info, filtered_ids, 0)
         
     except Exception as e:
         logger.error(f"Ошибка search_creatures_for_trade: {e}")
         await update.message.reply_text("❌ Ошибка при поиске карт")
 
-async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик выбора карт из поиска."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-
-        # Проверяем, находится ли пользователь в сессии трейда
-        if user_id not in context.user_data:
-            await query.edit_message_text(text="❌ Сессия трейда истекла!") # Используем edit_message_text для текстового сообщения
-            return
-
-        trade_info = context.user_data[user_id]
-        step = trade_info.get("step", "")
-
-        # --- Обработка нажатия кнопки "Выбрать" из результатов поиска ---
-        if query.data.startswith("trade_search_select_"):
-            card_id_str = query.data.split("_")[-1]
-            try:
-                card_id = int(card_id_str)
-            except ValueError:
-                await query.answer("❌ Неверный ID карты.", show_alert=True)
-                return
-
-            # --- ИСПРАВЛЕНИЕ: Загрузка данных ---
-            data = load_data() # <-- ЭТА СТРОКА БЫЛА ПРОПУЩЕНА ИЛИ НЕПРАВИЛЬНО РАСПОЛОЖЕНА
-            # ---------------------------------
-
-            # Проверяем, есть ли у игрока эта карта
-            user_data = data["users"].get(user_id)
-            if not user_data or card_id not in user_data.get("cards", []):
-                # Попробуем отредактировать текстовое сообщение
-                try:
-                    await query.edit_message_text(text="❌ У вас нет этой карты!")
-                except:
-                    # Если не получилось (например, уже удалено), просто выйдем
-                    pass
-                return
-
-            # Определяем, какой тип выбора сейчас (отправитель или получатель)
-            # Используем step до поиска
-            prev_step = trade_info.get("previous_step_before_search", "select_cards")
-            if prev_step not in ["select_cards", "select_return_cards"]:
-                 # Fallback
-                 prev_step = "select_cards" if "cards_offered_by_sender" not in trade_info else "select_return_cards"
-
-            cards_count_key = "cards_count"
-            selected_cards_key = "selected_cards"
-            user_card_ids_key = "user_card_ids"
-
-            # Логика общая для отправителя и получателя
-            selected_cards = trade_info.get(selected_cards_key, [])
-            cards_count = trade_info.get(cards_count_key, 1)
-
-            # Проверяем, не превышено ли количество выбранных карт
-            if len(selected_cards) >= cards_count:
-                await query.answer(f"❌ Вы уже выбрали {cards_count} карт!", show_alert=True)
-                return
-
-            # ⭐ ИСПРАВЛЕНИЕ: ПОДДЕРЖКА ВЫБОРА ДУБЛИКАТОВ ⭐
-            user_card_ids = trade_info.get(user_card_ids_key, [])
-            
-            # Находим ВСЕ индексы этой карты в списке пользователя
-            available_indices = [i for i, cid in enumerate(user_card_ids) if cid == card_id]
-            
-            if not available_indices:
-                await query.answer("❌ Ошибка: карта не найдена в списке.", show_alert=True)
-                return
-            
-            # Находим первый свободный индекс (который ещё не выбран)
-            card_index = None
-            for idx in available_indices:
-                if idx not in selected_cards:
-                    card_index = idx
-                    break
-            
-            if card_index is None:
-                # Все копии этой карты уже выбраны
-                await query.answer(f"❌ Вы уже выбрали все доступные копии этой карты!", show_alert=True)
-                return
-            
-            # Добавляем конкретный индекс копии
-            selected_cards.append(card_index)
-            trade_info[selected_cards_key] = selected_cards # Обновляем список
-
-            # --- ОБНОВЛЕНИЕ: Проверяем тип сообщения перед редактированием ---
-            # Сообщение может быть с фото (caption) или с текстом (text).
-            # Если у сообщения есть photo, значит, это результат single-card search, и можно edit_caption.
-            # Если у сообщения есть только text, значит, это список, и нужно edit_text или удалить и отправить новое.
-
-            # Проверяем, есть ли фото (то есть caption)
-            if query.message.photo:
-                 # Это сообщение с фото и caption (одна карта)
-                 card = find_card_by_id(card_id, data["cards"])
-                 if card:
-                     card_counts = Counter(user_data["cards"])
-                     card_in_user_deck = card_counts.get(card["id"], 0)
-                     await query.message.edit_caption(
-                         caption=(
-                             f"🔍 Найдена карта:\n"
-                             f"🏷 {card['title']}\n"
-                             f"🌟 Редкость: {card['rarity']}\n"
-                             f"🛡 В архиве: {card_in_user_deck} шт.\n"
-                             f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n"
-                             f"✅ Выбрано: {card['title']}"
-                         ),
-                         reply_markup=InlineKeyboardMarkup([
-                             [InlineKeyboardButton("✅ Выбрано", callback_data=f"trade_search_selected_{card_id}")]
-                         ])
-                     )
-
-                     # Если набрали нужное количество, возвращаемся к основному выбору
-                     if len(selected_cards) >= cards_count:
-                          await query.answer(f"✅ Выбрано {cards_count} карт! Нажмите '➡️ Далее'.", show_alert=False)
-                          # Возвращаем step к предыдущему ("select_cards" или "select_return_cards")
-                          trade_info["step"] = prev_step
-                          # Удаляем предыдущий шаг, так как он использован
-                          if "previous_step_before_search" in trade_info:
-                              del trade_info["previous_step_before_search"]
-                          # --- ОБНОВЛЕНИЕ СООБЩЕНИЯ С ИНТЕРФЕЙСОМ ВЫБОРА ---
-                          # Теперь нужно показать интерфейс, соответствующий prev_step.
-                          # В данном случае, это "select_return_cards" или "select_cards".
-                          # Показываем текущую карту (например, последнюю выбранную или первую доступную)
-                          # с полным интерфейсом trade_return_callback или trade_callback.
-                          # Мы не можем вызвать trade_return_callback напрямую изнутри trade_search_callback,
-                          # но можем повторить логику обновления сообщения оттуда.
-
-                          # Получаем текущий индекс для отображения (например, индекс последней выбранной карты)
-                          # или оставляем старый current_index, если он был.
-                          # Для простоты, покажем ту, которую только что выбрали (card_index).
-                          display_index = card_index # Показываем только что выбранную карту
-
-                          card_to_display = find_card_by_id(user_card_ids[display_index], data["cards"])
-                          if card_to_display:
-                              card_counts_display = Counter(user_card_ids)
-                              card_in_collection = card_counts_display.get(card_to_display["id"], 1)
-                              selected_count_now = len(selected_cards)
-
-                              caption = (
-                                  f"{card_to_display['title']}\n"
-                                  f"Редкость: {card_to_display['rarity']}\n"
-                                  f"📦 В архиве: {card_in_collection} шт.\n\n"
-                                  f"📊 Выбрано: {selected_count_now}/{cards_count}"
-                              )
-
-                              is_selected_display = display_index in selected_cards
-                              select_text = "❌ Убрать" if is_selected_display else "✅ Выбрать"
-
-                              # Определяем, какую функцию обработки использовать для кнопок
-                              # Если prev_step был "select_return_cards", используем кнопки trade_return_...
-                              # Если был "select_cards", используем trade_...
-                              button_prefix = "trade_return_" if prev_step == "select_return_cards" else "trade_"
-
-                              keyboard = [
-                                  [
-                                      InlineKeyboardButton("<", callback_data=f"{button_prefix}prev_{display_index}"),
-                                      InlineKeyboardButton(select_text, callback_data=f"{button_prefix}select_{display_index}"),
-                                      InlineKeyboardButton(">", callback_data=f"{button_prefix}next_{display_index}"),
-                                  ],
-                                  [
-                                      InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish"), # Используем правильный finish
-                                  ],
-                                  [
-                                      InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button"), # Используем правильную кнопку поиска
-                                  ]
-                              ]
-
-                              media = InputMediaPhoto(media=card_to_display["image_url"], caption=caption)
-                              # Редактируем ТЕКУЩЕЕ сообщение (с результатами поиска) на сообщение с интерфейсом
-                              await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-                          # ----------------------------------------------
-                     else:
-                          await query.answer(f"✅ Добавлено: {card['title']}. Осталось выбрать {cards_count - len(selected_cards)}", show_alert=False)
-            else:
-                 # Это сообщение с текстом (список карт). Мы не можем редактировать caption.
-                 # Лучший способ - удалить это сообщение и отправить новое с результатом выбора.
-                 # Но это может быть неудобно.
-                 # ВАРИАНТ: Отправить отдельное уведомление и не редактировать старое.
-                 # Однако, для согласованности, лучше попытаться редактировать текст.
-                 # У сообщения с текстом есть query.message.text.
-                 # Попробуем edit_text.
-                 card = find_card_by_id(card_id, data["cards"])
-                 if card:
-                     card_counts = Counter(user_data["cards"])
-                     card_in_user_deck = card_counts.get(card["id"], 0)
-                     new_text = (
-                         f"🔍 Найдена карта:\n"
-                         f"🏷 {card['title']}\n"
-                         f"🌟 Редкость: {card['rarity']}\n"
-                         f"🛡 В архиве: {card_in_user_deck} шт.\n"
-                         f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n"
-                         f"✅ Выбрано: {card['title']}"
-                     )
-                     # Обновляем клавиатуру на "Выбрано"
-                     new_keyboard = InlineKeyboardMarkup([
-                         [InlineKeyboardButton("✅ Выбрано", callback_data=f"trade_search_selected_{card_id}")]
-                     ])
-                     await query.edit_message_text(text=new_text, reply_markup=new_keyboard)
-
-                     # Если набрали нужное количество, возвращаемся к основному выбору
-                     if len(selected_cards) >= cards_count:
-                          await query.answer(f"✅ Выбрано {cards_count} карт! Нажмите '➡️ Далее'.", show_alert=False)
-                          # Возвращаем step к предыдущему ("select_cards" или "select_return_cards")
-                          trade_info["step"] = prev_step
-                          # Удаляем предыдущий шаг, так как он использован
-                          if "previous_step_before_search" in trade_info:
-                              del trade_info["previous_step_before_search"]
-                          # --- ОБНОВЛЕНИЕ СООБЩЕНИЯ С ИНТЕРФЕЙСОМ ВЫБОРА ---
-                          # Теперь нужно показать интерфейс, соответствующий prev_step.
-                          # Показываем текущую карту (например, последнюю выбранную или первую доступную)
-                          # с полным интерфейсом trade_return_callback или trade_callback.
-
-                          # Получаем текущий индекс для отображения (например, индекс последней выбранной карты)
-                          # или оставляем старый current_index, если он был.
-                          # Для простоты, покажем ту, которую только что выбрали (card_index).
-                          display_index = card_index # Показываем только что выбранную карту
-
-                          card_to_display = find_card_by_id(user_card_ids[display_index], data["cards"])
-                          if card_to_display:
-                              card_counts_display = Counter(user_card_ids)
-                              card_in_collection = card_counts_display.get(card_to_display["id"], 1)
-                              selected_count_now = len(selected_cards)
-
-                              caption = (
-                                  f"{card_to_display['title']}\n"
-                                  f"Редкость: {card_to_display['rarity']}\n"
-                                  f"📦 В архиве: {card_in_collection} шт.\n\n"
-                                  f"📊 Выбрано: {selected_count_now}/{cards_count}"
-                              )
-
-                              is_selected_display = display_index in selected_cards
-                              select_text = "❌ Убрать" if is_selected_display else "✅ Выбрать"
-
-                              # Определяем, какую функцию обработки использовать для кнопок
-                              # Если prev_step был "select_return_cards", используем кнопки trade_return_...
-                              # Если был "select_cards", используем trade_...
-                              button_prefix = "trade_return_" if prev_step == "select_return_cards" else "trade_"
-
-                              keyboard = [
-                                  [
-                                      InlineKeyboardButton("<", callback_data=f"{button_prefix}prev_{display_index}"),
-                                      InlineKeyboardButton(select_text, callback_data=f"{button_prefix}select_{display_index}"),
-                                      InlineKeyboardButton(">", callback_data=f"{button_prefix}next_{display_index}"),
-                                  ],
-                                  [
-                                      InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish"), # Используем правильный finish
-                                  ],
-                                  [
-                                      InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button"), # Используем правильную кнопку поиска
-                                  ]
-                              ]
-
-                              # Удаляем старое сообщение с текстом
-                              try:
-                                  await query.message.delete()
-                              except:
-                                  pass # Игнорируем, если не удалось удалить
-                              # Отправляем новое сообщение с фото и интерфейсом
-                              await context.bot.send_photo(
-                                  chat_id=query.message.chat_id,
-                                  photo=card_to_display["image_url"],
-                                  caption=caption,
-                                  reply_markup=InlineKeyboardMarkup(keyboard)
-                              )
-                          # ----------------------------------------------
-                     else:
-                          await query.answer(f"✅ Добавлено: {card['title']}. Осталось выбрать {cards_count - len(selected_cards)}", show_alert=False)
-
-
-            return # Важно выйти после обработки выбора
-
-        # --- Обработка нажатия кнопки "Отмена поиска" ---
-        elif query.data == "trade_search_cancel":
-            if user_id in context.user_data:
-                trade_info = context.user_data[user_id]
-                # Возвращаемся к предыдущему шагу выбора ("select_cards" или "select_return_cards")
-                # Используем сохранённое значение
-                prev_step = trade_info.get("previous_step_before_search", "select_cards")
-                if prev_step not in ["select_cards", "select_return_cards"]:
-                     # Fallback, если предыдущий шаг не сохранён или неверный
-                     prev_step = "select_cards" if "cards_offered_by_sender" not in trade_info else "select_return_cards"
-
-                trade_info["step"] = prev_step
-                # Удаляем сообщение с результатами поиска
-                try:
-                    await query.message.delete()
-                except:
-                    pass # Игнорируем, если не удалось удалить
-                # Отправляем сообщение и показываем интерфейс выбора карт снова
-                await query.message.reply_text("❌ Поиск отменён\nВыберите карту кнопками:")
-                # Важно: шаг изменен.
-            return # Важно выйти после обработки отмены
-
-        # --- Обработка других кнопок, если они есть ---
-        # В этой версии trade_search_callback НЕ обрабатывает trade_search_button.
-        # Кнопка trade_search_button должна обрабатываться в trade_callback или trade_return_callback,
-        # где она сохраняет previous_step_before_search.
-
-
-    except Exception as e:
-        logger.error(f"Ошибка trade_search_callback: {e}")
-        # Попробуем уведомить пользователя, но аккуратно
-        try:
-             await query.answer("❌ Ошибка при обработке поиска", show_alert=True)
-        except:
-             pass # Игнорируем ошибку при отправке сообщения об ошибке
-
 
 async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик кнопок трейда."""
+    """Обработчик кнопок трейда (отправитель)."""
     try:
         query = update.callback_query
         await query.answer()
         user_id = str(query.from_user.id)
         
-        # ⭐ ОБРАБОТКА ВЫБОРА ТИПА ТРЕЙДА (ДОБАВЛЕНЫ 4v4 И 5v5) ⭐
         if query.data in ["trade_1v1", "trade_2v2", "trade_3v3", "trade_4v4", "trade_5v5"]:
-            trade_type = query.data.split("_")[1]  # "1v1", "2v2", "3v3", "4v4", "5v5"
+            trade_type = query.data.split("_")[1]
             await select_trade_partner(update, context, trade_type)
             return
         
-        # Отмена
         if query.data == "trade_cancel":
             if user_id in context.user_data:
                 del context.user_data[user_id]
             await query.edit_message_text("❌ Трейд отменён")
             return
         
-        # Проверяем сессию для остальных кнопок
         if user_id not in context.user_data:
             await query.edit_message_text("❌ Сессия трейда истекла!")
             return
         
         trade_info = context.user_data[user_id]
-        data = load_data()
+        # ⭐ ДОБАВЛЯЕМ user_id В trade_info ДЛЯ _show_trade_card ⭐
+        trade_info["user_id"] = user_id
+        
+        user_card_ids = trade_info.get("user_card_ids", [])
         
         # Навигация
         if query.data.startswith("trade_prev_") or query.data.startswith("trade_next_"):
             action = "prev" if "prev" in query.data else "next"
             current_index = trade_info.get("current_index", 0)
-            user_card_ids = trade_info.get("user_card_ids", [])
             
             if not user_card_ids:
                 await query.answer("❌ Карты не найдены!", show_alert=True)
@@ -728,46 +424,14 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             else:
                 current_index = (current_index + 1) % len(user_card_ids)
             
-            trade_info["current_index"] = current_index
-            
-            card = find_card_by_id(user_card_ids[current_index], data["cards"])
-            if card:
-                selected_count = len(trade_info.get("selected_cards", []))
-                cards_count = trade_info.get("cards_count", 1)
-                
-                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
-                card_counts = Counter(user_card_ids)
-                card_in_collection = card_counts.get(card["id"], 1)
-                
-                caption = (
-                    f"{card['title']}\n"
-                    f"Редкость: {card['rarity']}\n"
-                    f"🛡 В архиве: {card_in_collection} шт.\n\n"
-                    f"{selected_count}/{cards_count} выбрано"
-                )
-                
-                is_selected = current_index in trade_info.get("selected_cards", [])
-                select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
-                
-                keyboard = [
-                    [
-                        InlineKeyboardButton("<", callback_data=f"trade_prev_{current_index}"),
-                        InlineKeyboardButton(select_text, callback_data=f"trade_select_{current_index}"),
-                        InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
-                    ],
-                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
-                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search")],
-                ]
-                
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            # ⭐ ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ ⭐
+            await _show_trade_card(query, context, trade_info, user_card_ids, current_index)
         
         # Выбор карты
         elif query.data.startswith("trade_select_"):
             card_index = int(query.data.split("_")[-1])
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
-            user_card_ids = trade_info.get("user_card_ids", [])
             
             if card_index in selected_cards:
                 selected_cards.remove(card_index)
@@ -779,74 +443,35 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             
             trade_info["selected_cards"] = selected_cards
             
-            # Обновляем отображение
+            # ⭐ ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ ⭐
             current_index = trade_info.get("current_index", 0)
-            card = find_card_by_id(user_card_ids[current_index], data["cards"])
-            if card:
-                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
-                card_counts = Counter(user_card_ids)
-                card_in_collection = card_counts.get(card["id"], 1)
-                
-                caption = (
-                    f"{card['title']}\n"
-                    f"Редкость: {card['rarity']}\n"
-                    f"🛡 В архиве: {card_in_collection} шт.\n\n"
-                    f"{len(selected_cards)}/{cards_count} выбрано"
-                )
-                
-                is_selected = current_index in selected_cards
-                select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
-                
-                keyboard = [
-                    [
-                        InlineKeyboardButton("<", callback_data=f"trade_prev_{current_index}"),
-                        InlineKeyboardButton(select_text, callback_data=f"trade_select_{current_index}"),
-                        InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
-                    ],
-                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
-                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search")],
-                ]
-                
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            await _show_trade_card(query, context, trade_info, user_card_ids, current_index)
         
-        # Завершение выбора
-
         elif query.data == "trade_open_search":
-            # ⭐ КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ОТПРАВИТЕЛЯ ⭐
-            if user_id in context.user_data:
-                trade_info = context.user_data[user_id]
-                # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
-                trade_info["previous_step_before_search"] = trade_info["step"]
-                trade_info["step"] = "search_mode"
+            trade_info["previous_step_before_search"] = trade_info["step"]
+            trade_info["step"] = "search_mode"
             await query.answer("🔍 Введите название карты для поиска", show_alert=False)
             await query.message.reply_text(
                 "🔍 Поиск карт\n"
+                "Введите часть названия:\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown"
             )
-            # ВАЖНО: return здесь, чтобы не выполнялись другие проверки
             return
-
         
         elif query.data == "trade_finish_select":
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
-            user_card_ids = trade_info.get("user_card_ids", [])
             partner_id = trade_info["partner_id"]
             
             if len(selected_cards) != cards_count:
                 await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
                 return
             
-            # Переходим к подтверждению
             trade_info["step"] = "confirm"
-            
-            # Формируем список карт для отображения
             selected_card_ids = [user_card_ids[i] for i in selected_cards]
             trade_info["selected_card_ids"] = selected_card_ids
             
-            # Удаляем сообщение с картами и отправляем текстовое
             try:
                 await query.message.delete()
             except:
@@ -862,11 +487,6 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode="Markdown"
             )
             
-            # В конце функции trade_callback, где сохраняем трейд для партнёра:
-
-            # Отправляем запрос партнёру
-
-            # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (вместо context.user_data) ⭐
             data = load_data()
             data["active_trades"][partner_id] = {
                 "from_user": user_id,
@@ -881,12 +501,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             context.user_data[user_id] = {
                 "step": "waiting_for_receiver_response",
                 "trade_partner": partner_id,
-                "selected_card_ids": selected_card_ids,  # Карты, которые отправитель предлагает
+                "selected_card_ids": selected_card_ids,
             }
 
-            # Уведомляем партнёра
             try:
-                # Получаем имя отправителя
                 sender_data = data["users"].get(user_id, {})
                 sender_name = sender_data.get("first_name", "Игрок")
                 if sender_data.get("last_name"):
@@ -894,7 +512,6 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 if sender_data.get("username"):
                     sender_name = f"@{sender_data['username']}"
     
-                # Получаем информацию о картах
                 cards_info = []
                 for card_id in selected_card_ids:
                     card = find_card_by_id(card_id, data["cards"])
@@ -903,7 +520,6 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
                 cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
     
-                # ⭐ ДОБАВЛЯЕМ ИНЛАЙН-КНОПКИ ⭐
                 keyboard = [
                     [
                         InlineKeyboardButton("✅ Принять", callback_data=f"trade_accept_btn_{user_id}"),
