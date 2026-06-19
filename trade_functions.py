@@ -837,8 +837,8 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 
                 keyboard.append(nav_buttons)
                 keyboard.append([
-                    InlineKeyboardButton("✅ Принять обмен", callback_data="trade_accept_confirm"),
-                    InlineKeyboardButton("❌ Отклонить", callback_data="trade_decline_from_view"),
+                    InlineKeyboardButton("✅ Принять обмен", callback_data="trade_offer_accept"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data="trade_offer_decline"),
                 ])
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
