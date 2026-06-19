@@ -285,7 +285,18 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
     
     # Определяем префикс кнопок
     step = trade_info.get("step", "select_cards")
-    button_prefix = "trade_return_" if step == "select_return_cards" else "trade_"
+    
+    # ⭐ ИСПРАВЛЕНИЕ: КОРРЕКТНЫЕ НАЗВАНИЯ КНОПОК ДЛЯ КАЖДОГО ШАГА ⭐
+    if step == "select_return_cards":
+        # Для получателя (Игрок Б)
+        button_prefix = "trade_return_"
+        search_callback = "trade_return_search_button"
+        finish_callback = "trade_return_finish"
+    else:
+        # Для отправителя (Игрок А)
+        button_prefix = "trade_"
+        search_callback = "trade_open_search"      # ← Совпадает с trade_callback
+        finish_callback = "trade_finish_select"    # ← Совпадает с trade_callback
     
     keyboard = [
         [
@@ -293,8 +304,8 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
             InlineKeyboardButton(select_text, callback_data=f"{button_prefix}select_{index}"),
             InlineKeyboardButton(">", callback_data=f"{button_prefix}next_{index}"),
         ],
-        [InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish")],
-        [InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button")],
+        [InlineKeyboardButton("➡️ Далее", callback_data=finish_callback)],
+        [InlineKeyboardButton("🔍 Поиск", callback_data=search_callback)],
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
