@@ -5543,7 +5543,7 @@ async def quests_daily_view(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if quest["reward_type"] == "cents":
             reward_text = f"{quest['reward_amount']} 💰"
         elif quest["reward_type"] == "free_rolls":
-            reward_text = f"{quest['reward_amount']} 🎲"
+            reward_text = f"{quest['reward_amount']} 🔍"
         
         text += (
             f"{status_icon} {quest['desc']}\n"
