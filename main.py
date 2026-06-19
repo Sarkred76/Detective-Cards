@@ -3163,7 +3163,6 @@ async def craft_select_card(
 
         # Кнопки возврата
         keyboard.append([
-            InlineKeyboardButton("📋 Другие рецепты", callback_data="craft_menu"),
             InlineKeyboardButton("🔙 Назад", callback_data="craft_back")
         ])
         
