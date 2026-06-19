@@ -36,7 +36,7 @@ from trade_functions import (
     trade_offer_callback,
     trade_return_callback,
     trade_final_callback,
-    trade_search_callback,
+    _show_trade_card
     search_creatures_for_trade,
 )
 from telegram.error import NetworkError, TimedOut
