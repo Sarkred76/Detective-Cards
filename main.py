@@ -5760,6 +5760,8 @@ async def check_daily_quests_all_completed(user_data: Dict, user_id: str, contex
     daily_quests = user_data.get("daily_quests", [])
     if not daily_quests:
         return
+
+    logger.info(f"DEBUG: Проверка стрика для {user_id}, daily_quests: {[q['id'] + ':' + str(q['completed']) for q in daily_quests]}")
     
     # Проверяем, все ли дейлики выполнены
     all_completed = all(q.get("completed", False) for q in daily_quests)
