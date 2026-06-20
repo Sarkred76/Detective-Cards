@@ -191,7 +191,7 @@ def load_data() -> Dict[str, Any]:
                 if "last_dice_time" not in user_data:
                     user_data["last_dice_time"] = 0
                 if "casino_attempts" not in user_data:
-                    user_data["casino_attempts"] = 10
+                    user_data["casino_attempts"] = 5
                 if "basket_plays" not in user_data:
                     user_data["basket_plays"] = 0
                 if "darts_plays" not in user_data:
@@ -248,7 +248,7 @@ def check_casino_reset(user_data: Dict) -> None:
         last_reset == 0
         or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day
     ):
-        user_data["casino_attempts"] = 10
+        user_data["casino_attempts"] = 5
         user_data["last_casino_reset"] = int(now_msk.timestamp())
 
 def save_data(data: Dict[str, Any]) -> None:
@@ -2490,7 +2490,7 @@ async def add_rolls_to_player(
                 "last_card_time": 0,
                 "free_rolls": 0,
                 "last_dice_time": 0,
-                "casino_attempts": 10,
+                "casino_attempts": 5,
                 "last_casino_reset": 0,
             }
             data["users"][target_user_id] = user_data
@@ -3001,7 +3001,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         check_casino_reset(user_data)
         save_data(data)
         
-        attempts = user_data.get("casino_attempts", 10) if user_data else 10
+        attempts = user_data.get("casino_attempts", 5) if user_data else 5
         cents = user_data.get("cents", 0) if user_data else 0
         
         keyboard = [
