@@ -4372,25 +4372,36 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def shop_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Раздел Донат."""
-    keyboard = [[InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]]
+    keyboard = [
+        [InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")],
+        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+    ]
+    
+    text = (
+        "💎 <b>Обменник валют Готэма</b>\n\n"
+        "Приобрести нынешнюю валюту можно по выгодному курсу:\n\n"
+        "• <b>100₽</b> — 10 000 Бэт-коинов 💰\n"
+        "• <b>249₽</b> — 35 000 Бэт-коинов 💰\n"
+        "• <b>499₽</b> — 80 000 Бэт-коинов 💰\n\n"
+        "Для обмена обращаться сюда: @Be9onder"
+    )
+    
     if hasattr(update, 'callback_query') and update.callback_query:
-        try: 
+        try:
             await update.callback_query.message.delete()
-        except: 
+        except:
             pass
-        await context.bot.send_photo(
-            chat_id=update.callback_query.message.chat_id,  # ← ИСПРАВЛЕНО
-            photo=SHOP_DONATE_IMAGE, 
-            caption="💎 **Раздел Доната**\n\nЗдесь будет информация о донате.", 
-            reply_markup=InlineKeyboardMarkup(keyboard), 
-            parse_mode="Markdown"
+        await context.bot.send_message(
+            chat_id=update.callback_query.message.chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
         )
     else:
-        await update.message.reply_photo(
-            photo=SHOP_DONATE_IMAGE, 
-            caption="💎 **Раздел Доната**", 
-            reply_markup=InlineKeyboardMarkup(keyboard), 
-            parse_mode="Markdown"
+        await update.message.reply_text(
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
         )
 
 async def shop_tries(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
