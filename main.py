@@ -43,7 +43,6 @@ from trade_functions import (
 from telegram.error import NetworkError, TimedOut
 from dotenv import load_dotenv
 load_dotenv()
-data_lock = asyncio.Lock()
 # ===== КОНФИГУРАЦИЯ =====
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -5440,46 +5439,60 @@ async def update_quest_progress(
     quest_id: str,
     amount: int = 1
 ) -> None:
-    """Обновляет прогресс квеста с блокировкой для предотвращения гонок."""
-    async with data_lock:  # ⭐ БЛОКИРОВКА: только один квест обновляется за раз ⭐
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            return
-        
-        check_daily_quests_reset(user_data)
-        
-        quests = user_data.get("daily_quests", [])
-        changed = False
-        
-        for quest in quests:
-            if quest["id"] == quest_id and not quest["completed"]:
-                quest["progress"] = min(quest["progress"] + amount, quest["target"])
-                if quest["progress"] >= quest["target"]:
-                    quest["completed"] = True
-                    # Выдаём награду
-                    if quest["reward_type"] == "cents":
-                        user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
-                    elif quest["reward_type"] == "free_rolls":
-                        user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
-                    
-                    changed = True
-                    
-                    # Отправляем уведомление (внутри блока, чтобы данные были актуальны)
-                    await notify_quest_completed(context, int(user_id), quest)
-                    logger.info(f"Игрок {user_id} выполнил квест {quest_id}")
-                else:
-                    changed = True
-        
-        if changed:
-            save_data(data)
+    """
+    Обновляет прогресс квеста. Вызывается из игровых функций.
+    ⚡ ВАЖНО: Добавляйте вызов этой функции в соответствующие места:
     
-    # ⭐ ПРОВЕРКА СТРИКА (вне блока, но после гарантированного сохранения) ⭐
-    async with data_lock:
+    - casino_play()       → update_quest_progress(..., "casino_1", 1)
+    - handle_message() после получения карты → 
+          update_quest_progress(..., "cards_4", 1)
+          update_quest_progress(..., "card_rare", 1)   # если rarity == "Rare"
+          update_quest_progress(..., "card_epic_plus", 1) # если rarity в EPIC_PLUS_RARITIES
+    - craft_execute()     → update_quest_progress(..., "craft_1", 1)
+    - darts_play() при победе → update_quest_progress(..., "darts_win_2", 1)
+    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_3", 1)
+    - Любое списание cents → update_quest_progress(..., "spend_1500", amount_spent)
+    - Любое начисление season_points → update_quest_progress(..., "rep_1000", points_gained)
+    """
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return
+    
+    check_daily_quests_reset(user_data)
+    
+    quests = user_data.get("daily_quests", [])
+    changed = False
+    
+    for quest in quests:
+        if quest["id"] == quest_id and not quest["completed"]:
+            quest["progress"] = min(quest["progress"] + amount, quest["target"])
+            if quest["progress"] >= quest["target"]:
+                quest["completed"] = True
+                # Выдаём награду
+                if quest["reward_type"] == "cents":
+                    user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "free_rolls":
+                    user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                
+                changed = True
+                save_data(data)
+                
+                # Отправляем уведомление
+                await notify_quest_completed(context, int(user_id), quest)
+                logger.info(f"Игрок {user_id} выполнил квест {quest_id}")
+            else:
+                changed = True
+    
+    if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
+        save_data(data)
+        # ⭐ ПРОВЕРКА СТРИКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ ⭐
+        # Перезагружаем данные, чтобы получить актуальное состояние daily_quests
         data_fresh = load_data()
         user_data_fresh = data_fresh["users"].get(user_id)
         if user_data_fresh:
             await check_daily_quests_all_completed(user_data_fresh, user_id, context)
+
 
 async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню квестов с тремя разделами."""
@@ -5683,93 +5696,112 @@ async def update_weekly_quest_progress(
     quest_id: str,
     amount: int = 1
 ) -> None:
-    """Обновляет прогресс еженедельного квеста с блокировкой."""
-    async with data_lock:  # ⭐ БЛОКИРОВКА ⭐
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            return
-        
-        check_weekly_quests_reset(user_data)
-        
-        quests = user_data.get("weekly_quests", [])
-        changed = False
-        
-        for quest in quests:
-            if quest["id"] == quest_id and not quest["completed"]:
-                quest["progress"] = min(quest["progress"] + amount, quest["target"])
-                if quest["progress"] >= quest["target"]:
-                    quest["completed"] = True
-                    if quest["reward_type"] == "cents":
-                        user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
-                    elif quest["reward_type"] == "free_rolls":
-                        user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
-                    elif quest["reward_type"] == "rep_points":
-                        user_data["season_points"] = user_data.get("season_points", 0) + quest["reward_amount"]
-                        user_data["total_points"] = user_data.get("total_points", 0) + quest["reward_amount"]
-                    
-                    changed = True
-                    
-                    reward_text = ""
-                    if quest["reward_type"] == "cents":
-                        reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
-                    elif quest["reward_type"] == "free_rolls":
-                        reward_text = f"{quest['reward_amount']} бесплатных попыток 🔍"
-                    elif quest["reward_type"] == "rep_points":
-                        reward_text = f"{quest['reward_amount']} очков репутации 💥"
-                    
-                    text = (
-                        f"✅ <b>Выполнен еженедельный квест!</b>\n\n"
-                        f"📋 {quest['desc']}\n"
-                        f"🎁 Ваша награда: {reward_text}"
-                    )
-                    try:
-                        await context.bot.send_message(chat_id=int(user_id), text=text, parse_mode="HTML")
-                    except Exception as e:
-                        logger.error(f"Ошибка отправки уведомления о недельном квесте: {e}")
-                    
-                    logger.info(f"Игрок {user_id} выполнил недельный квест {quest_id}")
-                else:
-                    changed = True
-        
-        if changed:
-            save_data(data)
+    """Обновляет прогресс еженедельного квеста."""
+    data = load_data()
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return
+    
+    check_weekly_quests_reset(user_data)
+    
+    quests = user_data.get("weekly_quests", [])
+    changed = False
+    
+    for quest in quests:
+        if quest["id"] == quest_id and not quest["completed"]:
+            quest["progress"] = min(quest["progress"] + amount, quest["target"])
+            if quest["progress"] >= quest["target"]:
+                quest["completed"] = True
+                # Выдаём награду
+                if quest["reward_type"] == "cents":
+                    user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "free_rolls":
+                    user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                elif quest["reward_type"] == "rep_points":
+                    user_data["season_points"] = user_data.get("season_points", 0) + quest["reward_amount"]
+                    user_data["total_points"] = user_data.get("total_points", 0) + quest["reward_amount"]
+                
+                changed = True
+                save_data(data)
+                
+                # Отправляем уведомление
+                reward_text = ""
+                if quest["reward_type"] == "cents":
+                    reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
+                elif quest["reward_type"] == "free_rolls":
+                    reward_text = f"{quest['reward_amount']} бесплатных попыток 🔍"
+                elif quest["reward_type"] == "rep_points":
+                    reward_text = f"{quest['reward_amount']} очков репутации 💥"
+                
+                text = (
+                    f"✅ <b>Выполнен еженедельный квест!</b>\n\n"
+                    f"📋 {quest['desc']}\n"
+                    f"🎁 Ваша награда: {reward_text}"
+                )
+                try:
+                    await context.bot.send_message(chat_id=int(user_id), text=text, parse_mode="HTML")
+                except Exception as e:
+                    logger.error(f"Ошибка отправки уведомления о недельном квесте: {e}")
+                
+                logger.info(f"Игрок {user_id} выполнил недельный квест {quest_id}")
+            else:
+                changed = True
+    
+    if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
+        save_data(data)
 
 
 async def check_daily_quests_all_completed(user_data: Dict, user_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Проверяет стрик с блокировкой."""
-    async with data_lock:  # ⭐ БЛОКИРОВКА ⭐
-        # Перечитываем самые свежие данные
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        if not user_data:
-            return
-        
-        daily_quests = user_data.get("daily_quests", [])
-        if not daily_quests:
-            return
-        
-        all_completed = all(q.get("completed", False) for q in daily_quests)
-        if not all_completed:
-            logger.debug(f"check_streak [{user_id}]: не все квесты выполнены")
-            return
-        
-        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-        now_msk = datetime.datetime.now(msk_tz)
-        today_str = now_msk.strftime("%Y-%m-%d")
-        
-        last_streak_date = user_data.get("last_streak_date", "")
-        if last_streak_date == today_str:
-            return
-        
-        streak = user_data.get("daily_quests_streak", 0) + 1
-        user_data["daily_quests_streak"] = streak
-        user_data["last_streak_date"] = today_str
-        
-        save_data(data)
-        logger.info(f"✅ Игрок {user_id}: стрик увеличен до {streak}")
+    """
+    Проверяет, выполнены ли ВСЕ ежедневные квесты за сегодня.
+    Если да — увеличивает стрик и обновляет недельный квест.
+    """
+    # ⭐ ПРИНУДИТЕЛЬНО перезагружаем самые свежие данные из файла ⭐
+    data_fresh = load_data()
+    user_data_fresh = data_fresh["users"].get(user_id)
     
-    # Обновляем недельный квест стрика (он сам имеет свою блокировку)
+    if not user_data_fresh:
+        logger.warning(f"check_streak: пользователь {user_id} не найден при перезагрузке")
+        return
+    
+    daily_quests = user_data_fresh.get("daily_quests", [])
+    if not daily_quests:
+        logger.info(f"check_streak: у {user_id} нет ежедневных квестов")
+        return
+    
+    # ⭐ ЛОГИРОВАНИЕ: показываем статус каждого квеста ⭐
+    quest_statuses = [(q["id"], q.get("completed", False), q.get("progress", 0), q.get("target", 0)) for q in daily_quests]
+    logger.info(f"check_streak [{user_id}]: статусы квестов = {quest_statuses}")
+    
+    # Проверяем, все ли дейлики выполнены
+    all_completed = all(q.get("completed", False) for q in daily_quests)
+    
+    if not all_completed:
+        incomplete = [q["id"] for q in daily_quests if not q.get("completed", False)]
+        logger.info(f"check_streak [{user_id}]: НЕ все квесты выполнены. Не завершены: {incomplete}")
+        return
+    
+    # Проверяем, не засчитан ли уже сегодняшний день
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    today_str = now_msk.strftime("%Y-%m-%d")
+    
+    last_streak_date = user_data_fresh.get("last_streak_date", "")
+    if last_streak_date == today_str:
+        logger.info(f"check_streak [{user_id}]: стрик уже засчитан сегодня ({today_str})")
+        return
+    
+    # ⭐ Увеличиваем стрик ⭐
+    streak = user_data_fresh.get("daily_quests_streak", 0) + 1
+    user_data_fresh["daily_quests_streak"] = streak
+    user_data_fresh["last_streak_date"] = today_str
+    
+    # ⭐ Сохраняем ОБНОВЛЁННЫЕ данные (не старые!) ⭐
+    save_data(data_fresh)
+    
+    logger.info(f"✅ check_streak [{user_id}]: стрик увеличен до {streak}")
+    
+    # Обновляем недельный квест стрика
     await update_weekly_quest_progress(context, user_id, "weekly_streak_3", 1)
 
 
