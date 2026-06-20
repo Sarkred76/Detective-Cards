@@ -3015,7 +3015,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
             f"• Стоимость игры: 1500 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных попыток\n"
-            f"• Лимит: 10 игр в день (сброс в 00:00 МСК)\n",
+            f"• Лимит: 5 игр в день (сброс в 00:00 МСК)\n",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
