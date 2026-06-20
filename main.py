@@ -59,7 +59,7 @@ SUPER_ADMIN_ID = "881692999"
 CLAN_CREATION_COST = 30000
 MAX_CLAN_MEMBERS = 7
 
-BASKET_GAME_COST = 1000
+BASKET_GAME_COST = 800
 MAX_BASKET_DAILY_PLAYS = 5
 BASKET_HIT_THRESHOLD = 4 
 
@@ -132,7 +132,7 @@ CRAFT_RULES = {
 CRAFT_ITEMS_PER_PAGE = 5  # Сколько карт показывать на странице
 
 # ===== КОНСТАНТЫ ДАРТСА =====
-DARTS_GAME_COST = 500
+DARTS_GAME_COST = 1000
 MAX_DARTS_DAILY_PLAYS = 5
 DARTS_WIN_THRESHOLD = 10
 
@@ -2292,10 +2292,10 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 return
 
             # Проверяем баланс
-            if cents < 3000:
+            if cents < 1500:
                 await query.edit_message_text(
                     f"❌ **Недостаточно бэт-коинов!**\n\n"
-                    f"Нужно: 3000 бэт-коинов\n"
+                    f"Нужно: 1500 бэт-коинов\n"
                     f"У вас: {cents} бэт-коинов\n\n"
                     f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
@@ -2303,11 +2303,11 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 return
 
             # Списываем центы и попытки
-            user_data["cents"] -= 3000
+            user_data["cents"] -= 1500
             user_data["casino_attempts"] -= 1
         save_data(data)
         await update_quest_progress(context, user_id, "casino_1", 1)
-        await update_quest_progress(context, user_id, "spend_1500", 3000)
+        await update_quest_progress(context, user_id, "spend_1500", 1500)
         
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
@@ -2338,7 +2338,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await asyncio.sleep(2)
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
-                f"💰 Списано: 3000 бэт-коинов\n"
+                f"💰 Списано: 1500 бэт-коинов\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 parse_mode="Markdown",
@@ -3012,7 +3012,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 3000 бэт-коинов\n"
+            f"• Стоимость игры: 1500 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных попыток\n"
             f"• Лимит: 10 игр в день (сброс в 00:00 МСК)\n",
@@ -4229,7 +4229,7 @@ async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     caption = (
         "🏀 **Игра «Баскет»**\n\n"
         "📜 **Правила:**\n"
-        "• Стоимость игры: 1000 бэт-коинов\n"
+        "• Стоимость игры: 800 бэт-коинов\n"
         "• Бот бросает 3 баскетбольных мяча 🏀\n"
         "• За каждое попадание вы получаете 1 бесплатную попытку\n"
         "• Лимит: 5 игр в день (сброс в 00:00 МСК)"
@@ -4282,7 +4282,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["cents"] -= BASKET_GAME_COST
         user_data["basket_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", 1000)
+        await update_quest_progress(context, user_id, "spend_1500", 800)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
@@ -5086,7 +5086,7 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     caption = (
         "🎯 **Мини-игра «Дартс»**\n\n"
         "📜 **Правила:**\n"
-        "• Стоимость игры: 500 бэт-коинов\n"
+        "• Стоимость игры: 1000 бэт-коинов\n"
         "• Бот бросает 3 дротика 🎯\n"
         "• Мишень имеет 5 зон: от 1 до 5 очков\n"
         "• Наберите 10+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
