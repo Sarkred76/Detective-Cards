@@ -5276,10 +5276,8 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("👤 Личное дело")],
-            [KeyboardButton("📜 Квесты")], 
-            [KeyboardButton("🏰 Кланы")],
-            [KeyboardButton("🛍️ Магазин")],
-            [KeyboardButton("🍺 Бар")],
+            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")], 
+            [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
