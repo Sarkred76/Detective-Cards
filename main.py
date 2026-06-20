@@ -5755,39 +5755,54 @@ async def check_daily_quests_all_completed(user_data: Dict, user_id: str, contex
     """
     Проверяет, выполнены ли ВСЕ ежедневные квесты за сегодня.
     Если да — увеличивает стрик и обновляет недельный квест.
-    Вызывается ПОСЛЕ выполнения каждого ежедневного квеста.
     """
-    daily_quests = user_data.get("daily_quests", [])
-    if not daily_quests:
+    # ⭐ ПРИНУДИТЕЛЬНО перезагружаем самые свежие данные из файла ⭐
+    data_fresh = load_data()
+    user_data_fresh = data_fresh["users"].get(user_id)
+    
+    if not user_data_fresh:
+        logger.warning(f"check_streak: пользователь {user_id} не найден при перезагрузке")
         return
-
-    logger.info(f"DEBUG: Проверка стрика для {user_id}, daily_quests: {[q['id'] + ':' + str(q['completed']) for q in daily_quests]}")
+    
+    daily_quests = user_data_fresh.get("daily_quests", [])
+    if not daily_quests:
+        logger.info(f"check_streak: у {user_id} нет ежедневных квестов")
+        return
+    
+    # ⭐ ЛОГИРОВАНИЕ: показываем статус каждого квеста ⭐
+    quest_statuses = [(q["id"], q.get("completed", False), q.get("progress", 0), q.get("target", 0)) for q in daily_quests]
+    logger.info(f"check_streak [{user_id}]: статусы квестов = {quest_statuses}")
     
     # Проверяем, все ли дейлики выполнены
     all_completed = all(q.get("completed", False) for q in daily_quests)
+    
     if not all_completed:
+        incomplete = [q["id"] for q in daily_quests if not q.get("completed", False)]
+        logger.info(f"check_streak [{user_id}]: НЕ все квесты выполнены. Не завершены: {incomplete}")
         return
     
-    # Проверяем, не засчитан ли уже сегодняшний день (чтобы не инкрементировать дважды)
+    # Проверяем, не засчитан ли уже сегодняшний день
     msk_tz = datetime.timezone(datetime.timedelta(hours=3))
     now_msk = datetime.datetime.now(msk_tz)
     today_str = now_msk.strftime("%Y-%m-%d")
     
-    last_streak_date = user_data.get("last_streak_date", "")
+    last_streak_date = user_data_fresh.get("last_streak_date", "")
     if last_streak_date == today_str:
-        return  # Уже засчитано сегодня
+        logger.info(f"check_streak [{user_id}]: стрик уже засчитан сегодня ({today_str})")
+        return
     
-    # Увеличиваем стрик
-    streak = user_data.get("daily_quests_streak", 0) + 1
-    user_data["daily_quests_streak"] = streak
-    user_data["last_streak_date"] = today_str
+    # ⭐ Увеличиваем стрик ⭐
+    streak = user_data_fresh.get("daily_quests_streak", 0) + 1
+    user_data_fresh["daily_quests_streak"] = streak
+    user_data_fresh["last_streak_date"] = today_str
     
-    save_data(load_data())  # Сохраняем стрик
+    # ⭐ Сохраняем ОБНОВЛЁННЫЕ данные (не старые!) ⭐
+    save_data(data_fresh)
+    
+    logger.info(f"✅ check_streak [{user_id}]: стрик увеличен до {streak}")
     
     # Обновляем недельный квест стрика
     await update_weekly_quest_progress(context, user_id, "weekly_streak_3", 1)
-    
-    logger.info(f"Игрок {user_id}: стрик ежедневных квестов = {streak}")
 
 
 async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
