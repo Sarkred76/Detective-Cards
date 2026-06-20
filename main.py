@@ -1562,19 +1562,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             save_data(data)
             await update_quest_progress(context, user_id, "cards_4", 1)
-            save_data(data)
             if card["rarity"] == "Rare":
                 await update_quest_progress(context, user_id, "card_rare", 1)
-                save_data(data)
             if card["rarity"] in EPIC_PLUS_RARITIES:
                 await update_quest_progress(context, user_id, "card_epic_plus", 1)
-                save_data(data)
             # Прогресс репутации
-            save_data(data)
             await update_quest_progress(context, user_id, "rep_1000", bonus["points"])
-            save_data(data)
             await update_weekly_quest_progress(context, user_id, "weekly_dossier_25", 1)
-            save_data(data)
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
 
@@ -2313,9 +2307,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             user_data["casino_attempts"] -= 1
         save_data(data)
         await update_quest_progress(context, user_id, "casino_1", 1)
-        save_data(data)
         await update_quest_progress(context, user_id, "spend_1500", 1500)
-        save_data(data)
         
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
@@ -2341,7 +2333,6 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode="Markdown",
             )
             await update_weekly_quest_progress(context, user_id, "weekly_casino_win", 1)
-            save_data(data)
 
         else:
             await asyncio.sleep(2)
@@ -3309,7 +3300,6 @@ async def craft_execute(
         logger.info(f"Игрок {user_id} выполнил крафт: {rule_key}, карта #{card_id} → #{new_card['id']}")
 
         await update_quest_progress(context, user_id, "craft_1", 1)
-        save_data(data)
         
     except Exception as e:
         logger.error(f"Ошибка в craft_execute: {e}")
@@ -3854,7 +3844,6 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
             await update_quest_progress(context, user_id, "spend_1500", 30000)
-            save_data(data)
         elif text == "❌ Отмена":
             if user_id in context.user_data:
                 del context.user_data[user_id]
@@ -4294,7 +4283,6 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["basket_plays"] += 1
         save_data(data)
         await update_quest_progress(context, user_id, "spend_1500", 800)
-        save_data(data)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
@@ -4531,7 +4519,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 save_data(data)
                 
                 await update_quest_progress(context, user_id, "spend_1500", box["price"])
-                save_data(data)
                 await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
                 await context.bot.send_message(  # ← ДОБАВЛЕНО
                     chat_id=query.message.chat_id,
@@ -4570,7 +4557,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
             save_data(data)
             await update_quest_progress(context, user_id, "spend_1500", 10000)
-            save_data(data)
             
             await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
             await context.bot.send_message(  # ← ДОБАВЛЕНО
@@ -5167,7 +5153,6 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["darts_plays"] += 1
         save_data(data)
         await update_quest_progress(context, user_id, "spend_1500", DARTS_GAME_COST)
-        save_data(data)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
@@ -5187,7 +5172,6 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
             save_data(data)
             await update_quest_progress(context, user_id, "darts_win_2", 1)
-            save_data(data)
 
         await query.message.reply_text(
             f"🎯 **Результаты бросков:** {', '.join(map(str, results))}\n"
@@ -5819,7 +5803,6 @@ async def check_daily_quests_all_completed(user_data: Dict, user_id: str, contex
     
     # Обновляем недельный квест стрика
     await update_weekly_quest_progress(context, user_id, "weekly_streak_3", 1)
-    save_data(data)
 
 
 async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
