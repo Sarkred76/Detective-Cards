@@ -4588,7 +4588,6 @@ async def open_classic_box(
                 caption = (
                     f"🏛 <b>Classic-Box открыт!</b>\n"
                     f"🎁 Получено 10 Classic-карт\n"
-                    f"⭐ Гарантированная Epic: <b>{html.escape(guaranteed_epic['title'])}</b>\n"
                     f"💰 Списано: {price_paid} бэт-коинов\n"
                     f"💳 Остаток: {user_data['cents']} бэт-коинов"
                 )
