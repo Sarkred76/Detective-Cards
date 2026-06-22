@@ -5838,6 +5838,36 @@ async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
 
+async def reset_weekly_quests(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Принудительно сбрасывает еженедельные квесты у всех пользователей."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        reset_count = 0
+        for uid, udata in data["users"].items():
+            if "weekly_quests" in udata:
+                udata["weekly_quests"] = []
+            if "weekly_quests_last_reset_year" in udata:
+                udata["weekly_quests_last_reset_year"] = 0
+            if "weekly_quests_last_reset_week" in udata:
+                udata["weekly_quests_last_reset_week"] = 0
+            reset_count += 1
+        
+        save_data(data)
+        await update.message.reply_text(
+            f"✅ Еженедельные квесты сброшены у {reset_count} пользователей!\n"
+            f"При следующем входе в раздел квестов они будут инициализированы из нового пула."
+        )
+        logger.info(f"Админ {user_id} принудительно сбросил еженедельные квесты у {reset_count} игроков")
+    except Exception as e:
+        logger.error(f"Ошибка reset_weekly_quests: {e}")
+        await update.message.reply_text("❌ Ошибка при сбросе")
+
 
 # ===== КОНЕЦ БЛОКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ =====
 
@@ -5886,6 +5916,7 @@ def main() -> None:
             CommandHandler("craft", craft_menu),
             CommandHandler("accept_clan_invite", accept_clan_invite),
             CommandHandler("topclans", top_clans),
+            CommandHandler("reset_weekly_quests", reset_weekly_quests),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
