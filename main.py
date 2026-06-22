@@ -1561,10 +1561,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             save_data(data)
-            # ⭐ НОВЫЙ ТРИГГЕР: получение карты Common ⭐
+            # Ежедневный квест
             if card["rarity"] == "Common":
                 await update_quest_progress(context, user_id, "common_4", 1)
-            await update_weekly_quest_progress(context, user_id, "weekly_dossier_25", 1)
+
+            # Еженедельные квесты
+            if card["rarity"] == "Rare":
+                await update_weekly_quest_progress(context, user_id, "weekly_rare_6", 1)
+            if card["rarity"] == "Epic Team-up":
+                await update_weekly_quest_progress(context, user_id, "weekly_epic_tu_1", 1)
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
 
@@ -2336,6 +2341,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 parse_mode="Markdown",
             )
+            
     except Exception as e:
         logger.error(f"Ошибка в casino_play: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -3279,6 +3285,9 @@ async def craft_execute(
             f"💰 +{bonus['cents']} бэт-коинов\n"
             f"💥 +{bonus['points']} очков репутации"
         )
+
+        # Еженедельный квест: сделать 3 крафта
+        await update_weekly_quest_progress(context, user_id, "weekly_craft_3", 1)
         
         # ⭐ 1. Сначала редактируем текущее сообщение с результатом ⭐
         await query.edit_message_text(result_text, parse_mode="Markdown")
@@ -4857,6 +4866,10 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
         user_data["cards"].remove(card_id)
 
+        # ⭐ НОВЫЙ ТРИГГЕР: сжигание карты Rare ⭐
+        if card["rarity"] == "Rare":
+            await update_weekly_quest_progress(context, user_id, "weekly_burn_rare_4", 1)
+
         # ⭐ НОВЫЙ ТРИГГЕР: сжечь карту Common ⭐
         if card["rarity"] == "Common":
             await update_quest_progress(context, user_id, "burn_common_3", 1)
@@ -5467,13 +5480,6 @@ async def update_quest_progress(
     
     if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
         save_data(data)
-        # ⭐ ПРОВЕРКА СТРИКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ ⭐
-        # Перезагружаем данные, чтобы получить актуальное состояние daily_quests
-        data_fresh = load_data()
-        user_data_fresh = data_fresh["users"].get(user_id)
-        if user_data_fresh:
-            await check_daily_quests_all_completed(user_data_fresh, user_id, context)
-
 
 async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню квестов с тремя разделами."""
@@ -5615,25 +5621,39 @@ async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 WEEKLY_QUESTS_POOL = [
     {
-        "id": "weekly_streak_3",
-        "desc": "Выполнить все ежедневные квесты 3 дня подряд",
-        "reward_type": "free_rolls",
-        "reward_amount": 3,
-        "target": 3
-    },
-    {
         "id": "weekly_casino_win",
-        "desc": "Победить в казино 1 раз",
+        "desc": "Выиграть в казино",
         "reward_type": "rep_points",
-        "reward_amount": 600,
+        "reward_amount": 1000,
         "target": 1
     },
     {
-        "id": "weekly_dossier_25",
-        "desc": "Получить досье 25 раз",
+        "id": "weekly_craft_3",
+        "desc": "Сделать 3 крафта",
         "reward_type": "free_rolls",
         "reward_amount": 5,
-        "target": 25
+        "target": 3
+    },
+    {
+        "id": "weekly_rare_6",
+        "desc": "Получить 6 карт редкости Rare",
+        "reward_type": "cents",
+        "reward_amount": 500,
+        "target": 6
+    },
+    {
+        "id": "weekly_burn_rare_4",
+        "desc": "Сжечь 4 карты редкости Rare",
+        "reward_type": "free_rolls",
+        "reward_amount": 2,
+        "target": 4
+    },
+    {
+        "id": "weekly_epic_tu_1",
+        "desc": "Получить карту редкости Epic Team-up",
+        "reward_type": "cents",
+        "reward_amount": 1000,
+        "target": 1
     },
 ]
 
@@ -5650,7 +5670,7 @@ def check_weekly_quests_reset(user_data: Dict) -> None:
     
     # Если год или неделя изменились — сбрасываем
     if last_year == 0 or current_year != last_year or current_week != last_week:
-        # Выбираем все 3 еженедельных квеста (их всего 3, берём без random.sample)
+        # ⭐ Показываем ВСЕ 5 еженедельных квестов (без случайного выбора) ⭐
         user_data["weekly_quests"] = []
         for q in WEEKLY_QUESTS_POOL:
             user_data["weekly_quests"].append({
@@ -5663,9 +5683,6 @@ def check_weekly_quests_reset(user_data: Dict) -> None:
                 "completed": False,
                 "claimed": False
             })
-        
-        # ⭐ ВАЖНО: Сбрасываем стрик при недельном сбросе ⭐
-        user_data["daily_quests_streak"] = 0
         
         user_data["weekly_quests_last_reset_year"] = current_year
         user_data["weekly_quests_last_reset_week"] = current_week
@@ -5731,61 +5748,6 @@ async def update_weekly_quest_progress(
     if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
         save_data(data)
 
-
-async def check_daily_quests_all_completed(user_data: Dict, user_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Проверяет, выполнены ли ВСЕ ежедневные квесты за сегодня.
-    Если да — увеличивает стрик и обновляет недельный квест.
-    """
-    # ⭐ ПРИНУДИТЕЛЬНО перезагружаем самые свежие данные из файла ⭐
-    data_fresh = load_data()
-    user_data_fresh = data_fresh["users"].get(user_id)
-    
-    if not user_data_fresh:
-        logger.warning(f"check_streak: пользователь {user_id} не найден при перезагрузке")
-        return
-    
-    daily_quests = user_data_fresh.get("daily_quests", [])
-    if not daily_quests:
-        logger.info(f"check_streak: у {user_id} нет ежедневных квестов")
-        return
-    
-    # ⭐ ЛОГИРОВАНИЕ: показываем статус каждого квеста ⭐
-    quest_statuses = [(q["id"], q.get("completed", False), q.get("progress", 0), q.get("target", 0)) for q in daily_quests]
-    logger.info(f"check_streak [{user_id}]: статусы квестов = {quest_statuses}")
-    
-    # Проверяем, все ли дейлики выполнены
-    all_completed = all(q.get("completed", False) for q in daily_quests)
-    
-    if not all_completed:
-        incomplete = [q["id"] for q in daily_quests if not q.get("completed", False)]
-        logger.info(f"check_streak [{user_id}]: НЕ все квесты выполнены. Не завершены: {incomplete}")
-        return
-    
-    # Проверяем, не засчитан ли уже сегодняшний день
-    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-    now_msk = datetime.datetime.now(msk_tz)
-    today_str = now_msk.strftime("%Y-%m-%d")
-    
-    last_streak_date = user_data_fresh.get("last_streak_date", "")
-    if last_streak_date == today_str:
-        logger.info(f"check_streak [{user_id}]: стрик уже засчитан сегодня ({today_str})")
-        return
-    
-    # ⭐ Увеличиваем стрик ⭐
-    streak = user_data_fresh.get("daily_quests_streak", 0) + 1
-    user_data_fresh["daily_quests_streak"] = streak
-    user_data_fresh["last_streak_date"] = today_str
-    
-    # ⭐ Сохраняем ОБНОВЛЁННЫЕ данные (не старые!) ⭐
-    save_data(data_fresh)
-    
-    logger.info(f"✅ check_streak [{user_id}]: стрик увеличен до {streak}")
-    
-    # Обновляем недельный квест стрика
-    await update_weekly_quest_progress(context, user_id, "weekly_streak_3", 1)
-
-
 async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список активных еженедельных квестов."""
     query = update.callback_query if hasattr(update, 'callback_query') else None
@@ -5819,12 +5781,9 @@ async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE)
     hours = (remaining % 86400) // 3600
     minutes = (remaining % 3600) // 60
     
-    streak = user_data.get("daily_quests_streak", 0)
-    
     text = (
         f"📆 <b>Еженедельные квесты</b>\n"
-        f"⏳ Обновление через: {days}д {hours}ч {minutes}мин\n"
-        f"🔥 Стрик ежедневных квестов: {streak}/3\n\n"
+        f"⏳ Обновление через: {days}д {hours}ч {minutes}мин\n\n"
     )
     
     for quest in quests:
