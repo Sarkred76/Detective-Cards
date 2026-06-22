@@ -4292,8 +4292,10 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"🎁 Получено бесплатных попыток: {hits}\n",
                 parse_mode="Markdown"
             )
+            await update_quest_progress(context, user_id, "basket_3", 1)
         else:
             await query.message.reply_text("😔 Не повезло! 0/3 попаданий. Попробуйте ещё раз.")
+            
 
         # Возвращаем меню
         keyboard = [[InlineKeyboardButton("🏀 Сыграть ещё", callback_data="basket_play")]]
