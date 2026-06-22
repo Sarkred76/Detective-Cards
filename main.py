@@ -352,7 +352,9 @@ def generate_card_caption(
     if card.get("catchphrase"):
         # <blockquote> — это и есть "цитата" в Telegram
         # <i> внутри — курсив
-        caption += f"\n<blockquote><i>{html.escape(card['catchphrase'])}</i></blockquote>"
+        # ⭐ ЗАМЕНЯЕМ ПЕРЕНОСЫ НА <br> ДЛЯ HTML ⭐
+        escaped_phrase = html.escape(card['catchphrase']).replace("\n", "<br>")
+        caption += f"\n<blockquote><i>{escaped_phrase}</i></blockquote>"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -1651,6 +1653,12 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_id = 1
         
         media_type = determine_media_type(url, rarity)
+
+        # ⭐ ПРЕОБРАЗУЕМ \n В РЕАЛЬНЫЕ ПЕРЕНОСЫ ⭐
+        if catchphrase.lower() != "нет":
+            catchphrase = catchphrase.replace("\\n", "\n")
+        else:
+            catchphrase = None
         
         # ⭐ ДОБАВЛЯЕМ ВСЕ АТРИБУТЫ ⭐
         new_card = {
@@ -1658,7 +1666,7 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "image_url": url,
             "title": title,
             "rarity": rarity,
-            "catchphrase": catchphrase if catchphrase.lower() != "нет" else None,
+            "catchphrase": catchphrase,
             "available": True,
             "media_type": media_type,
         }
@@ -1980,7 +1988,11 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
         elif param == "catchphrase":
-            card[param] = new_value if new_value.lower() != "нет" else None
+            if new_value.lower() != "нет":
+                # ⭐ ПРЕОБРАЗУЕМ \n В РЕАЛЬНЫЕ ПЕРЕНОСЫ ⭐
+                card[param] = new_value.replace("\\n", "\n")
+            else:
+                card[param] = None
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
                 await update.message.reply_text(
