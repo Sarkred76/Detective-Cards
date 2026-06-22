@@ -214,6 +214,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["daily_quests_last_reset"] = 0
                 if "rolls_box_price" not in user_data:
                     user_data["rolls_box_price"] = 25000
+
+                for card in data.get("cards", []):
+                    if "is_classic" not in card:
+                        card["is_classic"] = False
             return data
             
         except Exception as e:
@@ -1622,14 +1626,15 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         full_text = update.message.text
         lines = full_text.split("\n")
         
-        if len(lines) < 5 :
+        if len(lines) < 5:
             await update.message.reply_text(
                 "ℹ️ Формат:\n"
                 "/add_card\n"
                 "URL\n"
                 "Название\n"
                 "Редкость\n"
-                "Цитата (или 'нет')"
+                "Цитата (или 'нет')\n"
+                "Classic (да/нет) — необязательно"
             )
             return
         
@@ -1638,13 +1643,17 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         rarity = lines[3].strip()
         catchphrase = lines[4].strip()
         
+        # ⭐ НОВОЕ: Парсим 6-ю строку (Classic)
+        is_classic = False
+        if len(lines) >= 6:
+            classic_value = lines[5].strip().lower()
+            is_classic = classic_value in ["да", "true", "1", "yes", "classic"]
+        
         if rarity not in RARITY_BONUSES:
             await update.message.reply_text(
                 f"⚠️ Допустимые редкости: {', '.join(RARITY_BONUSES.keys())}"
             )
             return
-        
-        data = load_data()
         
         # Вычисляем новый ID
         if data["cards"]:
@@ -1653,14 +1662,12 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_id = 1
         
         media_type = determine_media_type(url, rarity)
-
-        # ⭐ ПРЕОБРАЗУЕМ \n В РЕАЛЬНЫЕ ПЕРЕНОСЫ ⭐
+        
         if catchphrase.lower() != "нет":
             catchphrase = catchphrase.replace("\\n", "\n")
         else:
             catchphrase = None
         
-        # ⭐ ДОБАВЛЯЕМ ВСЕ АТРИБУТЫ ⭐
         new_card = {
             "id": new_id,
             "image_url": url,
@@ -1669,20 +1676,22 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "catchphrase": catchphrase,
             "available": True,
             "media_type": media_type,
+            "is_classic": is_classic,  # ⭐ НОВОЕ ПОЛЕ
         }
-        
         data["cards"].append(new_card)
         save_data(data)
-
-        catchphrase_text = f"\n💬 {catchphrase}" if catchphrase.lower() != "нет" else ""
+        
+        catchphrase_text = f"\n💬 {catchphrase}" if catchphrase else ""
+        classic_text = "🏛 **Classic**" if is_classic else ""
         
         await update.message.reply_text(
             f"✅ Карточка #{new_id} добавлена!\n"
             f"🏷 {title}{catchphrase_text}\n"
             f"🌟 {rarity}\n"
-            f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}"
+            f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}\n"
+            f"{classic_text}",
+            parse_mode="Markdown"
         )
-        
     except Exception as e:
         logger.error(f"Ошибка добавления карточки: {e}")
         await update.message.reply_text("❌ Ошибка при добавлении")
@@ -1945,7 +1954,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("🚫 Только для администратора!")
             return
         
-        # Проверяем аргументы
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
@@ -1953,10 +1961,11 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "**Параметры:**\n"
                 "• title - название карты\n"
                 "• url - URL изображения\n"
-                "• rarity - редкость (Common - Highlight, Limited)\n"
-                "• catchphrase - цитата (текст, или 'нет' для удаления)\n"
-                "• available - статус (true/false)\n",
-                parse_mode="HTML",
+                "• rarity - редкость\n"
+                "• catchphrase - цитата (или 'нет')\n"
+                "• available - статус (true/false)\n"
+                "• classic - метка Classic (да/нет)",
+                parse_mode="Markdown",
             )
             return
         
@@ -1964,35 +1973,42 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         param = context.args[1].lower()
         new_value = " ".join(context.args[2:])
         
-        # Находим карту
         card = find_card_by_id(card_id, data["cards"])
         if not card:
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
             return
         
-        # Обновляем параметр
-        valid_params = [
-            "title", "url", "rarity", "available", "catchphrase"
-        ]
+        # ⭐ ДОБАВЛЯЕМ classic В СПИСОК ДОПУСТИМЫХ ПАРАМЕТРОВ
+        valid_params = ["title", "url", "rarity", "available", "catchphrase", "classic"]
         if param not in valid_params:
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
             )
             return
         
-        # Сохраняем старое значение
         old_value = card.get(param, "не задано")
         
-        # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         if param == "available":
-            new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
-            card[param] = new_value
+            new_value_bool = new_value.lower() in ["true", "1", "yes", "вкл", "on", "да"]
+            card[param] = new_value_bool
+            display_new = new_value_bool
+            display_old = old_value
+            
+        # ⭐ НОВОЕ: ОБРАБОТКА ПАРАМЕТРА classic
+        elif param == "classic":
+            new_value_bool = new_value.lower() in ["да", "true", "1", "yes", "classic"]
+            card["is_classic"] = new_value_bool
+            display_new = "Да" if new_value_bool else "Нет"
+            display_old = "Да" if card.get("is_classic") else "Нет"
+            
         elif param == "catchphrase":
             if new_value.lower() != "нет":
-                # ⭐ ПРЕОБРАЗУЕМ \n В РЕАЛЬНЫЕ ПЕРЕНОСЫ ⭐
                 card[param] = new_value.replace("\\n", "\n")
             else:
                 card[param] = None
+            display_new = new_value
+            display_old = old_value
+            
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
                 await update.message.reply_text(
@@ -2002,30 +2018,37 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 return
             card[param] = new_value
             card["media_type"] = determine_media_type(card.get("image_url", ""), new_value)
+            display_new = new_value
+            display_old = old_value
+            
         elif param == "url":
             card["image_url"] = new_value
             card["media_type"] = determine_media_type(new_value, card.get("rarity", ""))
-        else:
-            # title или faction
+            display_new = new_value
+            display_old = old_value
+            
+        else:  # title
             card[param] = new_value
+            display_new = new_value
+            display_old = old_value
         
         save_data(data)
         
-        # Формируем ответ
+        # ⭐ ФОРМИРУЕМ ОТВЕТ С УЧЁТОМ classic
         response = (
             f"✅ **Карта #{card_id} обновлена!**\n"
             f"📝 Параметр: {param}\n"
-            f"❌ Было: {old_value}\n"
-            f"✅ Стало: {new_value}\n"
+            f"❌ Было: {display_old}\n"
+            f"✅ Стало: {display_new}\n"
             f"🏷 {card.get('title')}\n"
-            f"🌟 {card.get('rarity')}"
+            f"🌟 {card.get('rarity')}\n"
+            f"{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         )
-
+        if card.get("is_classic"):
+            response += "\n🏛 **Classic**"
         if card.get("catchphrase"):
             response += f"\n💬 _\"{card['catchphrase']}\"_"
-        
-        response += f"\n\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
-        
+            
         await update.message.reply_text(response, parse_mode="Markdown")
         
     except ValueError:
@@ -2033,7 +2056,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка редактирования карты: {e}")
         await update.message.reply_text("❌ Ошибка при редактировании")
-
+        
 async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает подробную информацию о карте."""
     try:
@@ -2059,6 +2082,7 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"📊 **Информация о карте #{card_id}**\n"
             f"🏷 **Название:** {card.get('title')}\n"
             f"🌟 **Редкость:** {card.get('rarity')}\n"
+            f"🏛 **Classic:** {'Да' if card.get('is_classic') else 'Нет'}\n"
         )
 
         if card.get("catchphrase"):
