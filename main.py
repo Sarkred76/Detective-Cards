@@ -4381,6 +4381,7 @@ SHOP_BOX_IMAGE = "https://files.catbox.moe/0qmfkc.jpg"         # Общая ка
 # Список боксов для навигации
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": SHOP_BOX_IMAGE, "is_rolls_box": True},
+    {"name": "Classic-Box", "price": 30000, "image": SHOP_BOX_IMAGE, "is_classic_box": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -4454,11 +4455,25 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     
     current_box = SHOP_BOXES[page]
     
-    # ⭐ Индивидуальная цена для Rolls-Box ⭐
+    # ⭐ Описание для Rolls-Box ⭐
     if current_box.get("is_rolls_box"):
-        display_price = user_data.get("rolls_box_price", 25000)
+        text = (
+            f"📦 **{current_box['name']}**\n"
+            f"Цена: {display_price} бэт-коинов\n"
+            f"🎁 Содержимое: **15 бесплатных попыток**\n"
+            f"⚠️ Цена растёт на 5000 с каждой покупкой!"
+        )
+    # ⭐ НОВОЕ: Описание для Classic-Box ⭐
+    elif current_box.get("is_classic_box"):
+        text = (
+            f"🏛 **{current_box['name']}**\n"
+            f"💰 Цена: {display_price} бэт-коинов\n"
+            f"🎁 Содержимое:\n"
+            f"• 10 случайных Classic-карт\n"
+            f"• Гарантированно 1 карта Epic\n"
+        )
     else:
-        display_price = current_box["price"]
+        text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
     keyboard = [
         [InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
@@ -4503,6 +4518,162 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
+
+async def open_classic_box(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    price_paid: int
+) -> None:
+    """Открывает Classic-Box: 10 Classic-карт + 1 гарантированная Epic."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # ⭐ Собираем все доступные Classic-карты ⭐
+        classic_cards = [
+            c for c in data["cards"]
+            if c.get("is_classic") and c.get("available", True)
+        ]
+        
+        # ⭐ Classic-карты редкости Epic (для гарантии) ⭐
+        classic_epic_cards = [
+            c for c in classic_cards
+            if c.get("rarity") == "Epic"
+        ]
+        
+        # Проверка: достаточно ли карт в системе
+        if not classic_cards:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ **Ошибка!**\nВ системе нет доступных Classic-карт.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]]),
+                parse_mode="Markdown"
+            )
+            return
+        
+        if not classic_epic_cards:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ **Ошибка!**\nВ системе нет Classic-карт редкости Epic.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]]),
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ ВЫБИРАЕМ КАРТЫ ⭐
+        # 1 гарантированная Epic
+        guaranteed_epic = random.choice(classic_epic_cards)
+        
+        # 9 случайных Classic-карт (могут повторяться, включая Epic)
+        other_9 = random.choices(classic_cards, k=9)
+        
+        # Итоговый набор из 10 карт
+        result_cards = [guaranteed_epic] + other_9
+        
+        # ⭐ ДОБАВЛЯЕМ КАРТЫ В КОЛЛЕКЦИЮ ИГРОКА (дубликаты как обычно) ⭐
+        for card in result_cards:
+            user_data["cards"].append(card["id"])
+        
+        save_data(data)
+        
+        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
+        media_group = []
+        for i, card in enumerate(result_cards):
+            # Caption только у первого элемента (ограничение Telegram)
+            caption = None
+            if i == 0:
+                caption = (
+                    f"🏛 <b>Classic-Box открыт!</b>\n"
+                    f"🎁 Получено 10 Classic-карт\n"
+                    f"⭐ Гарантированная Epic: <b>{html.escape(guaranteed_epic['title'])}</b>\n"
+                    f"💰 Списано: {price_paid} бэт-коинов\n"
+                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
+                )
+            
+            # Определяем тип медиа
+            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
+                media_group.append(
+                    InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+            else:
+                media_group.append(
+                    InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+        
+        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
+        try:
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id,
+                media=media_group
+            )
+        except Exception as media_error:
+            # ⭐ FALLBACK: если альбом не получился (например, смешанные типы) — шлём по одному ⭐
+            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
+            for i, card in enumerate(result_cards):
+                cap = None
+                if i == 0:
+                    cap = (
+                        f"🏛 <b>Classic-Box открыт!</b>\n"
+                        f"🎁 Получено 10 Classic-карт\n"
+                        f"⭐ Гарантированная Epic: <b>{html.escape(guaranteed_epic['title'])}</b>\n"
+                        f"💰 Списано: {price_paid} бэт-коинов"
+                    )
+                
+                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
+                        video=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None,
+                        supports_streaming=True
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None
+                    )
+                await asyncio.sleep(0.3)
+        
+        # ⭐ КНОПКА "НАЗАД В МАГАЗИН" ⭐
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="✅ <b>Classic-Box успешно открыт!</b>",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+            ]]),
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"Игрок {user_id} открыл Classic-Box за {price_paid} бэт-коинов")
+        
+    except Exception as e:
+        logger.error(f"Ошибка открытия Classic-Box: {e}")
+        try:
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text="❌ Произошла ошибка при открытии Classic-Box",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]])
+            )
+        except Exception:
+            pass
         
 async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик всех кнопок магазина."""
@@ -4577,6 +4748,11 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         ]]),
                         parse_mode="Markdown"
                     )
+                # ⭐ НОВОЕ: ЛОГИКА ДЛЯ CLASSIC-BOX ⭐
+                elif box.get("is_classic_box"):
+                    await query.answer("🏛 Открываем Classic-Box...", show_alert=False)
+                    await open_classic_box(update, context, current_price)
+                    return
                 else:
                     # Обычный бокс
                     save_data(data)
