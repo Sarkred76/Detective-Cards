@@ -1561,13 +1561,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             save_data(data)
-            await update_quest_progress(context, user_id, "cards_4", 1)
-            if card["rarity"] == "Rare":
-                await update_quest_progress(context, user_id, "card_rare", 1)
-            if card["rarity"] in EPIC_PLUS_RARITIES:
-                await update_quest_progress(context, user_id, "card_epic_plus", 1)
-            # Прогресс репутации
-            await update_quest_progress(context, user_id, "rep_1000", bonus["points"])
+            # ⭐ НОВЫЙ ТРИГГЕР: получение карты Common ⭐
+            if card["rarity"] == "Common":
+                await update_quest_progress(context, user_id, "common_4", 1)
             await update_weekly_quest_progress(context, user_id, "weekly_dossier_25", 1)
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
             await send_card(update, card, context, caption=caption)
@@ -2305,10 +2301,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             # Списываем центы и попытки
             user_data["cents"] -= 1500
             user_data["casino_attempts"] -= 1
-        save_data(data)
-        await update_quest_progress(context, user_id, "casino_1", 1)
-        await update_quest_progress(context, user_id, "spend_1500", 1500)
-        
+        save_data(data)        
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
             chat_id=query.message.chat_id, emoji="🎰"
@@ -3298,8 +3291,6 @@ async def craft_execute(
         await _send_craft_select_menu(context, query.message.chat_id, user_id, rule_key, page=0)
         
         logger.info(f"Игрок {user_id} выполнил крафт: {rule_key}, карта #{card_id} → #{new_card['id']}")
-
-        await update_quest_progress(context, user_id, "craft_1", 1)
         
     except Exception as e:
         logger.error(f"Ошибка в craft_execute: {e}")
@@ -3843,7 +3834,6 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
                 "• Без специальных символов",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
-            await update_quest_progress(context, user_id, "spend_1500", 30000)
         elif text == "❌ Отмена":
             if user_id in context.user_data:
                 del context.user_data[user_id]
@@ -4282,7 +4272,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["cents"] -= BASKET_GAME_COST
         user_data["basket_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", 800)
+        await update_quest_progress(context, user_id, "basket_3", 1)
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
@@ -4518,7 +4508,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 user_data["cents"] -= box["price"]
                 save_data(data)
                 
-                await update_quest_progress(context, user_id, "spend_1500", box["price"])
                 await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
                 await context.bot.send_message(  # ← ДОБАВЛЕНО
                     chat_id=query.message.chat_id,
@@ -4556,7 +4545,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             user_data["cents"] -= 10000
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
             save_data(data)
-            await update_quest_progress(context, user_id, "spend_1500", 10000)
             
             await query.answer("✅ Куплено 10 бесплатных попыток!", show_alert=True)
             await context.bot.send_message(  # ← ДОБАВЛЕНО
@@ -4862,9 +4850,13 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if not card:
             await query.answer("❌ Карта не найдена!", show_alert=True)
             return
-        
+
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
         user_data["cards"].remove(card_id)
+
+        # ⭐ НОВЫЙ ТРИГГЕР: сжечь карту Common ⭐
+        if card["rarity"] == "Common":
+            await update_quest_progress(context, user_id, "burn_common_3", 1)
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
@@ -5152,7 +5144,6 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["cents"] -= DARTS_GAME_COST
             user_data["darts_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "spend_1500", DARTS_GAME_COST)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
@@ -5372,20 +5363,13 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error(f"Ошибка в referral_menu: {e}")
 
 # ===== ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
-
 DAILY_QUESTS_POOL = [
-    {"id": "casino_1", "desc": "Сыграть в казино 1 раз", "reward_type": "cents", "reward_amount": 250, "target": 1},
-    {"id": "rep_1000", "desc": "Получить 1000 очков репутации", "reward_type": "cents", "reward_amount": 500, "target": 1000},
-    {"id": "spend_1500", "desc": "Потратить 1500 Бэт-коинов", "reward_type": "cents", "reward_amount": 500, "target": 1500},
-    {"id": "trade_3", "desc": "Провести 3 трейда", "reward_type": "cents", "reward_amount": 250, "target": 3},
+    {"id": "common_4", "desc": "Получить 4 карты редкости Common", "reward_type": "cents", "reward_amount": 500, "target": 4},
     {"id": "darts_win_2", "desc": "Победить в дартсе 2 раза", "reward_type": "free_rolls", "reward_amount": 1, "target": 2},
-    {"id": "craft_1", "desc": "Совершить 1 крафт", "reward_type": "cents", "reward_amount": 250, "target": 1},
-    {"id": "card_epic_plus", "desc": "Получить карту редкости Epic или выше", "reward_type": "free_rolls", "reward_amount": 1, "target": 1},
-    {"id": "card_rare", "desc": "Получить карту редкости Rare", "reward_type": "cents", "reward_amount": 500, "target": 1},
-    {"id": "cards_4", "desc": "Получить 4 карты через «🔍 Получить досье»", "reward_type": "cents", "reward_amount": 250, "target": 4},
+    {"id": "burn_common_3", "desc": "Сжечь 3 карты редкости Common", "reward_type": "free_rolls", "reward_amount": 1, "target": 3},
+    {"id": "trade_2", "desc": "Совершить 2 трейда", "reward_type": "cents", "reward_amount": 250, "target": 2},
+    {"id": "basket_3", "desc": "Сыграть в баскет 3 раза", "reward_type": "cents", "reward_amount": 500, "target": 3},
 ]
-
-EPIC_PLUS_RARITIES = ["Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited"]
 
 def check_daily_quests_reset(user_data: Dict) -> None:
     """Проверяет и сбрасывает ежедневные квесты в 00:00 МСК."""
@@ -5442,17 +5426,11 @@ async def update_quest_progress(
     """
     Обновляет прогресс квеста. Вызывается из игровых функций.
     ⚡ ВАЖНО: Добавляйте вызов этой функции в соответствующие места:
-    
-    - casino_play()       → update_quest_progress(..., "casino_1", 1)
-    - handle_message() после получения карты → 
-          update_quest_progress(..., "cards_4", 1)
-          update_quest_progress(..., "card_rare", 1)   # если rarity == "Rare"
-          update_quest_progress(..., "card_epic_plus", 1) # если rarity в EPIC_PLUS_RARITIES
-    - craft_execute()     → update_quest_progress(..., "craft_1", 1)
+    - handle_message() при получении карты Common → update_quest_progress(..., "common_4", 1)
     - darts_play() при победе → update_quest_progress(..., "darts_win_2", 1)
-    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_3", 1)
-    - Любое списание cents → update_quest_progress(..., "spend_1500", amount_spent)
-    - Любое начисление season_points → update_quest_progress(..., "rep_1000", points_gained)
+    - burn_execute() при сжигании карты Common → update_quest_progress(..., "burn_common_3", 1)
+    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_2", 1)
+    - basket_play() при любой игре → update_quest_progress(..., "basket_3", 1)
     """
     data = load_data()
     user_data = data["users"].get(user_id)
