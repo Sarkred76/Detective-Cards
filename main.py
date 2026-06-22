@@ -4881,21 +4881,17 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
 
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
         user_data["cards"].remove(card_id)
-
-        # ⭐ НОВЫЙ ТРИГГЕР: сжигание карты Rare ⭐
-        if card["rarity"] == "Rare":
-            await update_weekly_quest_progress(context, user_id, "weekly_burn_rare_4", 1)
-
-        # ⭐ НОВЫЙ ТРИГГЕР: сжечь карту Common ⭐
-        if card["rarity"] == "Common":
-            await update_quest_progress(context, user_id, "burn_common_3", 1)
-        
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
         user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward["free_rolls"]
-        
         save_data(data)
+        
+        # ⭐ ТРИГГЕРЫ КВЕСТОВ НА СЖИГАНИЕ ⭐
+        if card["rarity"] == "Common":
+            await update_quest_progress(context, user_id, "burn_common_3", 1)
+        if card["rarity"] == "Rare":
+            await update_weekly_quest_progress(context, user_id, "weekly_burn_rare_4", 1)
         
         reward_parts = []
         if reward["cents"] > 0:
@@ -5002,19 +4998,36 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         total_rolls = 0
         card_counts = Counter(user_data["cards"])
         total_cards_burned = len(user_data["cards"]) # Сохраняем количество до очистки
-
+        
+        # ⭐ СЧИТАЕМ КАРТЫ ПО РЕДКОСТЯМ ДЛЯ КВЕСТОВ ⭐
+        burned_common = 0
+        burned_rare = 0
+        for cid in user_data["cards"]:
+            c = find_card_by_id(cid, data["cards"])
+            if c:
+                if c["rarity"] == "Common":
+                    burned_common += 1
+                elif c["rarity"] == "Rare":
+                    burned_rare += 1
+        
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
                 total_cents += reward["cents"] * count
                 total_rolls += reward["free_rolls"] * count
-
+                
         # ⭐ ОЧИЩАЕМ КОЛЛЕКЦИЮ И ВЫДАЕМ НАГРАДУ ⭐
         user_data["cards"] = []
         user_data["cents"] = user_data.get("cents", 0) + total_cents
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + total_rolls
         save_data(data)
+        
+        # ⭐ ТРИГГЕРЫ КВЕСТОВ ДЛЯ МАССОВОГО СЖИГАНИЯ ⭐
+        if burned_common > 0:
+            await update_quest_progress(context, user_id, "burn_common_3", burned_common)
+        if burned_rare > 0:
+            await update_weekly_quest_progress(context, user_id, "weekly_burn_rare_4", burned_rare)
 
         text = (
             f"✅ **Все карты успешно сожжены!** 🔥\n\n"
