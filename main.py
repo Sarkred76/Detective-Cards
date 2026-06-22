@@ -2327,6 +2327,10 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ⭐ ПРОВЕРЯЕМ ПОБЕДУ (только 1, 22, 43, 64) ⭐
         is_win = slot_value in [1, 22, 43, 64]
+
+        # ⭐ КНОПКА "СЫГРАТЬ ЕЩЁ" ⭐
+        keyboard = [[InlineKeyboardButton("🎰 Сыграть ещё", callback_data="casino_play")]]
+        
         if is_win:
             # Добавляем 10 бесплатных попыток
             await asyncio.sleep(2)
@@ -2338,6 +2342,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"🎁 Получено: 10 бесплатных попыток\n"
                 f"📊 Всего попыток: {user_data['free_rolls']}\n\n"
                 f"🎲 Осталось игр в казино: {user_data['casino_attempts']}",
+                reply_markup=InlineKeyboardMarkup(keyboard), 
                 parse_mode="Markdown",
             )
             await update_weekly_quest_progress(context, user_id, "weekly_casino_win", 1)
@@ -2349,6 +2354,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"💰 Списано: 1500 бэт-коинов\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
+                reply_markup=InlineKeyboardMarkup(keyboard), 
                 parse_mode="Markdown",
             )
             
