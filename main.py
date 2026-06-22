@@ -4449,13 +4449,34 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     user_id = str(update.effective_user.id)
     data = load_data()
     user_data = data["users"].get(user_id, {})
-    
     if not context.user_data.get("shop_box_index"):
         context.user_data["shop_box_index"] = 0
-    
     current_box = SHOP_BOXES[page]
     
-    # ⭐ Описание для Rolls-Box ⭐
+    # ⭐ ОПРЕДЕЛЕНИЕ ЦЕНЫ ДЛЯ ОТОБРАЖЕНИЯ ⭐
+    if current_box.get("is_rolls_box"):
+        # Rolls-Box: индивидуальная растущая цена
+        display_price = user_data.get("rolls_box_price", 25000)
+    else:
+        # Все остальные боксы (включая Classic-Box): фиксированная цена
+        display_price = current_box["price"]
+    
+    keyboard = [
+        [InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
+        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+    ]
+    
+    nav_btns = []
+    if page > 0:
+        nav_btns.append(InlineKeyboardButton("◀️", callback_data=f"shop_boxes_{page-1}"))
+        nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
+    if page < len(SHOP_BOXES) - 1:
+        nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
+    
+    if nav_btns:
+        keyboard.insert(1, nav_btns)
+    
+    # ⭐ ФОРМИРОВАНИЕ ТЕКСТА В ЗАВИСИМОСТИ ОТ ТИПА БОКСА ⭐
     if current_box.get("is_rolls_box"):
         text = (
             f"📦 **{current_box['name']}**\n"
@@ -4463,7 +4484,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
             f"⚠️ Цена растёт на 5000 с каждой покупкой!"
         )
-    # ⭐ НОВОЕ: Описание для Classic-Box ⭐
     elif current_box.get("is_classic_box"):
         text = (
             f"🏛 **{current_box['name']}**\n"
@@ -4475,30 +4495,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
-    keyboard = [
-        [InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
-        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
-    ]
-    
-    nav_btns = []
-    if page > 0:
-        nav_btns.append(InlineKeyboardButton("◀️", callback_data=f"shop_boxes_{page-1}"))
-    nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
-    if page < len(SHOP_BOXES) - 1:
-        nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
-    keyboard.insert(1, nav_btns)
-    
-    # ⭐ Описание для Rolls-Box ⭐
-    if current_box.get("is_rolls_box"):
-        text = (
-            f"📦 **{current_box['name']}**\n"
-            f"Цена: {display_price} бэт-коинов\n\n"
-            f"🎁 Содержимое: **15 бесплатных попыток**\n"
-            f"⚠️ Цена растёт на 5000 с каждой покупкой!"
-        )
-    else:
-        text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
-    
+    # ⭐ ОТПРАВКА СООБЩЕНИЯ ⭐
     if hasattr(update, 'callback_query') and update.callback_query:
         try:
             await update.callback_query.message.delete()
