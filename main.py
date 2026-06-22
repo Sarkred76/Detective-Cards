@@ -4272,7 +4272,7 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         user_data["cents"] -= BASKET_GAME_COST
         user_data["basket_plays"] += 1
         save_data(data)
-        await update_quest_progress(context, user_id, "basket_3", 1)
+        
 
         await query.edit_message_text("🏀 Бросаем мячи...")
 
@@ -4292,11 +4292,12 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"🎁 Получено бесплатных попыток: {hits}\n",
                 parse_mode="Markdown"
             )
-            await update_quest_progress(context, user_id, "basket_3", 1)
+            
         else:
             await query.message.reply_text("😔 Не повезло! 0/3 попаданий. Попробуйте ещё раз.")
-            
 
+        await update_quest_progress(context, user_id, "basket_3", 1)
+            
         # Возвращаем меню
         keyboard = [[InlineKeyboardButton("🏀 Сыграть ещё", callback_data="basket_play")]]
         await query.message.reply_text(
