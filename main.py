@@ -4504,75 +4504,75 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await shop_boxes(update, context, page)
         
     elif query.data.startswith("shop_buy_box"):
-    try:
-        page = int(query.data.split("_")[-1])
-        box = SHOP_BOXES[page]
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id, {})
+        try:
+            page = int(query.data.split("_")[-1])
+            box = SHOP_BOXES[page]
+            user_id = str(query.from_user.id)
+            data = load_data()
+            user_data = data["users"].get(user_id, {})
         
-        # ⭐ Определяем цену (для Rolls-Box — индивидуальная) ⭐
-        if box.get("is_rolls_box"):
-            current_price = user_data.get("rolls_box_price", 25000)
-        else:
-            current_price = box["price"]
-        
-        if user_data.get("cents", 0) < current_price:
-            await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ **Ошибка покупки**\nНедостаточно бэт-коинов!",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]]),
-                parse_mode="Markdown"
-            )
-        else:
-            # ✅ Успешная покупка
-            user_data["cents"] -= current_price
-            
-            # ⭐ Логика для Rolls-Box ⭐
+            # ⭐ Определяем цену (для Rolls-Box — индивидуальная) ⭐
             if box.get("is_rolls_box"):
-                user_data["free_rolls"] = user_data.get("free_rolls", 0) + 15
-                user_data["rolls_box_price"] = current_price + 5000  # Повышаем цену
-                
-                save_data(data)
-                await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+                current_price = user_data.get("rolls_box_price", 25000)
+            else:
+                current_price = box["price"]
+        
+            if user_data.get("cents", 0) < current_price:
+                await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text=(
-                        f"✅ **Покупка успешна!**\n"
-                        f"📦 Вы приобрели: **{box['name']}**\n"
-                        f"🎁 Получено: **15 бесплатных попыток**\n"
-                        f"💰 Списано: {current_price} бэт-коинов\n"
-                        f"💳 Остаток: {user_data['cents']} бэт-коинов\n"
-                        f"⚠️ Новая цена бокса: {current_price + 5000} бэт-коинов"
-                    ),
+                    text="❌ **Ошибка покупки**\nНедостаточно бэт-коинов!",
                     reply_markup=InlineKeyboardMarkup([[
                         InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
                     ]]),
                     parse_mode="Markdown"
                 )
             else:
-                # Обычный бокс
-                save_data(data)
-                await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text=(
-                        f"✅ **Покупка успешна!**\n"
-                        f"📦 Вы приобрели: **{box['name']}**\n"
-                        f"💰 Списано: {current_price} бэт-коинов\n"
-                        f"💳 Остаток: {user_data['cents']} бэт-коинов"
-                    ),
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                    ]]),
-                    parse_mode="Markdown"
-                )
-    except Exception as e:
-        logger.error(f"Ошибка покупки бокса: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
+                # ✅ Успешная покупка
+                user_data["cents"] -= current_price
+            
+                # ⭐ Логика для Rolls-Box ⭐
+                if box.get("is_rolls_box"):
+                    user_data["free_rolls"] = user_data.get("free_rolls", 0) + 15
+                    user_data["rolls_box_price"] = current_price + 5000  # Повышаем цену
+                
+                    save_data(data)
+                    await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=(
+                            f"✅ **Покупка успешна!**\n"
+                            f"📦 Вы приобрели: **{box['name']}**\n"
+                            f"🎁 Получено: **15 бесплатных попыток**\n"
+                            f"💰 Списано: {current_price} бэт-коинов\n"
+                            f"💳 Остаток: {user_data['cents']} бэт-коинов\n"
+                            f"⚠️ Новая цена бокса: {current_price + 5000} бэт-коинов"
+                        ),
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                        ]]),
+                        parse_mode="Markdown"
+                    )
+                else:
+                    # Обычный бокс
+                    save_data(data)
+                    await query.answer(f"✅ Вы купили {box['name']}!", show_alert=True)
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=(
+                            f"✅ **Покупка успешна!**\n"
+                            f"📦 Вы приобрели: **{box['name']}**\n"
+                            f"💰 Списано: {current_price} бэт-коинов\n"
+                            f"💳 Остаток: {user_data['cents']} бэт-коинов"
+                        ),
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                        ]]),
+                        parse_mode="Markdown"
+                    )
+        except Exception as e:
+            logger.error(f"Ошибка покупки бокса: {e}")
+            await query.answer("❌ Произошла ошибка", show_alert=True)
 
     elif query.data == "shop_info":
         await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
