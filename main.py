@@ -350,10 +350,8 @@ def generate_card_caption(
     
     # ⭐ НОВОЕ: ЦИТАТА ЧЕРЕЗ BLOCKQUOTE (HTML-тег) ⭐
     if card.get("catchphrase"):
-        # <blockquote> — это и есть "цитата" в Telegram
-        # <i> внутри — курсив
-        # ⭐ ЗАМЕНЯЕМ ПЕРЕНОСЫ НА <br> ДЛЯ HTML ⭐
-        escaped_phrase = html.escape(card['catchphrase']).replace("\n", "<br>")
+        # ⭐ Telegram HTML поддерживает обычные \n для переноса строк ⭐
+        escaped_phrase = html.escape(card['catchphrase'])
         caption += f"\n<blockquote><i>{escaped_phrase}</i></blockquote>"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
