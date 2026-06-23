@@ -4669,16 +4669,6 @@ async def open_classic_box(
                     )
                 await asyncio.sleep(0.3)
         
-        # ⭐ КНОПКА "НАЗАД В МАГАЗИН" ⭐
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="✅ <b>Classic-Box успешно открыт!</b>",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-            ]]),
-            parse_mode="HTML"
-        )
-        
         logger.info(f"Игрок {user_id} открыл Classic-Box за {price_paid} бэт-коинов")
         
     except Exception as e:
