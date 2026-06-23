@@ -4651,6 +4651,9 @@ async def open_classic_box(
                         chat_id=query.message.chat_id,
                         video=card["image_url"],
                         caption=cap,
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                        ]]),
                         parse_mode="HTML" if cap else None,
                         supports_streaming=True
                     )
@@ -4659,6 +4662,9 @@ async def open_classic_box(
                         chat_id=query.message.chat_id,
                         photo=card["image_url"],
                         caption=cap,
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                        ]]),
                         parse_mode="HTML" if cap else None
                     )
                 await asyncio.sleep(0.3)
