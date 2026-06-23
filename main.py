@@ -5824,7 +5824,6 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"   Статус: {reward_1}\n"
             f"3️⃣ 3 приглашения: Случайная карта редкости **Epic Team-up**\n"
             f"   Статус: {reward_3}\n\n"
-            f"💡 *Награды выдаются автоматически в момент приглашения нового игрока!*"
         )
 
         keyboard = [[InlineKeyboardButton("🔙 Назад в Личное дело", callback_data="my_profile")]]
