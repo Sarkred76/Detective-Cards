@@ -3615,34 +3615,44 @@ async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("❌ Ошибка при создании клана")
         
 def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
-    clan_id = get_user_clan(user_id, data)  # ← Получаем ID
-    if not clan_id:
+    """Выход из клана или роспуск клана (если лидер и последний участник)."""
+    clan_identifier = get_user_clan(user_id, data)  # ← Может быть clan_id или clan_name
+    if not clan_identifier:
         return False, "Вы не состоите в клане!"
     
-    clan = get_clan_data(clan_id, data)  # ← Исправлено: используем clan_id
+    clan = get_clan_data(clan_identifier, data)
     if not clan:
         return False, "Ошибка: клан не найден!"
     
     is_leader = user_id == clan["leader_id"]
-    clan_name = clan["name"]  # ← Сохраняем имя для сообщения
+    clan_name = clan["name"]
     
     if is_leader and len(clan["members"]) > 1:
-        return False, "Вы не можете покинуть клан, пока в нём есть другие участники!\nПередайте лидерство или расформируйте клан."
+        return False, (
+            "Вы не можете покинуть клан, пока в нём есть другие участники!\n"
+            "Передайте лидерство или расформируйте клан."
+        )
     
     # Удаляем пользователя из клана
     if user_id in clan["members"]:
         del clan["members"][user_id]
     
-    # Если клан пуст — удаляем его
+    # ⭐ ИСПРАВЛЕНИЕ: Если клан пуст — удаляем его по РЕАЛЬНОМУ ключу ⭐
     if not clan["members"]:
-        del data["clans"][clan_id]  # ← Используем clan_id как ключ
+        # Ищем ключ, по которому этот клан хранится в словаре
+        for cid, c in list(data["clans"].items()):
+            if c is clan:
+                del data["clans"][cid]
+                break
     
     # Удаляем привязку пользователя
     if user_id in data["user_clan"]:
         del data["user_clan"][user_id]
     
-    return True, f"Вы покинули клан **{clan_name}**." if not is_leader else f"Клан **{clan_name}** распущен."
-
+    if is_leader:
+        return True, f"Клан **{clan_name}** распущен."
+    else:
+        return True, f"Вы покинули клан **{clan_name}**."
 def get_clan_members_list(clan_id: str, data: Dict) -> str:
     """Формирует текст со списком участников клана и их очками репутации."""
     clan = get_clan_data(clan_id, data)
