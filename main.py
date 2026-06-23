@@ -1122,7 +1122,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         unique_cards = len(set(user_card_ids))
         # Считаем общее количество доступных карт в игре
         total_available_cards = len(
-            [card for card in data["cards"] if card.get("available", True)]
+            [card for card in data["cards"]]
         )
         # Процент коллекции
         collection_percent = (
