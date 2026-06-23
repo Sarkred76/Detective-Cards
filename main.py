@@ -63,6 +63,9 @@ BASKET_GAME_COST = 800
 MAX_BASKET_DAILY_PLAYS = 5
 BASKET_HIT_THRESHOLD = 4 
 
+# ===== АВАТАРКИ =====
+DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
+
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
@@ -217,6 +220,11 @@ def load_data() -> Dict[str, Any]:
                     user_data["daily_quests_last_reset"] = 0
                 if "rolls_box_price" not in user_data:
                     user_data["rolls_box_price"] = 25000
+                # ⭐ НОВОЕ: Миграция аватарок ⭐
+                if "avatar_url" not in user_data:
+                    user_data["avatar_url"] = DEFAULT_AVATAR_URL
+                if "avatars" not in user_data:
+                    user_data["avatars"] = [DEFAULT_AVATAR_URL]
 
                 for card in data.get("cards", []):
                     if "is_classic" not in card:
@@ -463,7 +471,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "free_rolls": 0,
                 "last_dice_time": 0,
                 "referral_invites": [],
-                "referral_rewards_claimed": []
+                "referral_rewards_claimed": [],
+                "avatar_url": DEFAULT_AVATAR_URL,
+                "avatars": [DEFAULT_AVATAR_URL], 
             }
             save_data(data)
 
@@ -1095,7 +1105,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Произошла ошибка", show_alert=True)
         
 async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает профиль пользователя."""
+    """Показывает профиль пользователя с аватаркой."""
     try:
         # ⭐ ОПРЕДЕЛЯЕМ: callback query или команда ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -1107,7 +1117,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_id = str(update.effective_user.id)
             chat_id = update.effective_chat.id
             is_callback = False
-            
+        
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data:
@@ -1116,20 +1126,30 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             else:
                 await update.message.reply_text("❌ Вы ещё не начали игру!\nНажмите /start")
             return
-
+        
+        # ⭐ Миграция для старых пользователей ⭐
+        if "avatar_url" not in user_data:
+            user_data["avatar_url"] = DEFAULT_AVATAR_URL
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+            save_data(data)
+        
         # Считаем уникальные карты пользователя
         user_card_ids = user_data.get("cards", [])
         unique_cards = len(set(user_card_ids))
+        
         # Считаем общее количество доступных карт в игре
         total_available_cards = len(
             [card for card in data["cards"]]
         )
+        
         # Процент коллекции
         collection_percent = (
             round((unique_cards / total_available_cards * 100), 1)
             if total_available_cards > 0
             else 0
         )
+        
         # Считаем карты по редкостям
         card_counts = Counter(user_card_ids)
         rarity_stats = {}
@@ -1138,54 +1158,229 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             if card:
                 rarity = card.get("rarity", "T1")
                 rarity_stats[rarity] = rarity_stats.get(rarity, 0) + 1
+        
         # Формируем статистику по редкостям
         rarity_text = ""
         for rarity in [
-            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited", 
+            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited",
         ]:
             if rarity in rarity_stats:
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
+        
         if not rarity_text:
             rarity_text = "Пока нет существ\n"
-            
+        
         profile_text = (
-            f"👤 Профиль игрока\n"
+            f"👤 **Профиль игрока**\n"
             f"🆔 ID: `{user_id}`\n"
             f"💰 Бэт-коинов: {user_data.get('cents', 0)}\n"
             f"💥 Очков репутации (сезон): {user_data.get('season_points', 0)}\n"
-            f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n\n"
+            f"💎 Очков репутации (всего): {user_data.get('total_points', 0)}\n"
             f"📦 Собрано карт: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
             f"🔢 Всего получено: {len(user_card_ids)}\n"
             f"📈 По редкостям:\n"
-            f"{rarity_text}\n"
+            f"{rarity_text}"
             f"🔍 Бесплатные попытки: {user_data.get('free_rolls', 0)}\n"
         )
         
-        # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
+        # ⭐ КНОПКА "МОИ АВАТАРКИ" ⭐
+        keyboard = [
+            [InlineKeyboardButton("🖼 Мои аватарки", callback_data="my_avatars_0")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # ⭐ ОТПРАВЛЯЕМ ПРОФИЛЬ С АВАТАРКОЙ ⭐
+        avatar_url = user_data.get("avatar_url", DEFAULT_AVATAR_URL)
+        
         if is_callback:
-            # Удаляем старое сообщение и отправляем новое
+            # Удаляем старое сообщение
             try:
                 await query.message.delete()
             except:
                 pass
-            await context.bot.send_message(
+            
+            # Отправляем фото с текстом профиля
+            await context.bot.send_photo(
                 chat_id=chat_id,
-                text=profile_text,
+                photo=avatar_url,
+                caption=profile_text,
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         else:
-            await update.message.reply_text(
-                profile_text,
+            # Отправляем фото с текстом профиля
+            await update.message.reply_photo(
+                photo=avatar_url,
+                caption=profile_text,
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
-            
     except Exception as e:
         logger.error(f"Ошибка показа профиля: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("❌ Произошла ошибка при загрузке профиля")
+
+async def my_avatars(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
+    """Показывает галерею аватарок игрока с навигацией."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
+            return
+        
+        # ⭐ Миграция для старых пользователей ⭐
+        if "avatar_url" not in user_data:
+            user_data["avatar_url"] = DEFAULT_AVATAR_URL
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+            save_data(data)
+        
+        avatars = user_data.get("avatars", [DEFAULT_AVATAR_URL])
+        current_avatar = user_data.get("avatar_url", DEFAULT_AVATAR_URL)
+        
+        if not avatars:
+            avatars = [DEFAULT_AVATAR_URL]
+            user_data["avatars"] = avatars
+            save_data(data)
+        
+        total_avatars = len(avatars)
+        
+        # Корректировка индекса
+        if page < 0:
+            page = 0
+        elif page >= total_avatars:
+            page = total_avatars - 1
+        
+        # Сохраняем текущий индекс
+        context.user_data[f"avatar_page_{user_id}"] = page
+        
+        current_page_avatar = avatars[page]
+        is_active = (current_page_avatar == current_avatar)
+        
+        # ⭐ ФОРМИРУЕМ CAPTION ⭐
+        caption = (
+            f"🖼 **Мои аватарки**\n"
+            f"📷 Аватарка {page + 1} из {total_avatars}\n"
+        )
+        if is_active:
+            caption += f"✅ **Эта аватарка активна**"
+        else:
+            caption += f"💡 Нажмите кнопку ниже, чтобы установить эту аватарку"
+        
+        # ⭐ ФОРМИРУЕМ КЛАВИАТУРУ ⭐
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"avatar_nav_{page - 1}"))
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_avatars}", callback_data="avatar_info"))
+        if page < total_avatars - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"avatar_nav_{page + 1}"))
+        
+        # Кнопка установки
+        if is_active:
+            set_button = InlineKeyboardButton("✅ Активная", callback_data="avatar_active")
+        else:
+            set_button = InlineKeyboardButton("✅ Установить как активную", callback_data=f"avatar_set_{page}")
+        
+        keyboard = [
+            nav_buttons,
+            [set_button],
+            [InlineKeyboardButton("🔙 Назад в профиль", callback_data="profile_back")]
+        ]
+        
+        # ⭐ ОТПРАВЛЯЕМ АВАТАРКУ ⭐
+        try:
+            media = InputMediaPhoto(
+                media=current_page_avatar,
+                caption=caption,
+                parse_mode="Markdown"
+            )
+            await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception as edit_error:
+            if "Message is not modified" in str(edit_error):
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+                return
+            logger.error(f"Ошибка редактирования аватарки: {edit_error}")
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=current_page_avatar,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в my_avatars: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def avatar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок галереи аватарок."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Навигация ⭐
+        if query.data.startswith("avatar_nav_"):
+            try:
+                page = int(query.data.replace("avatar_nav_", ""))
+                await my_avatars(update, context, page=page)
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка навигации", show_alert=True)
+            return
+        
+        # ⭐ Установка аватарки ⭐
+        if query.data.startswith("avatar_set_"):
+            try:
+                page = int(query.data.replace("avatar_set_", ""))
+                data = load_data()
+                user_data = data["users"].get(user_id)
+                
+                if not user_data:
+                    await query.answer("❌ Профиль не найден", show_alert=True)
+                    return
+                
+                avatars = user_data.get("avatars", [DEFAULT_AVATAR_URL])
+                if page < 0 or page >= len(avatars):
+                    await query.answer("❌ Аватарка не найдена", show_alert=True)
+                    return
+                
+                # Устанавливаем аватарку
+                user_data["avatar_url"] = avatars[page]
+                save_data(data)
+                
+                await query.answer("✅ Аватарка установлена!", show_alert=True)
+                await my_avatars(update, context, page=page)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Ошибка установки аватарки: {e}")
+                await query.answer("❌ Ошибка данных", show_alert=True)
+            return
+        
+        # ⭐ Инфо ⭐
+        if query.data == "avatar_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+            return
+        
+        # ⭐ Активная ⭐
+        if query.data == "avatar_active":
+            await query.answer("✅ Эта аватарка уже активна", show_alert=False)
+            return
+    except Exception as e:
+        logger.error(f"Ошибка в avatar_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
             
 
 async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1193,10 +1388,16 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
-       
+        
         if query.data == "profile_back":
             await my_profile(update, context)
-        
+        elif query.data.startswith("my_avatars_"):
+            # ⭐ НОВОЕ: Переход в галерею аватарок ⭐
+            try:
+                page = int(query.data.replace("my_avatars_", ""))
+                await my_avatars(update, context, page=page)
+            except (ValueError, IndexError):
+                await my_avatars(update, context, page=0)
     except Exception as e:
         logger.error(f"Ошибка profile_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -6728,6 +6929,7 @@ def main() -> None:
             CallbackQueryHandler(darts_callback, pattern=r"^darts_.*"),
             CallbackQueryHandler(quests_callback, pattern=r"^quests_.*"),
             CallbackQueryHandler(shop_seasonal_callback, pattern=r"^ss_.*"),
+            CallbackQueryHandler(avatar_callback, pattern=r"^avatar_.*"),
         ]
 
         for handler in handlers:
