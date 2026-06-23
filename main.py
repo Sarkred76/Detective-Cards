@@ -351,7 +351,7 @@ def generate_card_caption(
     """Генерирует описание карточки с количеством дубликатов и цитатой."""
     # ⭐ БАЗОВЫЙ CAPTION ⭐
     if user_data is None:
-        caption = f"⚔️ {card['title']}"
+        caption = f"{card['title']}"
     else:
         caption = f"🔍 У Вас новый\n подозреваемый!\n\n{html.escape(card['title'])}"
 
