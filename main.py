@@ -5073,11 +5073,11 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "• Common: 100 бэт-коинов 💰\n"
             "• Rare: 200 бэт-коинов 💰\n"
             "• Rare Team-up: 300 бэт-коинов 💰\n"
-            "• Epic: 1 бесплатный найм 🎲\n"
-            "• Epic Team-up: 3 бесплатных найма 🎲\n"
-            "• Legendary: 5 бесплатных наймов 🎲\n"
-            "• Legendary Team-up: 7 бесплатных наймов 🎲\n"
-            "• Highlight: 10 бесплатных наймов 🎲"
+            "• Epic: 1 бесплатный найм 🔍\n"
+            "• Epic Team-up: 3 бесплатных найма 🔍\n"
+            "• Legendary: 5 бесплатных наймов 🔍\n"
+            "• Legendary Team-up: 7 бесплатных наймов 🔍\n"
+            "• Highlight: 10 бесплатных наймов 🔍"
         )
         
         if query:
@@ -5173,7 +5173,7 @@ async def show_burn_cards(
         if reward["cents"] > 0:
             reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
         if reward["free_rolls"] > 0:
-            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+            reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных наймов")
         
         caption = (
             f"🔥 {card['title']}\n"
@@ -5251,7 +5251,7 @@ async def burn_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if reward["cents"] > 0:
             reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
         if reward["free_rolls"] > 0:
-            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+            reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных наймов")
         
         keyboard = [
             [
@@ -5323,7 +5323,7 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if reward["cents"] > 0:
             reward_parts.append(f"💰 +{reward['cents']} бэт-коинов")
         if reward["free_rolls"] > 0:
-            reward_parts.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
+            reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных наймов")
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в сжигание", callback_data="burn_back")]]
 
@@ -5385,7 +5385,7 @@ async def burn_all_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             f"🔥 **Сжечь ВСЕ карты?**\n\n"
             f"📦 Всего карт в коллекции: {total_cards}\n\n"
             f"💰 Вы получите: {total_cents} бэт-коинов\n"
-            f"🎲 Вы получите: {total_rolls} бесплатных наймов\n\n"
+            f"🔍 Вы получите: {total_rolls} бесплатных наймов\n\n"
             f"⚠️ **ВНИМАНИЕ!** Все ваши карты будут безвозвратно удалены!"
         )
 
@@ -5459,7 +5459,7 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             f"✅ **Все карты успешно сожжены!** 🔥\n\n"
             f"🗑️ Удалено карт: {total_cards_burned}\n"
             f"💰 Получено бэт-коинов: +{total_cents}\n"
-            f"🎲 Получено бесплатных наймов: +{total_rolls}"
+            f"🔍 Получено бесплатных наймов: +{total_rolls}"
         )
 
         keyboard = [[InlineKeyboardButton("🔙 Назад в меню сжигания", callback_data="burn_back")]]
