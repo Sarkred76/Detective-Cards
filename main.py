@@ -1389,6 +1389,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await top_clans(update, context)
             return
 
+        if text == "✏️ Описание клана":
+            await edit_clan_description_start(update, context)
+            return
+
         if text == "🔙 Назад в кланы":
             await clan_menu(update, context)
             return
@@ -1407,6 +1411,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
             if user_step == "clan_invite_enter_username":
                 await process_clan_invite(update, context)
+                return
+
+            if user_step == "clan_edit_description":
+                await process_clan_description_input(update, context)
                 return
 
         # ⭐ ВЫХОД ИЗ КЛАНА ⭐
@@ -3953,7 +3961,6 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
-        
         clan_id = get_user_clan(user_id, data)
         if not clan_id:
             keyboard = [
@@ -3961,7 +3968,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
             await update.message.reply_text(
-                "❌ Вы не состоите в клане!\n\n"
+                "❌ Вы не состоите в клане!\n"
                 "Создайте свой клан или попросите главу другого клана пригласить вас.",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
@@ -3973,22 +3980,30 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
         
         is_leader = user_id == clan["leader_id"]
-        clan_name = clan["name"] 
         
         # Формируем сообщение
         members_list = get_clan_members_list(clan["name"], data)
         
+        # ⭐ НОВОЕ: Описание клана ⭐
+        description_text = ""
+        clan_description = clan.get("description", "")
+        if clan_description:
+            escaped_desc = escape_markdown(clan_description)
+            description_text = f"\n📝 **Описание клана:**\n_{escaped_desc}_\n"
+        
         message_text = (
-            f"🏰 **Ваш клан: {clan["name"]}**\n\n"
+            f"🏰 **Ваш клан: {clan['name']}**\n"
+            f"{description_text}"
             f"{members_list}\n"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
         )
         
-        # Кнопки для лидера
+        # Кнопки для лидера (с новой кнопкой описания)
         if is_leader:
             keyboard = [
                 [KeyboardButton("📨 Пригласить игрока")],
+                [KeyboardButton("✏️ Описание клана")],  # ⭐ НОВОЕ
                 [KeyboardButton("🚪 Покинуть клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
@@ -3999,13 +4014,11 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             ]
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
         await update.message.reply_text(
             message_text,
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        
     except Exception as e:
         logger.error(f"Ошибка в my_clan_view: {e}")
         await update.message.reply_text("❌ Ошибка при показе информации о клане")
@@ -6068,6 +6081,146 @@ async def reset_weekly_quests(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ===== КОНЕЦ БЛОКА ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ =====
+
+def escape_markdown(text: str) -> str:
+    """Экранирует специальные символы Markdown, чтобы текст отображался как есть."""
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
+async def edit_clan_description_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начинает процесс редактирования описания клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Ошибка: клан не найден!")
+            return
+        
+        if clan.get("leader_id") != user_id:
+            await update.message.reply_text("❌ Только глава клана может изменять описание!")
+            return
+        
+        current_desc = clan.get("description", "")
+        
+        # ⭐ Переходим в состояние ввода ⭐
+        context.user_data[user_id] = {"step": "clan_edit_description"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        
+        if current_desc:
+            text = (
+                f"✏️ **Редактирование описания клана**\n\n"
+                f"📝 **Текущее описание:**\n_{escape_markdown(current_desc)}_\n\n"
+                f"Введите новое описание (до 300 символов):\n"
+                f"• Разрешены буквы, цифры, эмодзи, переносы строк\n"
+                f"• Для удаления описания отправьте: `нет`"
+            )
+        else:
+            text = (
+                f"✏️ **Создание описания клана**\n\n"
+                f"📝 Описание пока не задано.\n\n"
+                f"Введите описание (до 300 символов):\n"
+                f"• Разрешены буквы, цифры, эмодзи, переносы строк"
+            )
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в edit_clan_description_start: {e}")
+        await update.message.reply_text("❌ Ошибка")
+
+
+async def process_clan_description_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод описания клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        # ⭐ Проверка отмены ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Редактирование описания отменено.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        clan_id = get_user_clan(user_id, data)
+        if not clan_id:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan or clan.get("leader_id") != user_id:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text("❌ Только глава клана может изменять описание!")
+            return
+        
+        # ⭐ Проверка: удаление описания ⭐
+        if text.lower() == "нет":
+            clan["description"] = ""
+            save_data(data)
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "✅ Описание клана удалено.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверка длины ⭐
+        if len(text) > 300:
+            await update.message.reply_text(
+                f"❌ Описание слишком длинное! ({len(text)}/300 символов)\n"
+                f"Пожалуйста, сократите его."
+            )
+            return
+        
+        if len(text) < 3:
+            await update.message.reply_text(
+                "❌ Описание слишком короткое! Минимум 3 символа.\n"
+                f"Повторите ввод:"
+            )
+            return
+        
+        # ⭐ Сохраняем описание ⭐
+        clan["description"] = text
+        save_data(data)
+        
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"✅ **Описание клана обновлено!**\n\n"
+            f"📝 Новое описание:\n_{escape_markdown(text)}_",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в process_clan_description_input: {e}")
+        await update.message.reply_text("❌ Ошибка при сохранении описания")
+
+
 
 # ===== ЗАПУСК БОТА =====
 
