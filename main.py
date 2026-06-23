@@ -159,6 +159,9 @@ def load_data() -> Dict[str, Any]:
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
 
+            if "seasonal_cards" not in data:
+                data["seasonal_cards"] = {}  # {card_id: price}
+
             if "clans" not in data:
                 data["clans"] = {}
 
@@ -4401,6 +4404,7 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Главное меню магазина."""
     keyboard = [
         [InlineKeyboardButton("📦 Боксы", callback_data="shop_boxes")],
+        [InlineKeyboardButton("🎴 Сезонные карты", callback_data="shop_seasonal")], 
         [InlineKeyboardButton("💎 Донат", callback_data="shop_donate")],
     ]
     if hasattr(update, 'callback_query') and update.callback_query:
@@ -4683,6 +4687,236 @@ async def open_classic_box(
             )
         except Exception:
             pass
+
+async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
+    """Показывает сезонные карты с навигацией."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') and update.callback_query else None
+        user_id = str(query.from_user.id if query else update.effective_user.id)
+        chat_id = query.message.chat_id if query else update.effective_chat.id
+        
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        seasonal = data.get("seasonal_cards", {})
+        
+        if not seasonal:
+            text = "📭 **Сезонные карты**\n\nСейчас нет доступных сезонных карт."
+            keyboard = [[InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]]
+            if query:
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            else:
+                await update.message.reply_text(
+                    text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            return
+        
+        # Сортируем по ID для стабильной навигации
+        seasonal_list = sorted(seasonal.items(), key=lambda x: int(x[0]))
+        total_cards = len(seasonal_list)
+        
+        # Корректировка индекса
+        if page < 0:
+            page = 0
+        elif page >= total_cards:
+            page = total_cards - 1
+        
+        # Сохраняем текущий индекс
+        context.user_data[f"seasonal_page_{user_id}"] = page
+        
+        card_id_str, price = seasonal_list[page]
+        card_id = int(card_id_str)
+        card = find_card_by_id(card_id, data["cards"])
+        
+        if not card:
+            if query:
+                await query.edit_message_text("⚠️ Карта не найдена!")
+            else:
+                await update.message.reply_text("⚠️ Карта не найдена!")
+            return
+        
+        # ⭐ Определяем, хватает ли бэт-коинов ⭐
+        user_cents = user_data.get("cents", 0)
+        can_afford = user_cents >= price
+        
+        # ⭐ Формируем caption (стандартный, как в архиве) ⭐
+        caption = generate_card_caption(card, user_data=None, count=1, show_bonus=False)
+        caption += f"\n\n💰 **Цена:** {price} бэт-коинов"
+        if not can_afford:
+            caption += f"\n❌ _Недостаточно бэт-коинов (у вас: {user_cents})_"
+        
+        # ⭐ Формируем клавиатуру ⭐
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"ss_nav_{page - 1}"))
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_cards}", callback_data="ss_info"))
+        if page < total_cards - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"ss_nav_{page + 1}"))
+        
+        # ⭐ Кнопка покупки: активная или серая ⭐
+        if can_afford:
+            buy_button = InlineKeyboardButton(
+                f"💰 Купить за {price} бэт-коинов",
+                callback_data=f"ss_buy_{card_id}"
+            )
+        else:
+            buy_button = InlineKeyboardButton(
+                f"❌ Недостаточно бэт-коинов",
+                callback_data="ss_no_cents"
+            )
+        
+        keyboard = [
+            nav_buttons,
+            [buy_button],
+            [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+        ]
+        
+        # ⭐ Отправляем карту ⭐
+        if query:
+            try:
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="Markdown"
+                    )
+                else:
+                    media = InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="Markdown"
+                    )
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as edit_error:
+                if "Message is not modified" in str(edit_error):
+                    # Просто обновляем клавиатуру
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+                    return
+                logger.error(f"Ошибка редактирования сезонной карты: {edit_error}")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await send_card(update, card, context, caption=caption, 
+                               reply_markup=InlineKeyboardMarkup(keyboard), 
+                               chat_id=chat_id)
+        else:
+            await send_card(update, card, context, caption=caption,
+                           reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception as e:
+        logger.error(f"Ошибка shop_seasonal: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка")
+
+
+async def shop_seasonal_buy(update: Update, context: ContextTypes.DEFAULT_TYPE, card_id: int) -> None:
+    """Покупка сезонной карты."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        card_id_str = str(card_id)
+        seasonal = data.get("seasonal_cards", {})
+        
+        if card_id_str not in seasonal:
+            await query.answer("⚠️ Карта больше не в сезонных!", show_alert=True)
+            return
+        
+        price = seasonal[card_id_str]
+        user_cents = user_data.get("cents", 0)
+        
+        if user_cents < price:
+            await query.answer("❌ Недостаточно бэт-коинов!", show_alert=True)
+            return
+        
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await query.answer("⚠️ Карта не найдена!", show_alert=True)
+            return
+        
+        # ⭐ Списываем бэт-коины ⭐
+        user_data["cents"] = user_cents - price
+        
+        # ⭐ Добавляем карту (дубликаты как обычно) ⭐
+        user_data["cards"].append(card_id)
+        
+        save_data(data)
+        
+        # ⭐ Уведомление ⭐
+        await query.answer(f"✅ Вы купили {card['title']}!", show_alert=True)
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=(
+                f"✅ **Покупка успешна!**\n"
+                f"🃏 Карта: **{card['title']}**\n"
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"💰 Списано: {price} бэт-коинов\n"
+                f"💳 Остаток: {user_data['cents']} бэт-коинов"
+            ),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+            ]]),
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Игрок {user_id} купил сезонную карту #{card_id} за {price}")
+    except Exception as e:
+        logger.error(f"Ошибка shop_seasonal_buy: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def shop_seasonal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок сезонных карт."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Навигация ⭐
+        if query.data.startswith("ss_nav_"):
+            try:
+                page = int(query.data.replace("ss_nav_", ""))
+                await shop_seasonal(update, context, page=page)
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка навигации", show_alert=True)
+            return
+        
+        # ⭐ Покупка ⭐
+        if query.data.startswith("ss_buy_"):
+            try:
+                card_id = int(query.data.replace("ss_buy_", ""))
+                await shop_seasonal_buy(update, context, card_id)
+            except (ValueError, IndexError):
+                await query.answer("❌ Ошибка данных", show_alert=True)
+            return
+        
+        # ⭐ Инфо ⭐
+        if query.data == "ss_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+            return
+        
+        # ⭐ Недостаточно бэт-коинов ⭐
+        if query.data == "ss_no_cents":
+            await query.answer("❌ Недостаточно бэт-коинов для покупки!", show_alert=True)
+            return
+    except Exception as e:
+        logger.error(f"Ошибка shop_seasonal_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
         
 async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик всех кнопок магазина."""
@@ -4691,6 +4925,8 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     if query.data == "shop_menu":
         await shop_menu(update, context)
+    elif query.data == "shop_seasonal":
+        await shop_seasonal(update, context, page=0)
     elif query.data == "shop_donate":
         await shop_donate(update, context)
     elif query.data == "shop_tries":
@@ -6220,7 +6456,203 @@ async def process_clan_description_input(update: Update, context: ContextTypes.D
         logger.error(f"Ошибка в process_clan_description_input: {e}")
         await update.message.reply_text("❌ Ошибка при сохранении описания")
 
+async def add_seasonal_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет карту в раздел 'Сезонные карты'."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/add_seasonal [ID_карты] [цена]\n"
+                "**Пример:**\n"
+                "/add_seasonal 45 50000",
+                parse_mode="Markdown"
+            )
+            return
+        
+        try:
+            card_id = int(context.args[0])
+            price = int(context.args[1])
+        except ValueError:
+            await update.message.reply_text("⚠️ ID и цена должны быть числами!")
+            return
+        
+        if price < 0:
+            await update.message.reply_text("⚠️ Цена не может быть отрицательной!")
+            return
+        
+        # Проверяем существование карты
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+            return
+        
+        # Проверяем, нет ли уже этой карты в сезонных
+        if str(card_id) in data["seasonal_cards"]:
+            await update.message.reply_text(
+                f"⚠️ Карта #{card_id} уже в сезонных!\n"
+                f"Используйте /edit_seasonal для изменения цены."
+            )
+            return
+        
+        # Добавляем
+        data["seasonal_cards"][str(card_id)] = price
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Карта добавлена в сезонные!**\n"
+            f"🃏 Карта: {card['title']} (#{card_id})\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"💰 Цена: {price} бэт-коинов",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Админ добавил карту #{card_id} в сезонные за {price}")
+    except Exception as e:
+        logger.error(f"Ошибка add_seasonal_card: {e}")
+        await update.message.reply_text("❌ Ошибка при добавлении")
 
+
+async def edit_seasonal_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Изменяет цену сезонной карты."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/edit_seasonal [ID_карты] [новая_цена]\n"
+                "**Пример:**\n"
+                "/edit_seasonal 45 75000",
+                parse_mode="Markdown"
+            )
+            return
+        
+        try:
+            card_id = int(context.args[0])
+            new_price = int(context.args[1])
+        except ValueError:
+            await update.message.reply_text("⚠️ ID и цена должны быть числами!")
+            return
+        
+        if new_price < 0:
+            await update.message.reply_text("⚠️ Цена не может быть отрицательной!")
+            return
+        
+        card_id_str = str(card_id)
+        if card_id_str not in data["seasonal_cards"]:
+            await update.message.reply_text(
+                f"⚠️ Карта #{card_id} не в сезонных!\n"
+                f"Используйте /add_seasonal для добавления."
+            )
+            return
+        
+        old_price = data["seasonal_cards"][card_id_str]
+        data["seasonal_cards"][card_id_str] = new_price
+        save_data(data)
+        
+        card = find_card_by_id(card_id, data["cards"])
+        card_title = card["title"] if card else f"#{card_id}"
+        
+        await update.message.reply_text(
+            f"✅ **Цена сезонной карты обновлена!**\n"
+            f"🃏 Карта: {card_title}\n"
+            f"❌ Было: {old_price} бэт-коинов\n"
+            f"✅ Стало: {new_price} бэт-коинов",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Админ изменил цену карты #{card_id}: {old_price} → {new_price}")
+    except Exception as e:
+        logger.error(f"Ошибка edit_seasonal_card: {e}")
+        await update.message.reply_text("❌ Ошибка при редактировании")
+
+
+async def remove_seasonal_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Удаляет карту из сезонных."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/remove_seasonal [ID_карты]\n"
+                "**Пример:**\n"
+                "/remove_seasonal 45",
+                parse_mode="Markdown"
+            )
+            return
+        
+        try:
+            card_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("⚠️ ID должен быть числом!")
+            return
+        
+        card_id_str = str(card_id)
+        if card_id_str not in data["seasonal_cards"]:
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не в сезонных!")
+            return
+        
+        old_price = data["seasonal_cards"][card_id_str]
+        del data["seasonal_cards"][card_id_str]
+        save_data(data)
+        
+        card = find_card_by_id(card_id, data["cards"])
+        card_title = card["title"] if card else f"#{card_id}"
+        
+        await update.message.reply_text(
+            f"✅ **Карта удалена из сезонных!**\n"
+            f"🃏 Карта: {card_title}\n"
+            f"💰 Была цена: {old_price} бэт-коинов",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Админ удалил карту #{card_id} из сезонных")
+    except Exception as e:
+        logger.error(f"Ошибка remove_seasonal_card: {e}")
+        await update.message.reply_text("❌ Ошибка при удалении")
+
+
+async def list_seasonal_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает список всех сезонных карт."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        seasonal = data.get("seasonal_cards", {})
+        if not seasonal:
+            await update.message.reply_text("📭 Нет сезонных карт!")
+            return
+        
+        message_text = "🎴 **Сезонные карты:**\n\n"
+        for card_id_str, price in seasonal.items():
+            card_id = int(card_id_str)
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                status = "✅" if card.get("available", True) else "❌"
+                message_text += (
+                    f"{status} #{card_id} — **{card['title']}**\n"
+                    f"   🌟 {card['rarity']} | 💰 {price} бэт-коинов\n\n"
+                )
+            else:
+                message_text += f"⚠️ #{card_id} — карта не найдена | 💰 {price}\n\n"
+        
+        message_text += f"📊 Всего: {len(seasonal)} карт"
+        
+        await update.message.reply_text(message_text, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Ошибка list_seasonal_cards: {e}")
+        await update.message.reply_text("❌ Ошибка при получении списка")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -6268,6 +6700,10 @@ def main() -> None:
             CommandHandler("accept_clan_invite", accept_clan_invite),
             CommandHandler("topclans", top_clans),
             CommandHandler("reset_weekly_quests", reset_weekly_quests),
+            CommandHandler("add_seasonal", add_seasonal_card),
+            CommandHandler("edit_seasonal", edit_seasonal_card),
+            CommandHandler("remove_seasonal", remove_seasonal_card),
+            CommandHandler("list_seasonal", list_seasonal_cards),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
@@ -6286,6 +6722,7 @@ def main() -> None:
             CallbackQueryHandler(burn_callback, pattern=r"^burn_.*"),
             CallbackQueryHandler(darts_callback, pattern=r"^darts_.*"),
             CallbackQueryHandler(quests_callback, pattern=r"^quests_.*"),
+            CallbackQueryHandler(shop_seasonal_callback, pattern=r"^ss_.*"),
         ]
 
         for handler in handlers:
