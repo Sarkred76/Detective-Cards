@@ -1139,9 +1139,7 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         unique_cards = len(set(user_card_ids))
         
         # Считаем общее количество доступных карт в игре
-        total_available_cards = len(
-            [card for card in data["cards"]]
-        )
+        total_available_cards = len([card for card in data["cards"]])
         
         # Процент коллекции
         collection_percent = (
@@ -1162,7 +1160,8 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         # Формируем статистику по редкостям
         rarity_text = ""
         for rarity in [
-            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited",
+            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up",
+            "Legendary", "Legendary Team-up", "Highlight", "Limited",
         ]:
             if rarity in rarity_stats:
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
@@ -1184,9 +1183,10 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"🔍 Бесплатные попытки: {user_data.get('free_rolls', 0)}\n"
         )
         
-        # ⭐ КНОПКА "МОИ АВАТАРКИ" ⭐
+        # ⭐ КНОПКИ ПРОФИЛЯ ⭐
         keyboard = [
-            [InlineKeyboardButton("🖼 Мои аватарки", callback_data="my_avatars_0")]
+            [InlineKeyboardButton("🖼 Мои аватарки", callback_data="my_avatars_0")],
+            [InlineKeyboardButton("🔍 Изучить чужое дело", callback_data="view_other_start")],  # ⭐ НОВОЕ
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -1223,6 +1223,240 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         else:
             await update.message.reply_text("❌ Произошла ошибка при загрузке профиля")
 
+async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начинает процесс изучения чужого дела — запрашивает @никнейм."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Переходим в состояние ввода ⭐
+        context.user_data[user_id] = {"step": "view_other_username"}
+        
+        # ⭐ Удаляем старое сообщение и отправляем запрос ⭐
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=(
+                "🔍 **Изучить чужое дело**\n\n"
+                "Введите @никнейм игрока, чьё досье хотите изучить:\n"
+                "Пример: `@username`\n\n"
+                "⚠️ Никнейм должен быть точным — иначе поиск не найдёт игрока."
+            ),
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в start_view_other: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def process_other_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма и показывает чужой профиль."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        
+        # ⭐ Проверка отмены ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            
+            # Возвращаемся в свой профиль
+            keyboard = [[KeyboardButton("🔙 Назад в главное меню")]]
+            await update.message.reply_text(
+                "❌ Поиск отменён.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверка формата ⭐
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод (например: `@username`):",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_username = text[1:].strip().lower()
+        if not target_username:
+            await update.message.reply_text("❌ Пустой никнейм! Повторите ввод:")
+            return
+        
+        # ⭐ Ищем игрока ⭐
+        data = load_data()
+        target_user_id = None
+        target_user_data = None
+        
+        for uid, udata in data["users"].items():
+            user_username = udata.get("username", "")
+            if user_username and user_username.lower() == target_username:
+                target_user_id = uid
+                target_user_data = udata
+                break
+        
+        if not target_user_data:
+            await update.message.reply_text(
+                f"❌ Игрок с никнеймом @{target_username} не найден!\n"
+                f"Проверьте правильность написания или попросите игрока установить никнейм в Telegram.\n\n"
+                f"Повторите ввод или нажмите ❌ Отмена:"
+            )
+            return
+        
+        # ⭐ Проверка: не ищет ли игрок сам себя ⭐
+        if target_user_id == user_id:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text(
+                "😅 Это ваше собственное дело!\n"
+                "Используйте кнопку «👤 Личное дело» для просмотра своего профиля."
+            )
+            return
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        # ⭐ ПОКАЗЫВАЕМ ЧУЖОЙ ПРОФИЛЬ ⭐
+        await show_other_profile(update, context, target_user_id, target_user_data, data)
+        
+    except Exception as e:
+        logger.error(f"Ошибка в process_other_username: {e}")
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        await update.message.reply_text("❌ Произошла ошибка при поиске игрока")
+
+
+async def show_other_profile(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    target_user_id: str,
+    target_user_data: Dict,
+    data: Dict
+) -> None:
+    """Показывает профиль другого игрока с аватаркой и полной статистикой."""
+    try:
+        chat_id = update.effective_chat.id
+        
+        # ⭐ Миграция для старых пользователей ⭐
+        if "avatar_url" not in target_user_data:
+            target_user_data["avatar_url"] = DEFAULT_AVATAR_URL
+        
+        # Имя игрока
+        first_name = target_user_data.get("first_name", "Игрок")
+        last_name = target_user_data.get("last_name", "")
+        username = target_user_data.get("username", "")
+        display_name = f"{first_name} {last_name}".strip() if last_name else first_name
+        
+        # Статистика карт
+        user_card_ids = target_user_data.get("cards", [])
+        unique_cards = len(set(user_card_ids))
+        total_available_cards = len([card for card in data["cards"]])
+        
+        collection_percent = (
+            round((unique_cards / total_available_cards * 100), 1)
+            if total_available_cards > 0
+            else 0
+        )
+        
+        # Карты по редкостям
+        card_counts = Counter(user_card_ids)
+        rarity_stats = {}
+        for card_id in set(user_card_ids):
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                rarity = card.get("rarity", "T1")
+                rarity_stats[rarity] = rarity_stats.get(rarity, 0) + 1
+        
+        rarity_text = ""
+        for rarity in [
+            "Common", "Rare", "Rare Team-up", "Epic", "Epic Team-up",
+            "Legendary", "Legendary Team-up", "Highlight", "Limited",
+        ]:
+            if rarity in rarity_stats:
+                rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
+        
+        if not rarity_text:
+            rarity_text = "Пока нет существ\n"
+        
+        # Клан
+        clan_id = data.get("user_clan", {}).get(target_user_id)
+        clan_text = ""
+        if clan_id:
+            clan = None
+            # Ищем клан по ID или названию
+            if clan_id in data.get("clans", {}):
+                clan = data["clans"][clan_id]
+            else:
+                for c in data.get("clans", {}).values():
+                    if c.get("name") == clan_id:
+                        clan = c
+                        break
+            if clan:
+                clan_text = f"🏰 Клан: **{clan['name']}**\n"
+        
+        # ⭐ ФОРМИРУЕМ ТЕКСТ ПРОФИЛЯ ⭐
+        profile_text = (
+            f"🕵️ **Досье игрока**\n"
+            f"👤 Имя: {display_name}\n"
+        )
+        if username:
+            profile_text += f"🔗 Никнейм: @{username}\n"
+        profile_text += f"🆔 ID: `{target_user_id}`\n"
+        if clan_text:
+            profile_text += clan_text
+        profile_text += (
+            f"\n"
+            f"💰 Бэт-коинов: {target_user_data.get('cents', 0)}\n"
+            f"💥 Очков репутации (сезон): {target_user_data.get('season_points', 0)}\n"
+            f"💎 Очков репутации (всего): {target_user_data.get('total_points', 0)}\n"
+            f"📦 Собрано карт: {unique_cards}/{total_available_cards}\n"
+            f"📊 Заполненность: {collection_percent}%\n"
+            f"🔢 Всего получено: {len(user_card_ids)}\n"
+            f"📈 По редкостям:\n"
+            f"{rarity_text}"
+            f"🔍 Бесплатные попытки: {target_user_data.get('free_rolls', 0)}\n"
+        )
+        
+        # ⭐ КНОПКИ ⭐
+        keyboard = [
+            [InlineKeyboardButton("🔍 Изучить ещё одно дело", callback_data="view_other_start")],
+            [InlineKeyboardButton("🔙 Назад в своё дело", callback_data="profile_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # ⭐ ОТПРАВЛЯЕМ С АВАТАРКОЙ ⭐
+        avatar_url = target_user_data.get("avatar_url", DEFAULT_AVATAR_URL)
+        
+        # Удаляем старое сообщение (если это был ответ на клавишу)
+        if hasattr(update, 'message') and update.message:
+            try:
+                # Не удаляем сообщение пользователя с @никнеймом
+                pass
+            except:
+                pass
+        
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=avatar_url,
+            caption=profile_text,
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Игрок {update.effective_user.id} изучил дело игрока {target_user_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в show_other_profile: {e}")
+        await update.message.reply_text("❌ Произошла ошибка при показе досье")
+            
 async def my_avatars(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
     """Показывает галерею аватарок игрока с навигацией."""
     try:
@@ -1392,12 +1626,15 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if query.data == "profile_back":
             await my_profile(update, context)
         elif query.data.startswith("my_avatars_"):
-            # ⭐ НОВОЕ: Переход в галерею аватарок ⭐
+            # Переход в галерею аватарок
             try:
                 page = int(query.data.replace("my_avatars_", ""))
                 await my_avatars(update, context, page=page)
             except (ValueError, IndexError):
                 await my_avatars(update, context, page=0)
+        elif query.data == "view_other_start":
+            # ⭐ НОВОЕ: Запуск изучения чужого дела ⭐
+            await start_view_other(update, context)
     except Exception as e:
         logger.error(f"Ошибка profile_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -1619,6 +1856,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             if user_step == "clan_edit_description":
                 await process_clan_description_input(update, context)
+                return
+            if user_step == "view_other_username":
+                await process_other_username(update, context)
                 return
 
         # ⭐ ВЫХОД ИЗ КЛАНА ⭐
