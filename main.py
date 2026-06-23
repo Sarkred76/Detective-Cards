@@ -4751,9 +4751,9 @@ async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page
         
         # ⭐ Формируем caption (стандартный, как в архиве) ⭐
         caption = generate_card_caption(card, user_data=None, count=1, show_bonus=False)
-        caption += f"\n\n💰 **Цена:** {price} бэт-коинов"
+        caption += f"\n\n💰 <b>Цена:</b> {price} бэт-коинов"
         if not can_afford:
-            caption += f"\n❌ _Недостаточно бэт-коинов (у вас: {user_cents})_"
+            caption += f"\n❌ <i>Недостаточно бэт-коинов (у вас: {user_cents})</i>"
         
         # ⭐ Формируем клавиатуру ⭐
         nav_buttons = []
@@ -4788,13 +4788,13 @@ async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page
                     media = InputMediaAnimation(
                         media=card["image_url"],
                         caption=caption,
-                        parse_mode="Markdown"
+                        parse_mode="HTML"
                     )
                 else:
                     media = InputMediaPhoto(
                         media=card["image_url"],
                         caption=caption,
-                        parse_mode="Markdown"
+                        parse_mode="HTML"
                     )
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
             except Exception as edit_error:
