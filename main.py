@@ -132,6 +132,108 @@ CRAFT_RULES = {
     },
 }
 
+# ===== СЕЗОННЫЕ КВЕСТЫ =====
+SEASONAL_AVATAR_URL = "https://files.catbox.moe/ВАША_ССЫЛКА.jpg"  # ⭐ ЗАМЕНИТЕ НА СВОЙ URL
+
+SEASONAL_QUESTS = {
+    1: {
+        "id": 1,
+        "type": "get_cards",
+        "rarity": "Epic",
+        "target": 5,
+        "reward": {"cents": 2000},
+        "desc": "Получить 5 карт редкости Epic через «Получить досье»"
+    },
+    2: {
+        "id": 2,
+        "type": "burn_cards",
+        "rarity": "Epic",
+        "target": 5,
+        "reward": {"rep_points": 3000},
+        "desc": "Сжечь 5 карт редкости Epic"
+    },
+    3: {
+        "id": 3,
+        "type": "get_cards",
+        "rarity": "Epic Team-up",
+        "target": 2,
+        "reward": {"free_rolls": 5},
+        "desc": "Получить 2 карты редкости Epic Team-Up через «Получить досье»"
+    },
+    4: {
+        "id": 4,
+        "type": "burn_cards",
+        "rarity": "Epic Team-up",
+        "target": 2,
+        "reward": {"cents": 3000},
+        "desc": "Сжечь 2 карты редкости Epic Team-Up"
+    },
+    5: {
+        "id": 5,
+        "type": "clan",
+        "target": 1,
+        "reward": {"rep_points": 4000},
+        "desc": "Вступить в клан или создать свой клан",
+        "check_button": True
+    },
+    6: {
+        "id": 6,
+        "type": "get_cards",
+        "rarity": "Rare Team-up",
+        "target": 30,
+        "reward": {"free_rolls": 10},
+        "desc": "Получить 30 карт редкости Rare Team-Up через «Получить досье»"
+    },
+    7: {
+        "id": 7,
+        "type": "get_cards",
+        "rarity": "Legendary",
+        "target": 1,
+        "reward": {"cents": 4000},
+        "desc": "Получить 1 карту редкости Legendary через «Получить досье»"
+    },
+    8: {
+        "id": 8,
+        "type": "seasonal_cards",
+        "target": 1,
+        "reward": {"rep_points": 5000},
+        "desc": "Получить все карты из сезонного магазина",
+        "check_button": True
+    },
+    9: {
+        "id": 9,
+        "type": "burn_cards",
+        "rarity": "Legendary",
+        "target": 1,
+        "reward": {"free_rolls": 15},
+        "desc": "Сжечь 1 карту редкости Legendary"
+    },
+    10: {
+        "id": 10,
+        "type": "get_cards",
+        "rarity": "Highlight",
+        "target": 1,
+        "reward": {"cents": 5000},
+        "desc": "Получить 1 карту редкости Highlight через «Получить досье»"
+    },
+    11: {
+        "id": 11,
+        "type": "buy_box",
+        "box": "rolls",
+        "target": 1,
+        "reward": {"rep_points": 6000},
+        "desc": "Купить Rolls-Box"
+    },
+    12: {
+        "id": 12,
+        "type": "buy_box",
+        "box": "classic",
+        "target": 1,
+        "reward": {"free_rolls": 30, "avatar": SEASONAL_AVATAR_URL},
+        "desc": "Купить Classic-Box"
+    },
+}
+
 CRAFT_ITEMS_PER_PAGE = 5  # Сколько карт показывать на странице
 
 # ===== КОНСТАНТЫ ДАРТСА =====
@@ -220,6 +322,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["daily_quests_last_reset"] = 0
                 if "rolls_box_price" not in user_data:
                     user_data["rolls_box_price"] = 25000
+                if "seasonal_quests" not in user_data:
+                    user_data["seasonal_quests"] = {"completed": [], "progress": {}}
                 # ⭐ НОВОЕ: Миграция аватарок ⭐
                 if "avatar_url" not in user_data:
                     user_data["avatar_url"] = DEFAULT_AVATAR_URL
@@ -2018,6 +2122,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
+            update_seasonal_on_card_get(user_data, card["rarity"])
             save_data(data)
             # Ежедневный квест
             if card["rarity"] == "Common":
@@ -5447,6 +5552,12 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             else:
                 # ✅ Успешная покупка
                 user_data["cents"] -= current_price
+
+                # ⭐ НОВОЕ: Обновляем сезонные квесты при покупке бокса ⭐
+                if box.get("is_rolls_box"):
+                    update_seasonal_on_box_buy(user_data, "rolls")
+                elif box.get("is_classic_box"):
+                    update_seasonal_on_box_buy(user_data, "classic")
             
                 # ⭐ Логика для Rolls-Box ⭐
                 if box.get("is_rolls_box"):
@@ -5788,6 +5899,7 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
 
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
         user_data["cards"].remove(card_id)
+        update_seasonal_on_burn(user_data, card["rarity"])
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
         user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
@@ -6416,6 +6528,142 @@ async def update_quest_progress(
     if changed and not any(q["id"] == quest_id and q["completed"] for q in quests):
         save_data(data)
 
+# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ СЕЗОННЫХ КВЕСТОВ =====
+
+def init_seasonal_quests(user_data: Dict) -> None:
+    """Инициализирует структуру сезонных квестов."""
+    if "seasonal_quests" not in user_data:
+        user_data["seasonal_quests"] = {"completed": [], "progress": {}}
+
+
+def get_current_seasonal_quest_id(sq: Dict) -> Optional[int]:
+    """Возвращает ID текущего активного квеста или None (если все выполнены)."""
+    for quest_id in range(1, 13):
+        if quest_id not in sq.get("completed", []):
+            return quest_id
+    return None
+
+
+def get_current_seasonal_quest(user_data: Dict) -> Optional[Dict]:
+    """Возвращает данные текущего активного квеста или None."""
+    init_seasonal_quests(user_data)
+    sq = user_data["seasonal_quests"]
+    quest_id = get_current_seasonal_quest_id(sq)
+    if quest_id is None:
+        return None
+    return SEASONAL_QUESTS[quest_id]
+
+
+def update_seasonal_progress(user_data: Dict, quest_id: int, amount: int = 1) -> None:
+    """Обновляет прогресс сезонного квеста."""
+    init_seasonal_quests(user_data)
+    sq = user_data["seasonal_quests"]
+    
+    # Если квест уже выполнен (награда забрана) — ничего не делаем
+    if quest_id in sq["completed"]:
+        return
+    
+    # Если это не текущий квест — ничего не делаем
+    current_id = get_current_seasonal_quest_id(sq)
+    if current_id != quest_id:
+        return
+    
+    quest = SEASONAL_QUESTS[quest_id]
+    quest_id_str = str(quest_id)
+    current_progress = sq["progress"].get(quest_id_str, 0)
+    new_progress = min(current_progress + amount, quest["target"])
+    sq["progress"][quest_id_str] = new_progress
+
+
+def update_seasonal_on_card_get(user_data: Dict, rarity: str) -> None:
+    """Обновляет сезонные квесты при получении карты через «Получить досье»."""
+    current_quest = get_current_seasonal_quest(user_data)
+    if not current_quest:
+        return
+    if current_quest["type"] == "get_cards" and current_quest.get("rarity") == rarity:
+        update_seasonal_progress(user_data, current_quest["id"], 1)
+
+
+def update_seasonal_on_burn(user_data: Dict, rarity: str) -> None:
+    """Обновляет сезонные квесты при сжигании карты."""
+    current_quest = get_current_seasonal_quest(user_data)
+    if not current_quest:
+        return
+    if current_quest["type"] == "burn_cards" and current_quest.get("rarity") == rarity:
+        update_seasonal_progress(user_data, current_quest["id"], 1)
+
+
+def update_seasonal_on_box_buy(user_data: Dict, box_type: str) -> None:
+    """Обновляет сезонные квесты при покупке бокса. box_type: 'rolls' или 'classic'."""
+    current_quest = get_current_seasonal_quest(user_data)
+    if not current_quest:
+        return
+    if current_quest["type"] == "buy_box" and current_quest.get("box") == box_type:
+        update_seasonal_progress(user_data, current_quest["id"], 1)
+
+
+def claim_seasonal_reward(user_data: Dict, quest_id: int) -> bool:
+    """Выдаёт награду за сезонный квест. Возвращает True, если успешно."""
+    init_seasonal_quests(user_data)
+    sq = user_data["seasonal_quests"]
+    
+    if quest_id in sq["completed"]:
+        return False
+    
+    quest = SEASONAL_QUESTS.get(quest_id)
+    if not quest:
+        return False
+    
+    quest_id_str = str(quest_id)
+    if sq["progress"].get(quest_id_str, 0) < quest["target"]:
+        return False
+    
+    # Выдаём награду
+    reward = quest["reward"]
+    if "cents" in reward:
+        user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
+    if "rep_points" in reward:
+        user_data["season_points"] = user_data.get("season_points", 0) + reward["rep_points"]
+        user_data["total_points"] = user_data.get("total_points", 0) + reward["rep_points"]
+    if "free_rolls" in reward:
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward["free_rolls"]
+    if "avatar" in reward:
+        avatar_url = reward["avatar"]
+        avatars = user_data.setdefault("avatars", [])
+        if avatar_url not in avatars:
+            avatars.append(avatar_url)
+    
+    sq["completed"].append(quest_id)
+    return True
+
+
+def check_clan_quest(user_id: str, data: Dict) -> bool:
+    """Проверяет выполнение квеста 5 (вступление в клан)."""
+    return bool(get_user_clan(user_id, data))
+
+
+def check_seasonal_cards_quest(user_data: Dict, data: Dict) -> bool:
+    """Проверяет выполнение квеста 8 (все сезонные карты)."""
+    seasonal_ids = set(int(k) for k in data.get("seasonal_cards", {}).keys())
+    if not seasonal_ids:
+        return False
+    user_cards = set(user_data.get("cards", []))
+    return seasonal_ids.issubset(user_cards)
+
+
+def format_seasonal_reward(reward: Dict) -> str:
+    """Форматирует награду квеста в читаемый вид."""
+    parts = []
+    if "cents" in reward:
+        parts.append(f"{reward['cents']} бэт-коинов 💰")
+    if "rep_points" in reward:
+        parts.append(f"{reward['rep_points']} очков репутации 💥")
+    if "free_rolls" in reward:
+        parts.append(f"{reward['free_rolls']} бесплатных попыток 🔍")
+    if "avatar" in reward:
+        parts.append("Сезонная аватарка 🖼")
+    return " | ".join(parts) if parts else "—"
+
 async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню квестов с тремя разделами."""
     keyboard = [
@@ -6451,6 +6699,223 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode="HTML"
         )
 
+async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает текущий сезонный квест."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') and update.callback_query else None
+        user_id = str(query.from_user.id if query else update.effective_user.id)
+        chat_id = query.message.chat_id if query else update.effective_chat.id
+        
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data:
+            text = "❌ Вы ещё не начали игру!"
+            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+            if query:
+                await query.edit_message_text(text)
+            else:
+                await update.message.reply_text(text)
+            return
+        
+        init_seasonal_quests(user_data)
+        save_data(data)
+        
+        sq = user_data["seasonal_quests"]
+        current_quest_id = get_current_seasonal_quest_id(sq)
+        
+        if current_quest_id is None:
+            # Все квесты выполнены
+            text = (
+                "🎉 <b>Поздравляю!</b>\n\n"
+                "Вы выполнили все сезонные квесты!\n"
+                "Ждите следующего сезона!"
+            )
+            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+        else:
+            quest = SEASONAL_QUESTS[current_quest_id]
+            quest_id_str = str(current_quest_id)
+            progress = sq["progress"].get(quest_id_str, 0)
+            target = quest["target"]
+            reward_text = format_seasonal_reward(quest["reward"])
+            is_completed = progress >= target
+            
+            # Специальный случай: квест 8 — показываем прогресс по сезонным картам
+            extra_info = ""
+            if quest["type"] == "seasonal_cards":
+                seasonal_ids = set(int(k) for k in data.get("seasonal_cards", {}).keys())
+                user_cards = set(user_data.get("cards", []))
+                owned = len(seasonal_ids.intersection(user_cards))
+                total = len(seasonal_ids)
+                extra_info = f"\n📊 Карт в магазине: {owned}/{total}"
+            
+            if quest.get("check_button"):
+                # Квест с кнопкой "Проверить"
+                text = (
+                    f"🏆 <b>Сезонный квест {current_quest_id}/12</b>\n\n"
+                    f"📋 {quest['desc']}{extra_info}\n\n"
+                    f"🎁 Награда: {reward_text}"
+                )
+                if is_completed:
+                    text += "\n\n✅ <b>Условие выполнено!</b>"
+                    keyboard = [
+                        [InlineKeyboardButton("🎁 Забрать награду", callback_data=f"sq_claim_{current_quest_id}")],
+                        [InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]
+                    ]
+                else:
+                    keyboard = [
+                        [InlineKeyboardButton("🔍 Проверить", callback_data=f"sq_check_{current_quest_id}")],
+                        [InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]
+                    ]
+            else:
+                # Обычный квест с прогресс-баром
+                progress_bar_len = 10
+                filled = int((progress / target) * progress_bar_len) if target > 0 else 0
+                bar = "█" * filled + "░" * (progress_bar_len - filled)
+                
+                text = (
+                    f"🏆 <b>Сезонный квест {current_quest_id}/12</b>\n\n"
+                    f"📋 {quest['desc']}\n"
+                    f"📊 Прогресс: [{bar}] {progress}/{target}\n\n"
+                    f"🎁 Награда: {reward_text}"
+                )
+                
+                if is_completed:
+                    text += "\n\n✅ <b>Выполнено!</b>"
+                    keyboard = [
+                        [InlineKeyboardButton("🎁 Забрать награду", callback_data=f"sq_claim_{current_quest_id}")],
+                        [InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]
+                    ]
+                else:
+                    keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+        
+        if query:
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в quests_seasonal_view: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True) 
+
+async def seasonal_quest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок сезонных квестов (Проверить / Забрать награду)."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        init_seasonal_quests(user_data)
+        
+        # ⭐ Кнопка "Проверить" ⭐
+        if query.data.startswith("sq_check_"):
+            quest_id = int(query.data.replace("sq_check_", ""))
+            quest = SEASONAL_QUESTS.get(quest_id)
+            
+            if not quest:
+                await query.answer("❌ Квест не найден", show_alert=True)
+                return
+            
+            # Проверяем условие
+            completed = False
+            if quest["type"] == "clan":
+                completed = check_clan_quest(user_id, data)
+            elif quest["type"] == "seasonal_cards":
+                completed = check_seasonal_cards_quest(user_data, data)
+            
+            if completed:
+                # Устанавливаем прогресс = target
+                user_data["seasonal_quests"]["progress"][str(quest_id)] = quest["target"]
+                save_data(data)
+                await query.answer("✅ Условие выполнено! Заберите награду.", show_alert=True)
+            else:
+                await query.answer("❌ Условие ещё не выполнено", show_alert=True)
+                return
+            
+            # Показываем обновлённый квест
+            await quests_seasonal_view(update, context)
+            return
+        
+        # ⭐ Кнопка "Забрать награду" ⭐
+        if query.data.startswith("sq_claim_"):
+            quest_id = int(query.data.replace("sq_claim_", ""))
+            quest = SEASONAL_QUESTS.get(quest_id)
+            
+            if not quest:
+                await query.answer("❌ Квест не найден", show_alert=True)
+                return
+            
+            success = claim_seasonal_reward(user_data, quest_id)
+            if not success:
+                await query.answer("❌ Нельзя забрать награду", show_alert=True)
+                return
+            
+            save_data(data)
+            
+            # Формируем сообщение о награде
+            reward_text = format_seasonal_reward(quest["reward"])
+            
+            await query.answer("🎁 Награда получена!", show_alert=True)
+            
+            try:
+                await query.message.delete()
+            except:
+                pass
+            
+            # Проверяем, есть ли ещё квесты
+            next_quest_id = get_current_seasonal_quest_id(user_data["seasonal_quests"])
+            
+            if next_quest_id is None:
+                # Все квесты выполнены
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=(
+                        f"🎉 <b>Сезонный квест #{quest_id} выполнен!</b>\n\n"
+                        f"🎁 Награда:\n{reward_text}\n\n"
+                        f"🏆 <b>Поздравляю! Вы выполнили все сезонные квесты!</b>\n"
+                        f"Ждите следующего сезона!"
+                    ),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")
+                    ]]),
+                    parse_mode="HTML"
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=(
+                        f"🎉 <b>Сезонный квест #{quest_id} выполнен!</b>\n\n"
+                        f"🎁 Награда:\n{reward_text}\n\n"
+                        f"Открыт следующий квест!"
+                    ),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🏆 Следующий квест", callback_data="quests_seasonal")
+                    ]]),
+                    parse_mode="HTML"
+                )
+            return
+    except Exception as e:
+        logger.error(f"Ошибка в seasonal_quest_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 async def quests_daily_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список активных ежедневных квестов."""
@@ -6535,14 +7000,7 @@ async def quests_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif query.data == "quests_weekly":
             await quests_weekly_view(update, context)
         elif query.data == "quests_seasonal":
-            await query.message.delete()
-            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="🏆 <b>Сезонные квесты</b>\n\n🔒 Скоро появятся!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
+            await quests_seasonal_view(update, context)
         elif query.data == "quests_back":
             await query.message.delete()
             await submenu(update, context)
@@ -7130,6 +7588,8 @@ async def list_seasonal_cards(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка list_seasonal_cards: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
 
+
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -7200,6 +7660,7 @@ def main() -> None:
             CallbackQueryHandler(quests_callback, pattern=r"^quests_.*"),
             CallbackQueryHandler(shop_seasonal_callback, pattern=r"^ss_.*"),
             CallbackQueryHandler(avatar_callback, pattern=r"^avatar_.*"),
+            CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
         ]
 
         for handler in handlers:
