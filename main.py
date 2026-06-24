@@ -5571,6 +5571,7 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 if box.get("is_rolls_box"):
                     update_seasonal_on_box_buy(user_data, "rolls")
                 elif box.get("is_classic_box"):
+                    update_seasonal_on_box_buy(user_data, "classic")  # ⭐ ДОБАВЛЕНО: Обновляем квест!
                     await query.answer("🏛 Открываем Classic-Box...", show_alert=False)
                     save_data(data)  # ⭐ ВАЖНО: Сохраняем обновление сезонного квеста!
                     await open_classic_box(update, context, current_price)
@@ -5598,11 +5599,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         ]]),
                         parse_mode="Markdown"
                     )
-                # ⭐ НОВОЕ: ЛОГИКА ДЛЯ CLASSIC-BOX ⭐
-                elif box.get("is_classic_box"):
-                    await query.answer("🏛 Открываем Classic-Box...", show_alert=False)
-                    await open_classic_box(update, context, current_price)
-                    return
                 else:
                     # Обычный бокс
                     save_data(data)
