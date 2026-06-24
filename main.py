@@ -14,6 +14,7 @@ from telegram import (
     Update,
     KeyboardButton,
     ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaPhoto,
@@ -1368,12 +1369,12 @@ async def process_other_username(update: Update, context: ContextTypes.DEFAULT_T
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
         
-        # ⭐ Проверка отмены (новая кнопка + старая для совместимости) ⭐
-        if text in ("❌ Отменить расследование", "❌ Отмена"):
+        # ⭐ Проверка отмены ⭐
+        if text == "❌ Отменить расследование":
             if user_id in context.user_data:
                 del context.user_data[user_id]
     
-            # ⭐ Возвращаем главное меню (убираем кнопку отмены с экрана) ⭐
+            # ⭐ Убираем ReplyKeyboard и возвращаем главное меню ⭐
             main_keyboard = [
                 [KeyboardButton("🔍 Получить досье")],
                 [KeyboardButton("📁 Мой архив")],
@@ -1548,7 +1549,8 @@ async def show_other_profile(
         
         # ⭐ ОТПРАВЛЯЕМ С АВАТАРКОЙ ⭐
         avatar_url = target_user_data.get("avatar_url", DEFAULT_AVATAR_URL)
-        
+
+        # Отправляем фото профиля с inline-кнопками
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=avatar_url,
@@ -1556,7 +1558,14 @@ async def show_other_profile(
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        
+
+        # ⭐ НОВОЕ: Убираем ReplyKeyboard (кнопку "Отменить расследование") ⭐
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🔎",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
         logger.info(f"Игрок {update.effective_user.id} изучил дело игрока {target_user_id}")
         
     except Exception as e:
