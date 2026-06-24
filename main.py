@@ -1240,7 +1240,7 @@ async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except:
             pass
         
-        keyboard = [[KeyboardButton("❌ Отмена")]]
+        #keyboard = [[KeyboardButton("❌ Отмена")]]
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=(
@@ -1249,7 +1249,7 @@ async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 "Пример: `@username`\n\n"
                 "⚠️ Никнейм должен быть точным — иначе поиск не найдёт игрока."
             ),
-            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            #reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
             parse_mode="Markdown"
         )
     except Exception as e:
@@ -4094,26 +4094,26 @@ def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
         return True, f"Клан **{clan_name}** распущен."
     else:
         return True, f"Вы покинули клан **{clan_name}**."
+        
 def get_clan_members_list(clan_id: str, data: Dict) -> str:
-    """Формирует текст со списком участников клана и их очками репутации."""
+    """Формирует текст со списком участников клана и их очками репутации (HTML)."""
     clan = get_clan_data(clan_id, data)
     if not clan:
         return "❌ Клан не найден!"
     
-    # ← Исправлено: clan["name"] вместо clan_name
-    members_text = f"👥 Участники клана **{clan['name']}**:\n\n"
-    
+    members_text = f"👥 Участники клана <b>{html.escape(clan['name'])}</b>:\n"
     for member_id, member_info in clan["members"].items():
         user_data = data["users"].get(member_id, {})
         username = user_data.get("first_name", "Неизвестно")
         if user_data.get("last_name"):
             username += f" {user_data['last_name']}"
         
+        # ⭐ Экранируем имя участника ⭐
+        username_escaped = html.escape(username)
+        
         reputation = user_data.get("season_points", 0)
         role_emoji = "👑" if member_info.get("role") == "leader" else "•"
-        
-        members_text += f"{role_emoji} {username} — {reputation} очков репутации\n"
-    
+        members_text += f"{role_emoji} {username_escaped} — {reputation} очков репутации\n"
     return members_text
 
 async def invite_player_to_clan(
@@ -4438,17 +4438,23 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Формируем сообщение
         members_list = get_clan_members_list(clan["name"], data)
         
-        # ⭐ НОВОЕ: Описание клана ⭐
+        # ⭐ НОВОЕ: Описание клана в виде blockquote (HTML) ⭐
         description_text = ""
         clan_description = clan.get("description", "")
         if clan_description:
-            escaped_desc = escape_markdown(clan_description)
-            description_text = f"\n📝 **Описание клана:**\n_{escaped_desc}_\n"
+            escaped_desc = html.escape(clan_description)
+            description_text = (
+                f"\n📝 <b>Описание клана:</b>\n"
+                f"<blockquote><i>{escaped_desc}</i></blockquote>\n"
+            )
+        
+        # ⭐ Экранируем HTML-спецсимволы в названии клана ⭐
+        clan_name_escaped = html.escape(clan['name'])
         
         message_text = (
-            f"🏰 **Ваш клан: {clan['name']}**\n"
-            f"{description_text}"
+            f"🏰 <b>Ваш клан: {clan_name_escaped}</b>\n"
             f"{members_list}\n"
+            f"{description_text}"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
         )
@@ -4457,7 +4463,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if is_leader:
             keyboard = [
                 [KeyboardButton("📨 Пригласить игрока")],
-                [KeyboardButton("✏️ Описание клана")],  # ⭐ НОВОЕ
+                [KeyboardButton("✏️ Описание клана")],
                 [KeyboardButton("🚪 Покинуть клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
@@ -4471,7 +4477,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(
             message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="HTML"  # ⭐ ИЗМЕНЕНО: Markdown → HTML
         )
     except Exception as e:
         logger.error(f"Ошибка в my_clan_view: {e}")
