@@ -4871,7 +4871,7 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 # ===== МАГАЗИН =====
 # 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
-SHOP_MAIN_IMAGE = "https://files.catbox.moe/e8verh.jpg"  # Главное меню
+SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное меню
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
 SHOP_BOX_IMAGE = "https://files.catbox.moe/0qmfkc.jpg"         # Общая картинка бокса
 
