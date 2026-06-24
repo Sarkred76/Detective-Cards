@@ -7161,7 +7161,7 @@ def main() -> None:
             CallbackQueryHandler(trade_search_callback, pattern=r"^trade_search_.*"),
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
-            CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
+            CallbackQueryHandler(profile_callback, pattern=r"^(profile_back|view_other_start|my_avatars_.*)"),
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
             CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
             CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
