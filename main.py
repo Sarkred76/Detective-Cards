@@ -6427,7 +6427,7 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # ===== ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
 DAILY_QUESTS_POOL = [
-    {"id": "common_4", "desc": "Получить 4 карты редкости Common", "reward_type": "cents", "reward_amount": 500, "target": 4},
+    {"id": "common_4", "desc": "Получить 4 карты редкости Common через "Получить досье"", "reward_type": "cents", "reward_amount": 500, "target": 4},
     {"id": "darts_win_2", "desc": "Победить в дартсе 2 раза", "reward_type": "free_rolls", "reward_amount": 1, "target": 2},
     {"id": "burn_common_3", "desc": "Сжечь 3 карты редкости Common", "reward_type": "free_rolls", "reward_amount": 1, "target": 3},
     {"id": "trade_2", "desc": "Совершить 2 трейда", "reward_type": "cents", "reward_amount": 250, "target": 2},
@@ -7029,7 +7029,7 @@ WEEKLY_QUESTS_POOL = [
     },
     {
         "id": "weekly_rare_6",
-        "desc": "Получить 6 карт редкости Rare",
+        "desc": "Получить 6 карт редкости Rare через "Получить досье"",
         "reward_type": "cents",
         "reward_amount": 500,
         "target": 6
@@ -7043,7 +7043,7 @@ WEEKLY_QUESTS_POOL = [
     },
     {
         "id": "weekly_epic_tu_1",
-        "desc": "Получить карту редкости Epic Team-up",
+        "desc": "Получить карту редкости Epic Team-up через "Получить досье"",
         "reward_type": "cents",
         "reward_amount": 1000,
         "target": 1
