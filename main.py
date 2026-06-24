@@ -6677,7 +6677,7 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         "Выберите раздел:\n\n"
         "• 📅 <b>Ежедневные</b> — обновляются каждый день в 00:00 МСК\n"
         "• 📆 <b>Еженедельные</b> — обновляются каждый понедельник в 00:00 МСК\n"
-        "• 🏆 <b>Сезонные</b> — скоро"
+        "• 🏆 <b>Сезонные</b> — обновляются каждый сезон"
     )
     
     if hasattr(update, 'callback_query') and update.callback_query:
