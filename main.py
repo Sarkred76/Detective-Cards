@@ -1332,7 +1332,6 @@ async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
-        
         user_id = str(query.from_user.id)
         
         # ⭐ Переходим в состояние ввода ⭐
@@ -1344,7 +1343,9 @@ async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except:
             pass
         
-        #keyboard = [[KeyboardButton("❌ Отмена")]]
+        # ⭐ НОВОЕ: Клавиатура с кнопкой отмены ⭐
+        keyboard = [[KeyboardButton("❌ Отменить расследование")]]
+        
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=(
@@ -1353,7 +1354,7 @@ async def start_view_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 "Пример: `@username`\n\n"
                 "⚠️ Никнейм должен быть точным — иначе поиск не найдёт игрока."
             ),
-            #reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
             parse_mode="Markdown"
         )
     except Exception as e:
@@ -1367,16 +1368,21 @@ async def process_other_username(update: Update, context: ContextTypes.DEFAULT_T
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
         
-        # ⭐ Проверка отмены ⭐
-        if text == "❌ Отмена":
+        # ⭐ Проверка отмены (новая кнопка + старая для совместимости) ⭐
+        if text in ("❌ Отменить расследование", "❌ Отмена"):
             if user_id in context.user_data:
                 del context.user_data[user_id]
-            
-            # Возвращаемся в свой профиль
-            keyboard = [[KeyboardButton("🔙 Назад в главное меню")]]
+    
+            # ⭐ Возвращаем главное меню (убираем кнопку отмены с экрана) ⭐
+            main_keyboard = [
+                [KeyboardButton("🔍 Получить досье")],
+                [KeyboardButton("📁 Мой архив")],
+                [KeyboardButton("📋 Меню")],
+            ]
             await update.message.reply_text(
-                "❌ Поиск отменён.",
-                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                "❌ Расследование отменено.\n"
+                "Вы вернулись в главное меню.",
+                reply_markup=ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
             )
             return
         
@@ -1459,11 +1465,14 @@ async def show_other_profile(
         username = target_user_data.get("username", "")
         display_name = f"{first_name} {last_name}".strip() if last_name else first_name
         
+        # ⭐ ЭКРАНИРОВАНИЕ СПЕЦСИМВОЛОВ MARKDOWN ⭐
+        display_name_escaped = escape_markdown(display_name)
+        username_escaped = escape_markdown(username) if username else ""
+        
         # Статистика карт
         user_card_ids = target_user_data.get("cards", [])
         unique_cards = len(set(user_card_ids))
         total_available_cards = len([card for card in data["cards"]])
-        
         collection_percent = (
             round((unique_cards / total_available_cards * 100), 1)
             if total_available_cards > 0
@@ -1495,7 +1504,6 @@ async def show_other_profile(
         clan_text = ""
         if clan_id:
             clan = None
-            # Ищем клан по ID или названию
             if clan_id in data.get("clans", {}):
                 clan = data["clans"][clan_id]
             else:
@@ -1504,15 +1512,17 @@ async def show_other_profile(
                         clan = c
                         break
             if clan:
-                clan_text = f"🏰 Клан: **{clan['name']}**\n"
+                # ⭐ ЭКРАНИРОВАНИЕ НАЗВАНИЯ КЛАНА ⭐
+                clan_name_escaped = escape_markdown(clan['name'])
+                clan_text = f"🏰 Клан: **{clan_name_escaped}**\n"
         
-        # ⭐ ФОРМИРУЕМ ТЕКСТ ПРОФИЛЯ ⭐
+        # ⭐ ФОРМИРУЕМ ТЕКСТ ПРОФИЛЯ (ВСЕ ПОЛЯ ЭКРАНИРОВАНЫ) ⭐
         profile_text = (
             f"🕵️ **Досье игрока**\n"
-            f"👤 Имя: {display_name}\n"
+            f"👤 Имя: {display_name_escaped}\n"
         )
-        if username:
-            profile_text += f"🔗 Никнейм: @{username}\n"
+        if username_escaped:
+            profile_text += f"🔗 Никнейм: @{username_escaped}\n"
         profile_text += f"🆔 ID: `{target_user_id}`\n"
         if clan_text:
             profile_text += clan_text
@@ -1539,14 +1549,6 @@ async def show_other_profile(
         # ⭐ ОТПРАВЛЯЕМ С АВАТАРКОЙ ⭐
         avatar_url = target_user_data.get("avatar_url", DEFAULT_AVATAR_URL)
         
-        # Удаляем старое сообщение (если это был ответ на клавишу)
-        if hasattr(update, 'message') and update.message:
-            try:
-                # Не удаляем сообщение пользователя с @никнеймом
-                pass
-            except:
-                pass
-        
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=avatar_url,
@@ -1560,7 +1562,7 @@ async def show_other_profile(
     except Exception as e:
         logger.error(f"Ошибка в show_other_profile: {e}")
         await update.message.reply_text("❌ Произошла ошибка при показе досье")
-            
+        
 async def my_avatars(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
     """Показывает галерею аватарок игрока с навигацией."""
     try:
