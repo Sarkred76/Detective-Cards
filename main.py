@@ -4752,10 +4752,6 @@ async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
         # ⭐ ПРОВЕРКА: сколько игр осталось сегодня ⭐
         remaining_plays = MAX_BASKET_DAILY_PLAYS - plays_today
-        if remaining_plays > 0:
-            plays_text = f"🎮 Игр сегодня: {plays_today}/{MAX_BASKET_DAILY_PLAYS}"
-        else:
-            plays_text = f"🎮 Игр сегодня: {plays_today}/{MAX_BASKET_DAILY_PLAYS} ❌ _(лимит исчерпан)_"
         
         keyboard = [[InlineKeyboardButton("🏀 Сыграть", callback_data="basket_play")]]
         caption = (
@@ -4765,8 +4761,7 @@ async def basket_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             f"• Бот бросает 3 баскетбольных мяча 🏀\n"
             f"• За каждое попадание вы получаете 1 бесплатную попытку\n"
             f"• Лимит: {MAX_BASKET_DAILY_PLAYS} игр в день (сброс в 00:00 МСК)\n\n"
-            f"{balance_text}\n"
-            f"{plays_text}"
+            f"{balance_text}"
         )
         
         if hasattr(update, 'callback_query') and update.callback_query:
