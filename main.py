@@ -19,6 +19,7 @@ from telegram import (
     InlineKeyboardMarkup,
     InputMediaPhoto,
     InputMediaAnimation,
+    InputMediaVideo,
 ) 
 from telegram.ext import (
     Application, 
