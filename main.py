@@ -5199,7 +5199,7 @@ async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page
             return
         
         # Сортируем по ID для стабильной навигации
-        seasonal_list = sorted(seasonal.items(), key=lambda x: int(x[0]))
+        seasonal_list = list(seasonal.items())
         total_cards = len(seasonal_list)
         
         # Корректировка индекса
