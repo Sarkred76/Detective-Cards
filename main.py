@@ -134,7 +134,7 @@ CRAFT_RULES = {
 }
 
 # ===== СЕЗОННЫЕ КВЕСТЫ =====
-SEASONAL_AVATAR_URL = "https://files.catbox.moe/ВАША_ССЫЛКА.jpg"  # ⭐ ЗАМЕНИТЕ НА СВОЙ URL
+SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
 
 SEASONAL_QUESTS = {
     1: {
