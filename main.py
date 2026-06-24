@@ -5315,15 +5315,13 @@ async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         query = update.callback_query
         user_id = str(query.from_user.id)
-        chat_id = query.message.chat_id
-        
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data:
             await query.answer("❌ Профиль не найден", show_alert=True)
             return
         
-        # Миграция на всякий случай
+        # ⭐ Миграция ⭐
         if "pending_season_boxes" not in user_data:
             user_data["pending_season_boxes"] = 0
         if "avatars" not in user_data:
@@ -5334,78 +5332,133 @@ async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.answer("❌ У вас нет накопленных Season-Box", show_alert=True)
             return
         
-        # 1. Все сезонные карты
+        # ⭐ Собираем все сезонные карты ⭐
         seasonal_cards = []
         for cid_str in data.get("seasonal_cards", {}).keys():
             card = find_card_by_id(int(cid_str), data["cards"])
             if card:
                 seasonal_cards.append(card)
                 
-        # 2. Эксклюзивная карта ID 67
+        # ⭐ Эксклюзивная карта ID 67 ⭐
         exclusive_card = find_card_by_id(67, data["cards"])
         if exclusive_card and exclusive_card not in seasonal_cards:
             seasonal_cards.append(exclusive_card)
             
-        # 3. Выдача карт (дубликаты суммируются)
+        # ⭐ Выдаём карты (дубликаты как обычно) ⭐
         for card in seasonal_cards:
             user_data["cards"].append(card["id"])
             
-        # 4. Аватарка (если нет)
+        # ⭐ Сезонная аватарка (если её нет) ⭐
         avatar_added = False
         if SEASON_BOX_AVATAR_URL not in user_data["avatars"]:
             user_data["avatars"].append(SEASON_BOX_AVATAR_URL)
             avatar_added = True
             
-        # 5. Бесплатные попытки
+        # ⭐ 10 бесплатных попыток ⭐
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
         
-        # 6. Уменьшаем счётчик
-        user_data["pending_season_boxes"] -= 1
+        # ⭐ Уменьшаем счётчик pending ⭐
+        user_data["pending_season_boxes"] = pending - 1
         save_data(data)
         
         await query.answer("🎁 Season-Box открыт!", show_alert=True)
         
-        # Формируем альбом (разбиваем на группы по 10, т.к. лимит Telegram)
-        chunks = [seasonal_cards[i:i + 10] for i in range(0, len(seasonal_cards), 10)]
-        for i, chunk in enumerate(chunks):
-            media_group = []
-            for j, card in enumerate(chunk):
-                is_first_in_chunk = (i == 0 and j == 0)
-                caption = None
-                if is_first_in_chunk:
-                    caption = (
+        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
+        # ⚠️ ВАЖНО: Telegram не поддерживает InputMediaAnimation в send_media_group!
+        # Используем InputMediaVideo для MP4/GIF/WebM
+        media_group = []
+        for i, card in enumerate(seasonal_cards):
+            caption = None
+            if i == 0:
+                caption = (
+                    f"🎁 <b>Season-Box открыт!</b>\n"
+                    f"🎴 Получено {len(seasonal_cards)} карт\n"
+                    f"🔍 +10 бесплатных попыток\n"
+                    f"🖼 {'+Сезонная аватарка' if avatar_added else ''}\n"
+                    f"📦 Осталось открытых боксов: {user_data['pending_season_boxes']}"
+                )
+            
+            # ⭐ ИСПРАВЛЕНИЕ: Используем InputMediaVideo вместо InputMediaAnimation ⭐
+            media_group.append(
+                InputMediaVideo(
+                    media=card["image_url"],
+                    caption=caption,
+                    parse_mode="HTML" if caption else None,
+                    supports_streaming=True
+                ) if (card.get("media_type") == "animation" 
+                      or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")))
+                else InputMediaPhoto(
+                    media=card["image_url"],
+                    caption=caption,
+                    parse_mode="HTML" if caption else None
+                )
+            )
+        
+        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
+        try:
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id,
+                media=media_group
+            )
+        except Exception as media_error:
+            # ⭐ FALLBACK: если альбом не получился — шлём по одному ⭐
+            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
+            for i, card in enumerate(seasonal_cards):
+                cap = None
+                if i == 0:
+                    cap = (
                         f"🎁 <b>Season-Box открыт!</b>\n"
                         f"🎴 Получено {len(seasonal_cards)} карт\n"
                         f"🔍 +10 бесплатных попыток\n"
-                        f"🖼 {'+Сезонная аватарка' if avatar_added else ''}\n"
-                        f"📦 Осталось накоплено: {user_data['pending_season_boxes']}"
+                        f"🖼 {'+Сезонная аватарка' if avatar_added else ''}"
                     )
                 
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
-                    media_group.append(InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML"))
+                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")):
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
+                        video=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None,
+                        supports_streaming=True
+                    )
                 else:
-                    media_group.append(InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML"))
-                    
-            await context.bot.send_media_group(chat_id=chat_id, media=media_group)
-            await asyncio.sleep(0.5)
-            
-        # Кнопки после открытия
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None
+                    )
+                await asyncio.sleep(0.3)
+        
+        # ⭐ Финальное сообщение ⭐
         kb = []
         if user_data["pending_season_boxes"] > 0:
-            kb.append([InlineKeyboardButton(f"🎁 Открыть ещё ({user_data['pending_season_boxes']} шт.)", callback_data="shop_open_season_box")])
+            kb.append([InlineKeyboardButton(
+                f"🎁 Открыть ещё ({user_data['pending_season_boxes']} шт.)",
+                callback_data="shop_open_season_box"
+            )])
         kb.append([InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")])
         
         await context.bot.send_message(
-            chat_id=chat_id,
+            chat_id=query.message.chat_id,
             text="✅ <b>Season-Box успешно открыт!</b>",
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
+        
+        logger.info(f"Игрок {user_id} открыл Season-Box (осталось: {user_data['pending_season_boxes']})")
+        
     except Exception as e:
         logger.error(f"Ошибка открытия Season-Box: {e}")
         try:
-            await update.callback_query.answer("❌ Ошибка при открытии", show_alert=True)
-        except:
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text="❌ Произошла ошибка при открытии Season-Box",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]])
+            )
+        except Exception:
             pass
 
 async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
