@@ -1559,13 +1559,16 @@ async def show_other_profile(
             parse_mode="Markdown"
         )
 
-        # ⭐ НОВОЕ: Убираем ReplyKeyboard (кнопку "Отменить расследование") ⭐
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="🔎",
-            reply_markup=ReplyKeyboardRemove()
+         # ⭐ Убираем ReplyKeyboard и возвращаем главное меню ⭐
+        main_keyboard = [
+            [KeyboardButton("🔍 Получить досье")],
+            [KeyboardButton("📁 Мой архив")],
+            [KeyboardButton("📋 Меню")],
+        ]
+        await update.message.reply_text(
+            "🔍",
+            reply_markup=ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
         )
-
         logger.info(f"Игрок {update.effective_user.id} изучил дело игрока {target_user_id}")
         
     except Exception as e:
