@@ -66,6 +66,8 @@ BASKET_HIT_THRESHOLD = 4
 
 # ===== АВАТАРКИ =====
 DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
+SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
+SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
@@ -134,7 +136,6 @@ CRAFT_RULES = {
 }
 
 # ===== СЕЗОННЫЕ КВЕСТЫ =====
-SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
 
 SEASONAL_QUESTS = {
     1: {
@@ -325,11 +326,21 @@ def load_data() -> Dict[str, Any]:
                     user_data["rolls_box_price"] = 25000
                 if "seasonal_quests" not in user_data:
                     user_data["seasonal_quests"] = {"completed": [], "progress": {}}
+                # ⭐ НОВОЕ: Миграция Season-Box ⭐
+                if "pending_season_boxes" not in user_data:
+                    user_data["pending_season_boxes"] = 0
                 # ⭐ НОВОЕ: Миграция аватарок ⭐
                 if "avatar_url" not in user_data:
                     user_data["avatar_url"] = DEFAULT_AVATAR_URL
                 if "avatars" not in user_data:
                     user_data["avatars"] = [DEFAULT_AVATAR_URL]
+                # ⭐ НОВОЕ: Миграция Season-Box ⭐
+                if "season_box_free_basket" not in user_data:
+                    user_data["season_box_free_basket"] = 0
+                if "season_box_free_darts" not in user_data:
+                    user_data["season_box_free_darts"] = 0
+                if "season_box_free_casino" not in user_data:
+                    user_data["season_box_free_casino"] = 0
 
                 for card in data.get("cards", []):
                     if "is_classic" not in card:
@@ -1293,6 +1304,16 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             [InlineKeyboardButton("🖼 Мои аватарки", callback_data="my_avatars_0")],
             [InlineKeyboardButton("🔍 Изучить чужое дело", callback_data="view_other_start")],  # ⭐ НОВОЕ
         ]
+
+        # ⭐ НОВОЕ: Кнопка "Открыть Season-Box" если есть pending ⭐
+        pending_boxes = user_data.get("pending_season_boxes", 0)
+        if pending_boxes > 0:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"🎁 Открыть Season-Box ({pending_boxes} шт.)",
+                    callback_data="shop_open_season_box"
+                )
+            ])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         # ⭐ ОТПРАВЛЯЕМ ПРОФИЛЬ С АВАТАРКОЙ ⭐
@@ -2885,32 +2906,38 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         attempts = user_data.get("casino_attempts", 0)
         cents = user_data.get("cents", 0)        
         
+        # ⭐ ПРОВЕРКА: есть ли бесплатные игры от Season-Box ⭐
+        has_free_game = user_data.get("season_box_free_casino", 0) > 0
+
         # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКИ ⭐
-        if not is_super_admin:
-            # Проверяем попытки
+        if not is_super_admin and not has_free_game:
+            # Обычная логика: проверка лимита и стоимости
             if attempts <= 0:
                 await query.edit_message_text(
-                    "❌ **Лимит попыток исчерпан!**\n\n"
+                    "❌ **Лимит попыток исчерпан!**\n"
                     "Приходите завтра после 00:00 МСК 🕛",
                     parse_mode="Markdown",
                 )
                 return
-
-            # Проверяем баланс
+    
             if cents < 1500:
                 await query.edit_message_text(
-                    f"❌ **Недостаточно бэт-коинов!**\n\n"
+                    f"❌ **Недостаточно бэт-коинов!**\n"
                     f"Нужно: 1500 бэт-коинов\n"
-                    f"У вас: {cents} бэт-коинов\n\n"
+                    f"У вас: {cents} бэт-коинов\n"
                     f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
                 )
                 return
-
+    
             # Списываем центы и попытки
             user_data["cents"] -= 1500
             user_data["casino_attempts"] -= 1
-        save_data(data)        
+        elif has_free_game:
+            # ⭐ Бесплатная игра от Season-Box ⭐
+            user_data["season_box_free_casino"] -= 1
+
+        save_data(data)   
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
         sent_slot = await context.bot.send_dice(
             chat_id=query.message.chat_id, emoji="🎰"
@@ -4927,17 +4954,26 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             user_data["basket_plays"] = 0
             user_data["basket_last_reset"] = int(now_msk.timestamp())
 
-        if user_data.get("basket_plays", 0) >= MAX_BASKET_DAILY_PLAYS:
-            await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
-            return
+        # ⭐ ПРОВЕРКА: есть ли бесплатные игры от Season-Box ⭐
+        has_free_game = user_data.get("season_box_free_basket", 0) > 0
 
-        if user_data.get("cents", 0) < BASKET_GAME_COST:
-            await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {BASKET_GAME_COST}. У вас: {user_data.get('cents', 0)}")
-            return
+        if not has_free_game:
+            # Обычная логика: проверка лимита и стоимости
+            if user_data.get("basket_plays", 0) >= MAX_BASKET_DAILY_PLAYS:
+                await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
+                return
+    
+            if user_data.get("cents", 0) < BASKET_GAME_COST:
+                await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {BASKET_GAME_COST}. У вас: {user_data.get('cents', 0)}")
+                return
+    
+            # Списание средств и учёт игры
+            user_data["cents"] -= BASKET_GAME_COST
+            user_data["basket_plays"] += 1
+        else:
+            # ⭐ Бесплатная игра от Season-Box ⭐
+            user_data["season_box_free_basket"] -= 1
 
-        # Списание средств и учёт игры
-        user_data["cents"] -= BASKET_GAME_COST
-        user_data["basket_plays"] += 1
         save_data(data)
         
 
@@ -4998,6 +5034,7 @@ SHOP_BOX_IMAGE = "https://files.catbox.moe/0qmfkc.jpg"         # Общая ка
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": SHOP_BOX_IMAGE, "is_rolls_box": True},
     {"name": "Classic-Box", "price": 30000, "image": SHOP_BOX_IMAGE, "is_classic_box": True},
+    {"name": "Season-Box", "price": 0, "image": SHOP_BOX_IMAGE, "is_season_box": True}, 
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -5078,10 +5115,29 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         # Все остальные боксы (включая Classic-Box): фиксированная цена
         display_price = current_box["price"]
     
-    keyboard = [
-        [InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
-        [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
-    ]
+    # ⭐ ФОРМИРОВАНИЕ КЛАВИАТУРЫ ⭐
+    if current_box.get("is_season_box"):
+        # Для Season-Box — кнопка "Открыть" (если есть pending) и "Написать"
+        pending = user_data.get("pending_season_boxes", 0)
+        keyboard = []
+        if pending > 0:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"🎁 Открыть Season-Box ({pending} шт.)",
+                    callback_data="shop_open_season_box"
+                )
+            ])
+        keyboard.append([
+            InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")
+        ])
+        keyboard.append([
+            InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")
+        ])
+    else:
+        keyboard = [
+            [InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")],
+            [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
+        ]
     
     nav_btns = []
     if page > 0:
@@ -5108,6 +5164,21 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"🎁 Содержимое:\n"
             f"• 10 случайных Classic-карт\n"
             f"• Гарантированно 1 карта Epic\n"
+        )
+    elif current_box.get("is_season_box"):
+        pending = user_data.get("pending_season_boxes", 0)
+        text = (
+            f"🎁 **{current_box['name']}**\n"
+            f"💰 Цена: **799₽**\n"
+            f"🎁 Содержимое:\n"
+            f"• Все карты из сезонного магазина\n"
+            f"• Эксклюзивный Epic Team-Up 🎁\n"
+            f"• Сезонная аватарка 🖼\n"
+            "• 3 бесплатные игры в Баскет 🏀\n"
+            "• 3 бесплатные игры в Дартс 🎯\n"
+            "• 3 бесплатные игры в Казино 🎰\n"
+            f"• 10 бесплатных попыток 🔍\n\n"
+            f"💳 Для покупки напишите: @Be9onder"
         )
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
@@ -5277,6 +5348,162 @@ async def open_classic_box(
             await context.bot.send_message(
                 chat_id=update.callback_query.message.chat_id,
                 text="❌ Произошла ошибка при открытии Classic-Box",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]])
+            )
+        except Exception:
+            pass
+
+async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает 1 Season-Box: все сезонные карты + аватарка + 10 попыток."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        # ⭐ Миграция ⭐
+        if "pending_season_boxes" not in user_data:
+            user_data["pending_season_boxes"] = 0
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+        
+        pending = user_data.get("pending_season_boxes", 0)
+        if pending <= 0:
+            await query.answer("❌ У вас нет открытых Season-Box", show_alert=True)
+            return
+        
+        # ⭐ Собираем все сезонные карты ⭐
+        seasonal_ids = list(data.get("seasonal_cards", {}).keys())
+        seasonal_cards = []
+        for card_id_str in seasonal_ids:
+            card = find_card_by_id(int(card_id_str), data["cards"])
+            if card:
+                seasonal_cards.append(card)
+        
+        if not seasonal_cards:
+            await query.answer("❌ В сезонном магазине нет карт", show_alert=True)
+            return
+        
+        # ⭐ Добавляем все сезонные карты (дубликаты как обычно) ⭐
+        for card in seasonal_cards:
+            user_data["cards"].append(card["id"])
+        
+        # ⭐ Добавляем сезонную аватарку (если её нет) ⭐
+        avatar_added = False
+        avatars = user_data.setdefault("avatars", [])
+        if SEASON_BOX_AVATAR_URL not in avatars:
+            avatars.append(SEASON_BOX_AVATAR_URL)
+            avatar_added = True
+        
+        # ⭐ Добавляем 10 бесплатных попыток ⭐
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
+        
+        # ⭐ Уменьшаем счётчик pending ⭐
+        user_data["pending_season_boxes"] = pending - 1
+        
+        save_data(data)
+        
+        await query.answer("🎁 Season-Box открыт!", show_alert=True)
+        
+        # ⭐ Формируем альбом с картами ⭐
+        media_group = []
+        for i, card in enumerate(seasonal_cards):
+            caption = None
+            if i == 0:
+                caption = (
+                    f"🎁 <b>Season-Box открыт!</b>\n"
+                    f"🎴 Получено {len(seasonal_cards)} сезонных карт\n"
+                    f"🔍 +10 бесплатных попыток\n"
+                    f"🖼 {'+Сезонная аватарка' if avatar_added else ''}\n"
+                    f"📦 Осталось открытых боксов: {user_data['pending_season_boxes']}"
+                )
+            
+            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
+                media_group.append(
+                    InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+            else:
+                media_group.append(
+                    InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+        
+        # ⭐ Отправляем альбом ⭐
+        try:
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id,
+                media=media_group
+            )
+        except Exception as media_error:
+            # Fallback: отправляем по одному
+            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
+            for i, card in enumerate(seasonal_cards):
+                cap = None
+                if i == 0:
+                    cap = (
+                        f"🎁 <b>Season-Box открыт!</b>\n"
+                        f"🎴 Получено {len(seasonal_cards)} сезонных карт\n"
+                        f"🔍 +10 бесплатных попыток\n"
+                        f"🖼 {'+Сезонная аватарка' if avatar_added else ''}"
+                    )
+                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
+                        video=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None,
+                        supports_streaming=True
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None
+                    )
+                await asyncio.sleep(0.3)
+        
+        # ⭐ Финальное сообщение ⭐
+        keyboard_buttons = []
+        if user_data["pending_season_boxes"] > 0:
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    f"🎁 Открыть ещё Season-Box ({user_data['pending_season_boxes']} шт.)",
+                    callback_data="shop_open_season_box"
+                )
+            ])
+        keyboard_buttons.append([
+            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+        ])
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="✅ <b>Season-Box успешно открыт!</b>",
+            reply_markup=InlineKeyboardMarkup(keyboard_buttons),
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"Игрок {user_id} открыл Season-Box (осталось: {user_data['pending_season_boxes']})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка открытия Season-Box: {e}")
+        try:
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text="❌ Произошла ошибка при открытии Season-Box",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
                 ]])
@@ -5543,6 +5770,12 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         try:
             page = int(query.data.split("_")[-1])
             box = SHOP_BOXES[page]
+
+            # ⭐ НОВОЕ: Season-Box не покупается за бэт-коины ⭐
+            if box.get("is_season_box"):
+                await query.answer("💬 Напишите @Be9onder для покупки", show_alert=True)
+                return
+            
             user_id = str(query.from_user.id)
             data = load_data()
             user_data = data["users"].get(user_id, {})
@@ -5619,6 +5852,9 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         except Exception as e:
             logger.error(f"Ошибка покупки бокса: {e}")
             await query.answer("❌ Произошла ошибка", show_alert=True)
+
+    elif query.data == "shop_open_season_box":
+        await open_season_box(update, context)
 
     elif query.data == "shop_info":
         await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
@@ -6208,20 +6444,27 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["darts_last_reset"] = int(now_msk.timestamp())
 
         is_admin_user = is_admin(user_id, data)
-        if not is_admin_user and user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
-            await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
-            return
+        # ⭐ ПРОВЕРКА: есть ли бесплатные игры от Season-Box ⭐
+        has_free_game = user_data.get("season_box_free_darts", 0) > 0
 
-        if not is_admin_user and user_data.get("cents", 0) < DARTS_GAME_COST:
-            await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {DARTS_GAME_COST}. У вас: {user_data.get('cents', 0)}")
-            return
-
-        # Списание средств и учёт игры
-        if not is_admin_user:
+        if not is_admin_user and not has_free_game:
+            # Обычная логика: проверка лимита и стоимости
+            if user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
+                await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
+                return
+    
+            if user_data.get("cents", 0) < DARTS_GAME_COST:
+                await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {DARTS_GAME_COST}. У вас: {user_data.get('cents', 0)}")
+                return
+    
+            # Списание средств и учёт игры
             user_data["cents"] -= DARTS_GAME_COST
             user_data["darts_plays"] += 1
-        save_data(data)
+        elif has_free_game:
+            # ⭐ Бесплатная игра от Season-Box ⭐
+            user_data["season_box_free_darts"] -= 1
 
+        save_data(data)
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
         results = []
@@ -7601,7 +7844,84 @@ async def list_seasonal_cards(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка list_seasonal_cards: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
 
-
+async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт Season-Box игроку (бокс добавляется в pending, не открывается сразу)."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/give_season_box [ID_или_@никнейм]\n"
+                "**Примеры:**\n"
+                "/give_season_box 881692999\n"
+                "/give_season_box @username",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        
+        # Определяем ID игрока
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # ⭐ Миграция ⭐
+        if "pending_season_boxes" not in user_data:
+            user_data["pending_season_boxes"] = 0
+        
+        # ⭐ Увеличиваем счётчик pending ⭐
+        user_data["pending_season_boxes"] += 1
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    "🎁 <b>Вам начислен Season-Box!</b>\n\n"
+                    "📦 Теперь у вас <b>1 невыданный Season-Box</b>\n"
+                    "Откройте его в разделе «Магазин → Боксы → Season-Box» "
+                    "или через кнопку в профиле.\n\n"
+                    "🎁 Содержимое:\n"
+                    "• Все карты из сезонного магазина\n"
+                    "• Сезонная аватарка 🖼\n"
+                    "• 10 бесплатных попыток 🔍"
+                ),
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        
+        await update.message.reply_text(
+            f"✅ **Season-Box выдан!**\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"📦 Всего невыданных боксов: {user_data['pending_season_boxes']}",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Админ выдал Season-Box игроку {target_user_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка give_season_box: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче Season-Box")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -7653,6 +7973,7 @@ def main() -> None:
             CommandHandler("edit_seasonal", edit_seasonal_card),
             CommandHandler("remove_seasonal", remove_seasonal_card),
             CommandHandler("list_seasonal", list_seasonal_cards),
+            CommandHandler("give_season_box", give_season_box),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
