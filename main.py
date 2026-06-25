@@ -2571,6 +2571,9 @@ async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             else:
                 display_name = "Без имени"
             
+            # ⭐ ЭКРАНИРОВАНИЕ СПЕЦСИМВОЛОВ MARKDOWN ⭐
+            display_name_escaped = escape_markdown(display_name)
+            
             # Краткая статистика
             cards_count = len(udata.get("cards", []))
             cents = udata.get("cents", 0)
@@ -2581,7 +2584,7 @@ async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             is_user_admin = "⚙️" if uid in data.get("admins", []) else ""
             
             user_lines.append(
-                f"• `{uid}` {is_user_admin} — {display_name}\n"
+                f"`{uid}` {is_user_admin} — {display_name_escaped}\n"
                 f"   🃏{cards_count} | 💰{cents} | 💥{season_points} | 💎{total_points}"
             )
         
