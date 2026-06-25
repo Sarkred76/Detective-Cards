@@ -4830,7 +4830,7 @@ async def process_clan_avatar_photo(update: Update, context: ContextTypes.DEFAUL
         
         # Убираем клавиатуру и возвращаем меню клана
         await update.message.reply_text(
-            "✅ <b>Аватарка клана установлена!</b>\n"
+            "✅ Аватарка клана установлена!\n"
             "Все участники клана теперь видят новую аватарку.",
             reply_markup=ReplyKeyboardRemove()
         )
