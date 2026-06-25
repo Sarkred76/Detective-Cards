@@ -70,6 +70,9 @@ DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg"
 SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
 SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 
+# ===== АВАТАРКА КЛАНА =====
+DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
+
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
@@ -1924,6 +1927,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Обработчик текстовых сообщений (кнопки)."""
     try:
         user_id = str(update.effective_user.id)
+
+        # ⭐ ОБРАБОТКА ФОТО ДЛЯ УСТАНОВКИ АВАТАРКИ КЛАНА ⭐
+        if update.message.photo and user_id in context.user_data:
+            if context.user_data[user_id].get("step") == "clan_set_avatar":
+                await process_clan_avatar_photo(update, context)
+                return
+        
         data = load_data()
         user_data = data["users"].get(user_id)
 
@@ -1958,6 +1968,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if text == "✏️ Описание клана":
             await edit_clan_description_start(update, context)
+            return
+
+        if text == "🖼 Установить аватарку клана":  # ⭐ НОВОЕ
+            await set_clan_avatar_start(update, context)
             return
 
         if text == "🔙 Назад в кланы":
@@ -4672,7 +4686,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Формируем сообщение
         members_list = get_clan_members_list(clan["name"], data)
         
-        # ⭐ НОВОЕ: Описание клана в виде blockquote (HTML) ⭐
+        # Описание клана
         description_text = ""
         clan_description = clan.get("description", "")
         if clan_description:
@@ -4682,22 +4696,21 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 f"<blockquote><i>{escaped_desc}</i></blockquote>\n"
             )
         
-        # ⭐ Экранируем HTML-спецсимволы в названии клана ⭐
         clan_name_escaped = html.escape(clan['name'])
-        
         message_text = (
             f"🏰 <b>Ваш клан: {clan_name_escaped}</b>\n"
-            f"{members_list}\n"
             f"{description_text}"
+            f"{members_list}\n"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
         )
         
-        # Кнопки для лидера (с новой кнопкой описания)
+        # Кнопки для лидера
         if is_leader:
             keyboard = [
                 [KeyboardButton("📨 Пригласить игрока")],
                 [KeyboardButton("✏️ Описание клана")],
+                [KeyboardButton("🖼 Установить аватарку клана")],  # ⭐ НОВОЕ
                 [KeyboardButton("🚪 Покинуть клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
@@ -4708,15 +4721,126 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             ]
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"  # ⭐ ИЗМЕНЕНО: Markdown → HTML
-        )
+        
+        # ⭐ ОТПРАВКА С АВАТАРКОЙ КЛАНА ⭐
+        clan_avatar = clan.get("clan_avatar")
+        
+        if clan_avatar:
+            # Если есть аватарка клана, отправляем фото
+            await update.message.reply_photo(
+                photo=clan_avatar,
+                caption=message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        else:
+            # Если аватарки нет, отправляем текст
+            await update.message.reply_text(
+                message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
     except Exception as e:
         logger.error(f"Ошибка в my_clan_view: {e}")
         await update.message.reply_text("❌ Ошибка при показе информации о клане")
 
+async def set_clan_avatar_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начинает процесс установки аватарки клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Ошибка: клан не найден!")
+            return
+        
+        if clan.get("leader_id") != user_id:
+            await update.message.reply_text("❌ Только глава клана может изменять аватарку!")
+            return
+        
+        # Переходим в состояние ожидания фото
+        context.user_data[user_id] = {"step": "clan_set_avatar"}
+        
+        # Убираем клавиатуру клана
+        await update.message.reply_text(
+            "🖼 <b>Установка аватарки клана</b>\n\n"
+            "Отправьте фото, которое станет аватаркой клана.\n"
+            "Все участники клана будут видеть эту аватарку в разделе «Мой Клан».\n\n"
+            "Отправьте фото или нажмите ❌ Отмена",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("❌ Отмена")]],
+                resize_keyboard=True
+            ),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в set_clan_avatar_start: {e}")
+        await update.message.reply_text("❌ Ошибка")
+
+async def process_clan_avatar_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает фото для установки аватарки клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        
+        # Проверяем, что пользователь в состоянии ожидания фото
+        if user_id not in context.user_data or context.user_data[user_id].get("step") != "clan_set_avatar":
+            return
+        
+        # Проверяем, что отправлено фото
+        if not update.message.photo:
+            await update.message.reply_text(
+                "❌ Пожалуйста, отправьте фото!\n"
+                "Или нажмите ❌ Отмена"
+            )
+            return
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan or clan.get("leader_id") != user_id:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text("❌ Только глава клана может изменять аватарку!")
+            return
+        
+        # Получаем file_id самого большого фото
+        photo = update.message.photo[-1]  # Последнее фото - самое большое
+        file_id = photo.file_id
+        
+        # Сохраняем аватарку клана
+        clan["clan_avatar"] = file_id
+        save_data(data)
+        
+        # Очищаем состояние
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        # Убираем клавиатуру и возвращаем меню клана
+        await update.message.reply_text(
+            "✅ <b>Аватарка клана установлена!</b>\n"
+            "Все участники клана теперь видят новую аватарку.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        
+        # Возвращаем меню клана
+        await my_clan_view(update, context)
+        
+    except Exception as e:
+        logger.error(f"Ошибка в process_clan_avatar_photo: {e}")
+        await update.message.reply_text("❌ Ошибка при установке аватарки")
 
 async def leave_clan_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запрашивает подтверждение выхода из клана."""
@@ -4965,6 +5089,7 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
         "max_members": MAX_CLAN_MEMBERS,
         "created_at": int(time.time()),
         "description": "",
+        "clan_avatar": None,
     }
     # Привязываем пользователя к клану
     data.setdefault("user_clan", {})[user_id] = clan_name
@@ -8020,6 +8145,7 @@ def main() -> None:
             CommandHandler("remove_seasonal", remove_seasonal_card),
             CommandHandler("list_seasonal", list_seasonal_cards),
             CommandHandler("give_season_box", give_season_box),
+            MessageHandler(filters.PHOTO, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
