@@ -5237,13 +5237,15 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
 SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное меню
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
-SHOP_BOX_IMAGE = "https://files.catbox.moe/0qmfkc.jpg"         # Общая картинка бокса
+CLASSIC_BOX_IMAGE = "https://files.catbox.moe/pezd3a.jpg"
+SEASON_BOX_IMAGE = "https://files.catbox.moe/l3hxku.jpg"
+ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 
 # Список боксов для навигации
 SHOP_BOXES = [
-    {"name": "Rolls-Box", "price": 25000, "image": SHOP_BOX_IMAGE, "is_rolls_box": True},
-    {"name": "Classic-Box", "price": 30000, "image": SHOP_BOX_IMAGE, "is_classic_box": True},
-    {"name": "Season-Box", "price": 0, "image": SHOP_BOX_IMAGE, "is_season_box": True},
+    {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
+    {"name": "Classic-Box", "price": 30000, "image": CLASSIC_BOX_IMAGE, "is_classic_box": True},
+    {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
