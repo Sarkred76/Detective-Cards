@@ -73,6 +73,9 @@ SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
+MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"  # ⭐ НОВОЕ: Картинка для Меню
+QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
+
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
@@ -6833,13 +6836,16 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("👤 Личное дело")],
-            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")], 
+            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "📋 Меню\nВыберите раздел:",
+        
+        # ⭐ ОТПРАВКА С КАРТИНКОЙ ⭐
+        await update.message.reply_photo(
+            photo=MENU_IMAGE,
+            caption="📋 Меню\nВыберите раздел:",
             reply_markup=reply_markup
         )
     except Exception as e:
@@ -7175,8 +7181,8 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         [InlineKeyboardButton("🔙 Назад в меню", callback_data="quests_back")]
     ]
     text = (
-        "📜 <b>Квесты</b>\n\n"
-        "Выберите раздел:\n\n"
+        "📜 <b>Квесты</b>\n"
+        "Выберите раздел:\n"
         "• 📅 <b>Ежедневные</b> — обновляются каждый день в 00:00 МСК\n"
         "• 📆 <b>Еженедельные</b> — обновляются каждый понедельник в 00:00 МСК\n"
         "• 🏆 <b>Сезонные</b> — обновляются каждый сезон"
@@ -7188,15 +7194,19 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.message.delete()
         except:
             pass
-        await context.bot.send_message(
+        # ⭐ ОТПРАВКА С КАРТИНКОЙ ⭐
+        await context.bot.send_photo(
             chat_id=query.message.chat_id,
-            text=text,
+            photo=QUESTS_IMAGE,
+            caption=text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
     else:
-        await update.message.reply_text(
-            text,
+        # ⭐ ОТПРАВКА С КАРТИНКОЙ ⭐
+        await update.message.reply_photo(
+            photo=QUESTS_IMAGE,
+            caption=text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
