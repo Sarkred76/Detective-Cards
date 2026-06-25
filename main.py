@@ -3033,8 +3033,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await query.edit_message_text(
                     f"❌ **Недостаточно бэт-коинов!**\n\n"
                     f"Нужно: 1500 бэт-коинов\n"
-                    f"У вас: {cents} бэт-коинов\n\n"
-                    f"Нанимайте существ и получайте больше наград! 💰",
+                    f"У вас: {cents} бэт-коинов\n\n",
                     parse_mode="Markdown",
                 )
                 return
@@ -3147,7 +3146,7 @@ async def add_card_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Проверяем существование карты
         card = find_card_by_id(card_id, data["cards"])
         if not card:
-            await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено!")
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдено!")
             return
 
         # Добавляем карту(ы) в коллекцию игрока
