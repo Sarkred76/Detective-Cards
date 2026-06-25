@@ -703,6 +703,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/create_promo [КОД] [ID/random] [лимит] - создать промокод\n"
             response += "/delete_promo [КОД] - удалить промокод\n"
             response += "/list_promo - список всех промокодов\n"
+            response += "/add_seasonal [ID] [стоимость] - Добавить карту в список сезонных\n"
+            response += "/remove_seasonal [ID] - Убрать из списка сезонных\n"
+            response += "/give_season_box [@никнейм] - Выдать игроку сезонный бокс\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -5112,7 +5115,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• Эксклюзивная Epic Team-Up\n"
             f"• Сезонная аватарка 🖼\n"
             f"• 10 бесплатных попыток 🔍\n\n"
-            f"📦 У вас накоплено боксов: **{pending}**\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
     else:
