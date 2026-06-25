@@ -2476,26 +2476,133 @@ async def reset_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("❌ Ошибка при сбросе")
 
 async def check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Статистика карточек."""
-
+    """Статистика карточек с разбивкой по редкостям."""
     try:
         data = load_data()
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
-
-        available = sum(1 for card in data["cards"] if card["available"])
-
-        await update.message.reply_text(
-            f"📊 Статистика:\n"
-            f"Всего карточек: {len(data['cards'])}\n"
-            f"Доступно: {available}\n"
-            f"Пользователей: {len(data['users'])}"
+        
+        all_cards = data.get("cards", [])
+        total = len(all_cards)
+        available = sum(1 for card in all_cards if card.get("available", True))
+        disabled = total - available
+        
+        # ⭐ Статистика по редкостям (включая выключенные) ⭐
+        rarity_stats = {}
+        for card in all_cards:
+            rarity = card.get("rarity", "Unknown")
+            if rarity not in rarity_stats:
+                rarity_stats[rarity] = {"total": 0, "available": 0, "disabled": 0}
+            rarity_stats[rarity]["total"] += 1
+            if card.get("available", True):
+                rarity_stats[rarity]["available"] += 1
+            else:
+                rarity_stats[rarity]["disabled"] += 1
+        
+        # ⭐ Формируем текст ⭐
+        message_text = (
+            f"📊 **Общая статистика карт**\n"
+            f"📦 Всего карт: {total}\n"
+            f"✅ Включено: {available}\n"
+            f"❌ Выключено: {disabled}\n"
+            f"👥 Пользователей: {len(data.get('users', {}))}\n\n"
+            f"📈 **По редкостям:**\n"
         )
-
+        
+        # ⭐ Сортировка редкостей в логическом порядке ⭐
+        rarity_order = [
+            "Common", "Rare", "Rare Team-up",
+            "Epic", "Epic Team-up",
+            "Legendary", "Legendary Team-up",
+            "Highlight", "Limited"
+        ]
+        
+        # Сначала выводим известные редкости в порядке
+        for rarity in rarity_order:
+            if rarity in rarity_stats:
+                stats = rarity_stats[rarity]
+                message_text += (
+                    f"• **{rarity}**: {stats['total']} "
+                    f"(✅{stats['available']} / ❌{stats['disabled']})\n"
+                )
+        
+        # Затем выводим неизвестные редкости (если появятся)
+        for rarity, stats in rarity_stats.items():
+            if rarity not in rarity_order:
+                message_text += (
+                    f"• **{rarity}**: {stats['total']} "
+                    f"(✅{stats['available']} / ❌{stats['disabled']})\n"
+                )
+        
+        await update.message.reply_text(message_text, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"Ошибка проверки статистики: {e}")
         await update.message.reply_text("❌ Ошибка при проверке")
+
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Перечисляет всех пользователей бота с краткой статистикой."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        users = data.get("users", {})
+        if not users:
+            await update.message.reply_text("📭 Нет пользователей!")
+            return
+        
+        # ⭐ Сортируем пользователей по ID ⭐
+        sorted_users = sorted(users.items(), key=lambda x: x[0])
+        
+        # ⭐ Формируем список ⭐
+        user_lines = []
+        for uid, udata in sorted_users:
+            first_name = udata.get("first_name", "")
+            last_name = udata.get("last_name", "")
+            username = udata.get("username", "")
+            
+            # Формируем отображаемое имя
+            if username:
+                display_name = f"@{username}"
+            elif first_name or last_name:
+                display_name = f"{first_name} {last_name}".strip()
+            else:
+                display_name = "Без имени"
+            
+            # Краткая статистика
+            cards_count = len(udata.get("cards", []))
+            cents = udata.get("cents", 0)
+            season_points = udata.get("season_points", 0)
+            total_points = udata.get("total_points", 0)
+            
+            # Проверяем, является ли пользователь админом
+            is_user_admin = "⚙️" if uid in data.get("admins", []) else ""
+            
+            user_lines.append(
+                f"• `{uid}` {is_user_admin} — {display_name}\n"
+                f"   🃏{cards_count} | 💰{cents} | 💥{season_points} | 💎{total_points}"
+            )
+        
+        # ⭐ Разбиваем на сообщения по 4000 символов ⭐
+        MAX_LENGTH = 4000
+        header = f"👥 **Всего пользователей: {len(users)}**\n\n"
+        
+        current_message = header
+        for line in user_lines:
+            if len(current_message) + len(line) + 2 > MAX_LENGTH:
+                await update.message.reply_text(current_message, parse_mode="Markdown")
+                current_message = f"👥 **Пользователи (продолжение):**\n\n" + line + "\n"
+            else:
+                current_message += line + "\n"
+        
+        if current_message.strip() and current_message != header:
+            await update.message.reply_text(current_message, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Ошибка list_users: {e}")
+        await update.message.reply_text("❌ Ошибка при получении списка")
 
 async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список администраторов."""
@@ -7893,6 +8000,7 @@ def main() -> None:
             CommandHandler("delete_card", delete_card),
             CommandHandler("reset_user", reset_user),
             CommandHandler("check_cards", check_cards),
+            CommandHandler("list_users", list_users),
             CommandHandler("list_admins", list_admins),
             CommandHandler("add_admin", add_admin),
             CommandHandler("remove_admin", remove_admin),
