@@ -712,6 +712,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/add_seasonal [ID] [стоимость] - Добавить карту в список сезонных\n"
             response += "/remove_seasonal [ID] - Убрать из списка сезонных\n"
             response += "/give_season_box [@никнейм] - Выдать игроку сезонный бокс\n"
+            response += "/add_cents_to_player [ID] [количество] - добавить/списать бэт-коины\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -8127,7 +8128,116 @@ async def list_seasonal_cards(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка list_seasonal_cards: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
 
-
+async def add_cents_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет (или списывает) бэт-коины игроку по ID или @никнейму."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/add_cents_to_player [ID_или_@никнейм] [количество]\n"
+                "**Примеры:**\n"
+                "/add_cents_to_player 881692999 5000 — добавить 5000 бэт-коинов\n"
+                "/add_cents_to_player @username 5000 — добавить 5000 бэт-коинов\n"
+                "/add_cents_to_player 881692999 -1000 — списать 1000 бэт-коинов",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        cents_amount = int(context.args[1])
+        target_user_id = None
+        is_new_user = False
+        
+        # ⭐ ОПРЕДЕЛЯЕМ ID ИГРОКА ⭐
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                is_new_user = True
+                # Создаём нового игрока с нулевыми параметрами
+                data["users"][target_user_id] = {
+                    "username": "",
+                    "first_name": "Admin Granted",
+                    "last_name": "",
+                    "cards": [],
+                    "total_points": 0,
+                    "season_points": 0,
+                    "cents": 0,
+                    "last_card_time": 0,
+                    "free_rolls": 0,
+                    "last_dice_time": 0,
+                    "casino_attempts": 5,
+                    "last_casino_reset": 0,
+                    "used_promo_codes": [],
+                    "referral_invites": [],
+                    "referral_rewards_claimed": [],
+                    "daily_quests": [],
+                    "weekly_quests": [],
+                    "avatar_url": DEFAULT_AVATAR_URL,
+                    "avatars": [DEFAULT_AVATAR_URL],
+                    "pending_season_boxes": 0,
+                }
+        
+        user_data = data["users"][target_user_id]
+        
+        # ⭐ Добавляем/списываем бэт-коины ⭐
+        old_cents = user_data.get("cents", 0)
+        new_cents = old_cents + cents_amount
+        
+        # ⭐ Защита от ухода в минус ⭐
+        if new_cents < 0:
+            await update.message.reply_text(
+                f"⚠️ Нельзя списать больше, чем есть у игрока!\n"
+                f"💰 У игрока: {old_cents} бэт-коинов\n"
+                f"❌ Вы пытаетесь списать: {-cents_amount} бэт-коинов"
+            )
+            return
+        
+        user_data["cents"] = new_cents
+        save_data(data)
+        
+        # ⭐ Формируем текст ответа ⭐
+        if cents_amount > 0:
+            action_text = f"💰 Добавлено: +{cents_amount} бэт-коинов"
+        elif cents_amount < 0:
+            action_text = f"💸 Списано: {cents_amount} бэт-коинов"
+        else:
+            action_text = "ℹ️ Количество равно 0 — баланс не изменился"
+        
+        await update.message.reply_text(
+            f"✅ **Баланс игрока изменён!**\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"{action_text}\n"
+            f"📊 Было: {old_cents}\n"
+            f"📈 Стало: {new_cents}\n"
+            f"{'🆕 Игрок создан!' if is_new_user else ''}",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(
+            f"Админ изменил баланс игрока {target_user_id}: "
+            f"{old_cents} → {new_cents} ({'+' if cents_amount >= 0 else ''}{cents_amount})"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка добавления бэт-коинов: {e}")
+        await update.message.reply_text("❌ Ошибка при изменении баланса")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -8181,6 +8291,7 @@ def main() -> None:
             CommandHandler("remove_seasonal", remove_seasonal_card),
             CommandHandler("list_seasonal", list_seasonal_cards),
             CommandHandler("give_season_box", give_season_box),
+            CommandHandler("add_cents_to_player", add_cents_to_player),
             MessageHandler(filters.PHOTO, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
