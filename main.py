@@ -3746,19 +3746,18 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         
         attempts = user_data.get("casino_attempts", 5) if user_data else 5
         cents = user_data.get("cents", 0) if user_data else 0
-
+        
+        # ⭐ НОВОЕ: Отображение баланса с индикаторами ⭐
         if cents >= 1500:
             balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ✅"
         else:
             balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ❌ _(недостаточно)_"
         
-        keyboard = [
-            [InlineKeyboardButton("🎰 Сыграть)", callback_data="casino_play")]
-        ]
+        keyboard = [[InlineKeyboardButton("🎰 Сыграть)", callback_data="casino_play")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            f"🎰 **Казино**\n\n"
+            f"🎰 **Казино**\n"
             f"📜 **Правила:**\n"
             f"• Стоимость игры: 1500 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
@@ -3771,7 +3770,6 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
     except Exception as e:
         logger.error(f"Ошибка в open_casino_from_button: {e}")
         await update.message.reply_text("❌ Ошибка при открытии казино")
-
 async def craft_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню выбора рецепта крафта."""
     try:
@@ -6662,44 +6660,52 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню и правила игры Дартс."""
-    user_id = str(update.effective_user.id)
+    try:
+        # ⭐ НОВОЕ: Получаем данные игрока ⭐
+        user_id = str(update.effective_user.id)
         data = load_data()
-        user_data = data["users"].get(user_id)
-
-    cents = user_data.get("cents", 0) if user_data else 0
+        user_data = data["users"].get(user_id, {})
+        current_balance = user_data.get("cents", 0)
+        plays_today = user_data.get("darts_plays", 0)
         
-        # ⭐ НОВОЕ: Отображение баланса с индикаторами ⭐
-        if cents >= 1000:
-            balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ✅"
+        # ⭐ НОВОЕ: Индикаторы баланса ⭐
+        if current_balance >= DARTS_GAME_COST:
+            balance_text = f"💰 Ваш баланс: **{current_balance}** бэт-коинов ✅"
         else:
-            balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ❌ _(недостаточно)_"
-            
-    keyboard = [[InlineKeyboardButton("🎯 Сыграть", callback_data="darts_play")]]
-    caption = (
-        "🎯 **Мини-игра «Дартс»**\n\n"
-        "📜 **Правила:**\n"
-        "• Стоимость игры: 1000 бэт-коинов\n"
-        "• Бот бросает 3 дротика 🎯\n"
-        "• Мишень имеет 5 зон: от 1 до 5 очков\n"
-        "• Наберите 10+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
-        "• Лимит: 5 игр в день (сброс в 00:00 МСК)\n\n"
-        f"{balance_text}\n"
-    )
-    if hasattr(update, 'callback_query') and update.callback_query:
-        try: await update.callback_query.message.delete()
-        except: pass
-        await context.bot.send_message(
-            chat_id=update.callback_query.message.chat_id,
-            text=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            balance_text = f"💰 Ваш баланс: **{current_balance}** бэт-коинов ❌ _(недостаточно)_"
+        
+        keyboard = [[InlineKeyboardButton("🎯 Сыграть", callback_data="darts_play")]]
+        caption = (
+            f"🎯 **Мини-игра «Дартс»**\n"
+            f"📜 **Правила:**\n"
+            f"• Стоимость игры: {DARTS_GAME_COST} бэт-коинов\n"
+            f"• Бот бросает 3 дротика 🎯\n"
+            f"• Мишень имеет 5 зон: от 1 до 5 очков\n"
+            f"• Наберите {DARTS_WIN_THRESHOLD}+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
+            f"• Лимит: {MAX_DARTS_DAILY_PLAYS} игр в день (сброс в 00:00 МСК)\n\n"
+            f"{balance_text}\n"
         )
-    else:
-        await update.message.reply_text(
-            text=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
+        
+        if hasattr(update, 'callback_query') and update.callback_query:
+            try:
+                await update.callback_query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                text=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в darts_menu: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню Дартс")
 
 async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Логика игры в Дартс."""
