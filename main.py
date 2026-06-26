@@ -6911,53 +6911,63 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id, {})
-
         bot_username = context.bot.username
         ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
-
+        
         invites = user_data.get("referral_invites", [])
         count = len(invites)
         claimed = user_data.get("referral_rewards_claimed", [])
-
-        # Формируем список приглашенных
+        
+        # ⭐ Формируем список приглашенных с экранированием ⭐
         if invites:
             lines = []
             for i, inv_id in enumerate(invites, 1):
-                inv_user = data["users"].get(inv_id, {})
-                name = inv_user.get("username")
-                if not name:
-                    name = inv_user.get("first_name", f"Пользователь {inv_id}")
-                else:
-                    name = f"@{name}"
-                lines.append(f"{i}. {name}")
-            invite_list_text = "\n".join(lines)
+                inv_data = data["users"].get(inv_id, {})
+                inv_name = inv_data.get("username") or inv_data.get("first_name") or f"ID: {inv_id}"
+                # ⭐ ЭКРАНИРОВАНИЕ имени ⭐
+                inv_name_escaped = escape_markdown(inv_name)
+                lines.append(f"{i}. {inv_name_escaped}\n")
+            invite_list_text = "".join(lines)
         else:
-            invite_list_text = "Список пуст"
-
-        # Статусы наград
+            invite_list_text = "Список пуст\n"
+        
+        # ⭐ Статусы наград ⭐
         reward_1 = "✅ Получено" if 1 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 1 else "🔒 За 1 приглашение")
         reward_3 = "✅ Получено" if 3 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 3 else "🔒 За 3 приглашения")
-
+        
+        # ⭐ ЭКРАНИРОВАНИЕ ref_link (содержит _ в start=ref_) ⭐
+        ref_link_escaped = escape_markdown(ref_link)
+        
+        # ⭐ ПРАВИЛЬНОЕ ФОРМИРОВАНИЕ ТЕКСТА С ПЕРЕНОСАМИ ⭐
         text = (
             f"🔗 **Реферальная система**\n\n"
             f"Приглашайте друзей и получайте ценные награды!\n\n"
-            f"📎 **Ваша уникальная ссылка:**\n`{ref_link}`\n\n"
-            f"👥 **Всего приглашено:** {count}\n"
-            f"📋 **Список приглашенных:**\n{invite_list_text}\n\n"
+            f"📎 **Ваша уникальная ссылка:**\n"
+            f"`{ref_link_escaped}`\n\n"
+            f"👥 **Всего приглашено:** {count}\n\n"
+            f"📋 **Список приглашенных:**\n"
+            f"{invite_list_text}\n"
             f"🎁 **Награды:**\n"
             f"1️⃣ 1 приглашение: Случайная карта редкости **Epic**\n"
-            f"   Статус: {reward_1}\n"
+            f"   Статус: {reward_1}\n\n"
             f"3️⃣ 3 приглашения: Случайная карта редкости **Epic Team-up**\n"
-            f"   Статус: {reward_3}\n\n"
+            f"   Статус: {reward_3}"
         )
-
+        
         keyboard = [[InlineKeyboardButton("🔙 Назад в Личное дело", callback_data="my_profile")]]
         
         if update.callback_query:
-            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            await update.callback_query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         else:
-            await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-            
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
     except Exception as e:
         logger.error(f"Ошибка в referral_menu: {e}")
 
