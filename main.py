@@ -6924,7 +6924,6 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             for i, inv_id in enumerate(invites, 1):
                 inv_data = data["users"].get(inv_id, {})
                 inv_name = inv_data.get("username") or inv_data.get("first_name") or f"ID: {inv_id}"
-                # ⭐ ЭКРАНИРОВАНИЕ имени ⭐
                 inv_name_escaped = escape_markdown(inv_name)
                 lines.append(f"{i}. {inv_name_escaped}\n")
             invite_list_text = "".join(lines)
@@ -6935,15 +6934,16 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         reward_1 = "✅ Получено" if 1 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 1 else "🔒 За 1 приглашение")
         reward_3 = "✅ Получено" if 3 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 3 else "🔒 За 3 приглашения")
         
-        # ⭐ ЭКРАНИРОВАНИЕ ref_link (содержит _ в start=ref_) ⭐
-        ref_link_escaped = escape_markdown(ref_link)
+        # ⭐ ИСПРАВЛЕНИЕ: Используем Markdown-ссылку вместо экранирования ⭐
+        # Формат [текст](URL) не требует экранирования URL
+        ref_link_markdown = f"[Нажмите, чтобы скопировать]({ref_link})"
         
-        # ⭐ ПРАВИЛЬНОЕ ФОРМИРОВАНИЕ ТЕКСТА С ПЕРЕНОСАМИ ⭐
         text = (
             f"🔗 **Реферальная система**\n\n"
             f"Приглашайте друзей и получайте ценные награды!\n\n"
             f"📎 **Ваша уникальная ссылка:**\n"
-            f"`{ref_link_escaped}`\n\n"
+            f"{ref_link_markdown}\n"
+            f"👤 Или вручную: `{ref_link}`\n\n"
             f"👥 **Всего приглашено:** {count}\n\n"
             f"📋 **Список приглашенных:**\n"
             f"{invite_list_text}\n"
@@ -6951,7 +6951,8 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"1️⃣ 1 приглашение: Случайная карта редкости **Epic**\n"
             f"   Статус: {reward_1}\n\n"
             f"3️⃣ 3 приглашения: Случайная карта редкости **Epic Team-up**\n"
-            f"   Статус: {reward_3}"
+            f"   Статус: {reward_3}\n\n"
+            f"💡 _Награды выдаются автоматически в момент приглашения нового игрока!_"
         )
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в Личное дело", callback_data="my_profile")]]
