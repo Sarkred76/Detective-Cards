@@ -6466,43 +6466,58 @@ async def burn_all_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
+        
         user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-
+        
         if not user_data or not user_data.get("cards"):
             await query.edit_message_text("❌ У вас нет карт для сжигания!")
             return
-
+        
+        # ⭐ СЧИТАЕМ НАГРАДУ, ИСКЛЮЧАЯ LIMITED ⭐
         total_cents = 0
         total_rolls = 0
-        card_counts = Counter(user_data["cards"])
-
-        # Подсчитываем общую награду
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
+        cards_to_burn = []
+        limited_count = 0
+        
+        for cid in set(user_data["cards"]):
+            card = find_card_by_id(cid, data["cards"])
             if card:
+                # ⭐ ПРОПУСКАЕМ КАРТЫ РЕДКОСТИ LIMITED ⭐
+                if card["rarity"] == "Limited":
+                    limited_count += user_data["cards"].count(cid)
+                    continue
+                
+                count = user_data["cards"].count(cid)
                 reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
                 total_cents += reward["cents"] * count
                 total_rolls += reward["free_rolls"] * count
-
-        total_cards = len(user_data["cards"])
-
+                cards_to_burn.append((card, count))
+        
+        total_cards_burned = sum(count for _, count in cards_to_burn)
+        
+        # ⭐ ФОРМИРУЕМ ТЕКСТ ⭐
         text = (
             f"🔥 **Сжечь ВСЕ карты?**\n\n"
-            f"📦 Всего карт в коллекции: {total_cards}\n\n"
-            f"💰 Вы получите: {total_cents} бэт-коинов\n"
-            f"🔍 Вы получите: {total_rolls} бесплатных наймов\n\n"
-            f"⚠️ **ВНИМАНИЕ!** Все ваши карты будут безвозвратно удалены!"
+            f"📦 Карт будет сожжено: **{total_cards_burned}**\n"
         )
-
+        
+        if limited_count > 0:
+            text += f"🔒 Карт Limited (не будут сожжены): **{limited_count}**\n"
+        
+        text += (
+            f"\n🎁 **Вы получите:**\n"
+            f"💰 Бэт-коинов: {total_cents}\n"
+            f"🔍 Бесплатных попыток: {total_rolls}\n\n"
+            f"⚠️ **Все карты (кроме Limited) будут безвозвратно удалены!**"
+        )
+        
         keyboard = [
-            [
-                InlineKeyboardButton("✅ Подтвердить", callback_data="burn_all_execute"),
-                InlineKeyboardButton("❌ Отмена", callback_data="burn_back")
-            ]
+            [InlineKeyboardButton("✅ Да, сжечь всё", callback_data="burn_all_execute")],
+            [InlineKeyboardButton("❌ Отмена", callback_data="burn_menu")]
         ]
-
+        
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -6514,44 +6529,57 @@ async def burn_all_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выполняет сжигание ВСЕХ карт и выдачу наград."""
+    """Выполняет сжигание ВСЕХ карт (кроме Limited)."""
     try:
         query = update.callback_query
         await query.answer()
+        
         user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-
+        
         if not user_data or not user_data.get("cards"):
             await query.edit_message_text("❌ У вас нет карт для сжигания!")
             return
-
-        # Снова пересчитываем награду (для безопасности)
+        
+        # ⭐ СЧИТАЕМ НАГРАДУ, ИСКЛЮЧАЯ LIMITED ⭐
         total_cents = 0
         total_rolls = 0
-        card_counts = Counter(user_data["cards"])
-        total_cards_burned = len(user_data["cards"]) # Сохраняем количество до очистки
+        cards_to_burn = []
+        limited_count = 0
+        
+        for cid in set(user_data["cards"]):
+            card = find_card_by_id(cid, data["cards"])
+            if card:
+                # ⭐ ПРОПУСКАЕМ КАРТЫ РЕДКОСТИ LIMITED ⭐
+                if card["rarity"] == "Limited":
+                    limited_count += user_data["cards"].count(cid)
+                    continue
+                
+                count = user_data["cards"].count(cid)
+                reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
+                total_cents += reward["cents"] * count
+                total_rolls += reward["free_rolls"] * count
+                cards_to_burn.append((card["id"], count))
         
         # ⭐ СЧИТАЕМ КАРТЫ ПО РЕДКОСТЯМ ДЛЯ КВЕСТОВ ⭐
         burned_common = 0
         burned_rare = 0
-        for cid in user_data["cards"]:
-            c = find_card_by_id(cid, data["cards"])
-            if c:
-                if c["rarity"] == "Common":
-                    burned_common += 1
-                elif c["rarity"] == "Rare":
-                    burned_rare += 1
-        
-        for card_id, count in card_counts.items():
+        for card_id, count in cards_to_burn:
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
-                total_cents += reward["cents"] * count
-                total_rolls += reward["free_rolls"] * count
-                
-        # ⭐ ОЧИЩАЕМ КОЛЛЕКЦИЮ И ВЫДАЕМ НАГРАДУ ⭐
-        user_data["cards"] = []
+                if card["rarity"] == "Common":
+                    burned_common += count
+                elif card["rarity"] == "Rare":
+                    burned_rare += count
+        
+        # ⭐ УДАЛЯЕМ КАРТЫ (КРОМЕ LIMITED) ⭐
+        for card_id, count in cards_to_burn:
+            for _ in range(count):
+                if card_id in user_data["cards"]:
+                    user_data["cards"].remove(card_id)
+        
+        # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["cents"] = user_data.get("cents", 0) + total_cents
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + total_rolls
         save_data(data)
@@ -6561,27 +6589,36 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await update_quest_progress(context, user_id, "burn_common_3", burned_common)
         if burned_rare > 0:
             await update_weekly_quest_progress(context, user_id, "weekly_burn_rare_4", burned_rare)
-
+        
+        # ⭐ ФОРМИРУЕМ ТЕКСТ ⭐
+        total_cards_burned = sum(count for _, count in cards_to_burn)
+        
         text = (
-            f"✅ **Все карты успешно сожжены!** 🔥\n\n"
-            f"🗑️ Удалено карт: {total_cards_burned}\n"
-            f"💰 Получено бэт-коинов: +{total_cents}\n"
-            f"🔍 Получено бесплатных наймов: +{total_rolls}"
+            f"✅ **Сжигание успешно!** 🔥\n\n"
+            f"🗑️ Сожжено карт: **{total_cards_burned}**\n"
         )
-
-        keyboard = [[InlineKeyboardButton("🔙 Назад в меню сжигания", callback_data="burn_back")]]
-
+        
+        if limited_count > 0:
+            text += f"🔒 Карт Limited (сохранены): **{limited_count}**\n"
+        
+        text += (
+            f"\n🎁 **Награда получена:**\n"
+            f"💰 +{total_cents} бэт-коинов\n"
+            f"🔍 +{total_rolls} бесплатных попыток"
+        )
+        
+        keyboard = [[InlineKeyboardButton("🔙 Назад в меню сжигания", callback_data="burn_menu")]]
+        
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
-        logger.info(f"Игрок {user_id} сжёг ВСЕ карты ({total_cards_burned} шт.)")
         
+        logger.info(f"Игрок {user_id} сжёг ВСЕ карты ({total_cards_burned} шт., {limited_count} Limited сохранены)")
     except Exception as e:
         logger.error(f"Ошибка в burn_all_execute: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик всех callback кнопок сжигания."""
