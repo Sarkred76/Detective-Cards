@@ -2045,7 +2045,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await submenu(update, context)
             return
 
-        elif text == "🔙 Назад в меню":
+        elif text == "🔙 Назад":
             await submenu(update, context)
             return
 
@@ -2181,14 +2181,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🍺 Бар":
             await bar_menu(update, context)
 
-        elif text == "🔗 Реферальная система":
+        elif text == "🔗 Рефералка":
             await referral_menu(update, context)
 
         elif text == "🔥 Сжигание":
             await burn_menu(update, context)
             return
 
-        elif text == "🎲 Бросить кубик":
+        elif text == "🎲 Кубик":
             await dice(update, context)
 
         elif text == "🎰 Казино":
@@ -2986,9 +2986,9 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
         keyboard = [
-            [KeyboardButton("🎲 Бросить кубик"), KeyboardButton("🎰 Казино"), KeyboardButton("🏀 Баскет")],
+            [KeyboardButton("🎲 Кубик"), KeyboardButton("🎰 Казино"), KeyboardButton("🏀 Баскет")],
             [KeyboardButton("🎯 Дартс"), KeyboardButton("🏆 Топ игроков"), KeyboardButton("🔄 Трейд")],
-            [KeyboardButton("🔥 Сжигание"), KeyboardButton("🔗 Реферальная система"), KeyboardButton("🔙 Назад в меню")]
+            [KeyboardButton("🔥 Сжигание"), KeyboardButton("🔗 Рефералка"), KeyboardButton("🔙 Назад")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -4510,7 +4510,7 @@ async def clan_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("➕ Создать клан")],
             [KeyboardButton("📋 Мой клан" if clan_name else "🔒 Мой клан (не в клане)")],
             [KeyboardButton("🏆 Топ кланов")],
-            [KeyboardButton("🔙 Назад в меню")]
+            [KeyboardButton("🔙 Назад")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
@@ -7219,7 +7219,7 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         [InlineKeyboardButton("📅 Ежедневные", callback_data="quests_daily")],
         [InlineKeyboardButton("📆 Еженедельные", callback_data="quests_weekly")],
         [InlineKeyboardButton("🏆 Сезонные", callback_data="quests_seasonal")],
-        [InlineKeyboardButton("🔙 Назад в меню", callback_data="quests_back")]
+        [InlineKeyboardButton("🔙 Назад", callback_data="quests_back")]
     ]
     text = (
         "📜 <b>Квесты</b>\n"
