@@ -6830,70 +6830,84 @@ async def darts_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 async def top_clans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает топ-10 кланов по очкам репутации."""
+    """Показывает топ-10 кланов по очкам репутации (без учёта админов)."""
     try:
         data = load_data()
         clans = data.get("clans", {})
         users = data.get("users", {})
-
+        admins = set(data.get("admins", []))  # ⭐ НОВОЕ: множество ID админов
+        
         if not clans:
             await update.message.reply_text("📭 Пока нет созданных кланов!")
             return
-
+        
         clan_scores = []
         for clan_id, clan_data in clans.items():
             total_rep = 0
             member_count = len(clan_data.get("members", {}))
             
-            # Суммируем total_points всех участников
+            # Суммируем total_points всех участников КРОМЕ админов
             for member_id in clan_data.get("members", {}):
+                # ⭐ НОВОЕ: Пропускаем администраторов ⭐
+                if member_id in admins:
+                    continue
+                
                 user_data = users.get(member_id, {})
                 total_rep += user_data.get("total_points", 0)
-                
+            
             clan_scores.append({
                 "id": clan_id,
                 "name": clan_data.get("name", "Без названия"),
                 "reputation": total_rep,
                 "members": member_count
             })
-
+        
         # Сортировка по репутации (по убыванию)
         clan_scores.sort(key=lambda x: x["reputation"], reverse=True)
         top_10 = clan_scores[:10]
-
-        message_text = "🏆 **Топ кланов по репутации**\n\n"
+        
+        message_text = "🏆 **Топ кланов по репутации**\n"
+        message_text += "_⚙️ Очки администраторов не учитываются_\n\n"
+        
         for rank, clan in enumerate(top_10, 1):
-            if rank == 1: medal = "🥇"
-            elif rank == 2: medal = "🥈"
-            elif rank == 3: medal = "🥉"
-            else: medal = f"{rank}."
-
+            if rank == 1:
+                medal = "🥇"
+            elif rank == 2:
+                medal = "🥈"
+            elif rank == 3:
+                medal = "🥉"
+            else:
+                medal = f"{rank}."
+            
             message_text += f"{medal} **{clan['name']}**\n"
-            message_text += f"   👥 Участников: {clan['members']}\n"
-            message_text += f"   💎 Репутация: {clan['reputation']}\n\n"
-
-        # Показываем место клана пользователя, если он в клане
+            message_text += f" 👥 Участников: {clan['members']}\n"
+            message_text += f" 💎 Репутация: {clan['reputation']}\n\n"
+        
+        # ⭐ ПОКАЗЫВАЕМ МЕСТО КЛАНА ПОЛЬЗОВАТЕЛЯ ⭐
         user_id = str(update.effective_user.id)
         user_clan_id = data.get("user_clan", {}).get(user_id)
+        
         if user_clan_id:
             user_clan_rank = None
-            for i, c in enumerate(clan_scores, 1):
-                if c["id"] == user_clan_id:
-                    user_clan_rank = i
+            for rank, clan in enumerate(clan_scores, 1):
+                if clan["id"] == user_clan_id:
+                    user_clan_rank = rank
                     break
             
-            if user_clan_rank:
-                message_text += "\n" + "─" * 30 + "\n"
-                if user_clan_rank <= 10:
-                    message_text += f"✅ **Ваш клан в топе! Место: {user_clan_rank}**\n"
-                else:
-                    message_text += f"📍 **Ваш клан вне топ-10. Место: {user_clan_rank}**\n"
-                current_clan_data = next((c for c in clan_scores if c["id"] == user_clan_id), None)
-                if current_clan_data:
-                    message_text += f"💎 Репутация вашего клана: {current_clan_data['reputation']}"
-
+            if not user_clan_rank:
+                user_clan_rank = len(clan_scores) + 1
+            
+            message_text += "─" * 30 + "\n"
+            if user_clan_rank <= 10:
+                message_text += f"✅ **Ваш клан в топе! Место: {user_clan_rank}**\n"
+            else:
+                message_text += f"📍 **Ваш клан вне топ-10. Место: {user_clan_rank}**\n"
+            
+            current_clan_data = next((c for c in clan_scores if c["id"] == user_clan_id), None)
+            if current_clan_data:
+                message_text += f"💎 Репутация вашего клана: {current_clan_data['reputation']}"
+        
         await update.message.reply_text(message_text, parse_mode="Markdown")
-
     except Exception as e:
         logger.error(f"Ошибка в top_clans: {e}")
         await update.message.reply_text("❌ Ошибка при загрузке топа кланов")
