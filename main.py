@@ -597,67 +597,69 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # ⭐ ОБРАБОТКА РЕФЕРАЛЬНОЙ ССЫЛКИ ⭐
         referrer_id = None
-        if context.args and context.args[0].startswith("ref_"):
+        # ⭐ ИСПРАВЛЕНИЕ: Проверяем, является ли пользователь НОВЫМ ⭐
+        is_new_user = user_id not in data["users"]
+
+        # Обработка реферальной ссылки — ТОЛЬКО для новых пользователей
+        if is_new_user and context.args and context.args[0].startswith("ref_"):
             referrer_id = context.args[0].replace("ref_", "")
-
-        if referrer_id and referrer_id in data["users"] and referrer_id != user_id:
-            referrer_data = data["users"][referrer_id]
+            if referrer_id and referrer_id in data["users"] and referrer_id != user_id:
+                referrer_data = data["users"][referrer_id]
+        
+                # Инициализация полей реферала у приглашающего (на случай старых пользователей)
+                if "referral_invites" not in referrer_data:
+                    referrer_data["referral_invites"] = []
+                if "referral_rewards_claimed" not in referrer_data:
+                    referrer_data["referral_rewards_claimed"] = []
+        
+                # Если пользователь еще не был приглашен этим реферером
+                if user_id not in referrer_data["referral_invites"]:
+                    referrer_data["referral_invites"].append(user_id)
             
-            # Инициализация полей реферала у приглашающего (на случай старых пользователей)
-            if "referral_invites" not in referrer_data:
-                referrer_data["referral_invites"] = []
-            if "referral_rewards_claimed" not in referrer_data:
-                referrer_data["referral_rewards_claimed"] = []
-
-            # Если пользователь еще не был приглашен этим реферером
-            if user_id not in referrer_data["referral_invites"]:
-                referrer_data["referral_invites"].append(user_id)
-                
-                new_user_name = update.effective_user.username or update.effective_user.first_name
-                
-                # 1. Уведомление рефереру о новом игроке
-                try:
-                    await context.bot.send_message(
-                        chat_id=referrer_id,
-                        text=f"🎉 По вашей реферальной ссылке перешёл новый игрок: **@{new_user_name}**!",
-                        parse_mode="Markdown"
-                    )
-                except Exception as e:
-                    logger.warning(f"Не удалось уведомить реферера {referrer_id}: {e}")
-
-                # 2. Проверка и выдача наград
-                invite_count = len(referrer_data["referral_invites"])
-                claimed = referrer_data["referral_rewards_claimed"]
-                reward_card = None
-                reward_milestone = 0
-
-                if invite_count >= 1 and 1 not in claimed:
-                    reward_card = get_random_available_card_by_rarity(data, "Epic")
-                    reward_milestone = 1
-                elif invite_count >= 3 and 3 not in claimed:
-                    reward_card = get_random_available_card_by_rarity(data, "Epic Team-up")
-                    reward_milestone = 3
-
-                if reward_card:
-                    claimed.append(reward_milestone)
-                    referrer_data["referral_rewards_claimed"] = claimed
-                    referrer_data["cards"].append(reward_card["id"])
-                    save_data(data)
-                    
-                    # Отправляем карту рефереру
+                    new_user_name = update.effective_user.username or update.effective_user.first_name
+            
+                    # 1. Уведомление рефереру о новом игроке
                     try:
-                        caption = f"🎁 **Награда за реферала!**\nВы получили случайную карту редкости **{reward_card['rarity']}** за {reward_milestone}-го приглашенного!"
-                        # Создаем фиктивный update для send_card, если нужно, или отправляем напрямую
-                        await context.bot.send_photo(
+                        await context.bot.send_message(
                             chat_id=referrer_id,
-                            photo=reward_card["image_url"],
-                            caption=caption,
+                            text=f"🎉 По вашей реферальной ссылке перешёл новый игрок: **@{new_user_name}**!",
                             parse_mode="Markdown"
                         )
                     except Exception as e:
-                        logger.error(f"Ошибка отправки реферальной награды: {e}")
-                else:
-                    save_data(data)
+                        logger.warning(f"Не удалось уведомить реферера {referrer_id}: {e}")
+            
+                    # 2. Проверка и выдача наград
+                    invite_count = len(referrer_data["referral_invites"])
+                    claimed = referrer_data["referral_rewards_claimed"]
+                    reward_card = None
+                    reward_milestone = 0
+            
+                    if invite_count >= 1 and 1 not in claimed:
+                        reward_card = get_random_available_card_by_rarity(data, "Epic")
+                        reward_milestone = 1
+                    elif invite_count >= 3 and 3 not in claimed:
+                        reward_card = get_random_available_card_by_rarity(data, "Epic Team-up")
+                        reward_milestone = 3
+            
+                    if reward_card:
+                        claimed.append(reward_milestone)
+                        referrer_data["referral_rewards_claimed"] = claimed
+                        referrer_data["cards"].append(reward_card["id"])
+                        save_data(data)
+                
+                        try:
+                            caption = f"🎁 **Награда за реферала!**\nВы получили случайную карту редкости **{reward_card['rarity']}** за {reward_milestone}-го приглашенного!"
+                            # Создаем фиктивный update для send_card, если нужно, или отправляем напрямую
+                            await context.bot.send_photo(
+                                chat_id=referrer_id,
+                                photo=reward_card["image_url"],
+                                caption=caption,
+                                parse_mode="Markdown"
+                            )
+                        except Exception as e:
+                            logger.error(f"Ошибка отправки реферальной награды: {e}")
+                    else:
+                        save_data(data)
 
         # Показываем главное меню
         keyboard = [
