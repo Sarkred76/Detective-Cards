@@ -6214,54 +6214,67 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("❌ Ошибка при открытии меню сжигания")
 
 
-async def show_burn_cards(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    rarity: Optional[str] = None,
-    start_index: int = 0
-) -> None:
+async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, rarity: Optional[str] = None, start_index: int = 0) -> None:
     """Показывает карты для сжигания с навигацией."""
     try:
-        query = update.callback_query if hasattr(update, 'callback_query') else None
-        user_id = str(update.effective_user.id)
+        query = update.callback_query if hasattr(update, 'callback_query') and update.callback_query else None
+        user_id = str(query.from_user.id if query else update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            if query:
-                await query.edit_message_text("❌ У вас нет карт!")
-            else:
-                await update.message.reply_text("❌ У вас нет карт!")
-            return
-        
-        # Считаем количество каждой карты (дубликаты)
-        card_counts = Counter(user_data["cards"])
-        unique_card_ids = list(card_counts.keys())
-        
-        # Фильтруем по редкости если нужно
-        if rarity and rarity != "all":
-            display_cards = [
-                cid for cid in unique_card_ids
-                if (c := find_card_by_id(cid, data["cards"])) and c.get("rarity") == rarity
-            ]
-        else:
-            display_cards = unique_card_ids
-        
-        if not display_cards:
-            msg = f"❌ У вас нет карт{' этой редкости' if rarity and rarity != 'all' else ''}!"
+            msg = "❌ У вас нет карт!"
+            saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
+            if query and saved_msg_id:
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=query.message.chat_id,
+                        message_id=saved_msg_id,
+                        text=msg,
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="burn_back")]])
+                    )
+                    return
+                except:
+                    pass
             if query:
                 await query.edit_message_text(msg)
             else:
                 await update.message.reply_text(msg)
             return
         
-        # Сортируем для стабильной навигации
+        card_counts = Counter(user_data["cards"])
+        unique_card_ids = list(card_counts.keys())
+        
+        if rarity:
+            display_cards = [cid for cid in unique_card_ids 
+                            if find_card_by_id(cid, data["cards"]) 
+                            and find_card_by_id(cid, data["cards"])["rarity"] == rarity]
+        else:
+            display_cards = unique_card_ids
+        
+        if not display_cards:
+            msg = f"❌ У вас нет карт{f' редкости {rarity}' if rarity != 'all' else ''}!"
+            saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
+            if query and saved_msg_id:
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=query.message.chat_id,
+                        message_id=saved_msg_id,
+                        text=msg,
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="burn_back")]])
+                    )
+                    return
+                except:
+                    pass
+            if query:
+                await query.edit_message_text(msg)
+            else:
+                await update.message.reply_text(msg)
+            return
+        
         display_cards.sort()
         total_cards = len(display_cards)
-        
-        # Корректировка индекса
         start_index = max(0, min(start_index, total_cards - 1))
-        
         current_card_id = display_cards[start_index]
         card = find_card_by_id(current_card_id, data["cards"])
         count = card_counts[current_card_id]
@@ -6284,54 +6297,105 @@ async def show_burn_cards(
         caption = (
             f"🔥 {card['title']}\n"
             f"🌟 Редкость: {card['rarity']}\n"
-            f"📦 В коллекции: {count} шт.\n\n"
+            f"📦 В коллекции: {count} шт.\n"
             f"🎁 При сжигании вы получите:\n"
-            f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}"
+            f"{'| '.join(reward_parts) if reward_parts else 'Ничего'}"
         )
         
-        # ⭐ КЛАВИАТУРА: навигация + действия ⭐
+        # ⭐ КЛАВИАТУРА ⭐
         nav_row = []
         if start_index > 0:
-            nav_row.append(InlineKeyboardButton(
-                "◀️", callback_data=f"burn_prev_{rarity or 'all'}_{start_index - 1}"
-            ))
-        nav_row.append(InlineKeyboardButton(
-            f"{start_index + 1}/{total_cards}", callback_data="burn_info"
-        ))
+            nav_row.append(InlineKeyboardButton("◀️", callback_data=f"burn_prev_{rarity or 'all'}_{start_index - 1}"))
+        nav_row.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="burn_info"))
         if start_index < total_cards - 1:
-            nav_row.append(InlineKeyboardButton(
-                "▶️", callback_data=f"burn_next_{rarity or 'all'}_{start_index + 1}"
-            ))
+            nav_row.append(InlineKeyboardButton("▶️", callback_data=f"burn_next_{rarity or 'all'}_{start_index + 1}"))
         
-        keyboard = [nav_row]
-        keyboard.append([
-            InlineKeyboardButton("🔥 Сжечь", callback_data=f"burn_confirm_{current_card_id}"),
-            InlineKeyboardButton("🔙 Назад", callback_data="burn_back")
-        ])
+        keyboard = [
+            nav_row,
+            [InlineKeyboardButton("🔥 Сжечь", callback_data=f"burn_confirm_{current_card_id}")],
+            [InlineKeyboardButton("🔥 Сжечь ВСЁ", callback_data="burn_all_preview")],
+            [InlineKeyboardButton("🔙 Назад в меню сжигания", callback_data="burn_back")]
+        ]
         
-        if query:
+        # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ СОХРАНЁННЫЙ MESSAGE_ID ДЛЯ РЕДАКТИРОВАНИЯ ⭐
+        saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
+        
+        if query and saved_msg_id:
+            # ⭐ РЕДАКТИРУЕМ СОХРАНЁННОЕ СООБЩЕНИЕ НАВИГАЦИИ ⭐
             try:
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption)
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="Markdown")
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                await context.bot.edit_message_media(
+                    chat_id=query.message.chat_id,
+                    message_id=saved_msg_id,
                     media=media,
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
             except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                await send_card(update, card, context, caption=caption, 
-                              reply_markup=InlineKeyboardMarkup(keyboard),
-                              chat_id=query.message.chat_id)
+                if "Message is not modified" in str(edit_error):
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=query.message.chat_id,
+                        message_id=saved_msg_id,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+                else:
+                    logger.warning(f"Не удалось отредактировать навигацию: {edit_error}. Отправляю новое.")
+                    # Fallback: отправляем новое сообщение
+                    if card.get("media_type") == "animation":
+                        sent_message = await query.message.reply_animation(
+                            animation=card["image_url"],
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="Markdown"
+                        )
+                    else:
+                        sent_message = await query.message.reply_photo(
+                            photo=card["image_url"],
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="Markdown"
+                        )
+                    context.user_data[f"burn_nav_msg_{user_id}"] = sent_message.message_id
         else:
-            await send_card(update, card, context, caption=caption, 
-                          reply_markup=InlineKeyboardMarkup(keyboard))
-            
+            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ⭐
+            if query:
+                if card.get("media_type") == "animation":
+                    sent_message = await query.message.reply_animation(
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="Markdown"
+                    )
+                else:
+                    sent_message = await query.message.reply_photo(
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="Markdown"
+                    )
+            else:
+                if card.get("media_type") == "animation":
+                    sent_message = await update.message.reply_animation(
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="Markdown"
+                    )
+                else:
+                    sent_message = await update.message.reply_photo(
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="Markdown"
+                    )
+            context.user_data[f"burn_nav_msg_{user_id}"] = sent_message.message_id
+        
+        # ⭐ СОХРАНЯЕМ ПАРАМЕТРЫ НАВИГАЦИИ ⭐
+        context.user_data[f"burn_nav_rarity_{user_id}"] = rarity
+        context.user_data[f"burn_nav_index_{user_id}"] = start_index
+        
     except Exception as e:
         logger.error(f"Ошибка в show_burn_cards: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -6341,12 +6405,11 @@ async def show_burn_cards(
 
 
 async def burn_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, card_id: int) -> None:
-    """Показывает подтверждение сжигания."""
+    """Отправляет ОТДЕЛЬНОЕ сообщение с подтверждением сжигания."""
     try:
         query = update.callback_query
         user_id = str(query.from_user.id)
         data = load_data()
-        
         card = find_card_by_id(card_id, data["cards"])
         if not card:
             await query.answer("❌ Карта не найдена!", show_alert=True)
@@ -6359,35 +6422,28 @@ async def burn_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if reward["free_rolls"] > 0:
             reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных наймов")
         
+        # ⭐ КНОПКИ: Подтвердить / Отмена ⭐
         keyboard = [
-            [
-                InlineKeyboardButton("✅ Подтвердить", callback_data=f"burn_execute_{card_id}"),
-                InlineKeyboardButton("❌ Отмена", callback_data=f"burn_show_{card['rarity']}")
-            ]
+            [InlineKeyboardButton("✅ Подтвердить", callback_data=f"burn_execute_{card_id}")],
+            [InlineKeyboardButton("❌ Отмена", callback_data="burn_cancel_confirm")]
         ]
-
-        try:
-            await query.edit_message_text(
-                f"❓ **Подтвердите сжигание**\n\n"
+        
+        # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ (не редактируем навигацию!) ⭐
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=(
+                f"🔥 **Подтвердите сжигание**\n\n"
                 f"🃏 Карта: {card['title']}\n"
-                f"🌟 Редкость: {card['rarity']}\n\n"
-                f"🎁 Вы получите:\n"
-                f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
-                f"⚠️ Карта будет безвозвратно удалена из коллекции!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
-        except Exception:
-            await query.edit_message_caption(
-                f"❓ **Подтвердите сжигание**\n\n"
-                f"🃏 Карта: {card['title']}\n"
-                f"🌟 Редкость: {card['rarity']}\n\n"
-                f"🎁 Вы получите:\n"
-                f"{' | '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
-                f"⚠️ Карта будет безвозвратно удалена из коллекции!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"🎁 При сжигании вы получите:\n"
+                f"{'| '.join(reward_parts) if reward_parts else 'Ничего'}\n\n"
+                f"⚠️ Карта будет безвозвратно удалена из коллекции!"
+            ),
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+        await query.answer("🔥 Подтвердите сжигание ниже", show_alert=False)
     except Exception as e:
         logger.error(f"Ошибка в burn_confirm: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -6401,7 +6457,6 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # Проверяем наличие карты
         if card_id not in user_data.get("cards", []):
             await query.answer("❌ У вас нет этой карты!", show_alert=True)
             return
@@ -6410,17 +6465,18 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if not card:
             await query.answer("❌ Карта не найдена!", show_alert=True)
             return
-
+        
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ ⭐
         user_data["cards"].remove(card_id)
         update_seasonal_on_burn(user_data, card["rarity"])
+        
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
         user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward["free_rolls"]
         save_data(data)
         
-        # ⭐ ТРИГГЕРЫ КВЕСТОВ НА СЖИГАНИЕ ⭐
+        # ⭐ ТРИГГЕРЫ КВЕСТОВ ⭐
         if card["rarity"] == "Common":
             await update_quest_progress(context, user_id, "burn_common_3", 1)
         if card["rarity"] == "Rare":
@@ -6432,31 +6488,40 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         if reward["free_rolls"] > 0:
             reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных наймов")
         
-        keyboard = [[InlineKeyboardButton("🔙 Назад в сжигание", callback_data="burn_back")]]
-
+        # ⭐ РЕДАКТИРУЕМ СООБЩЕНИЕ ПОДТВЕРЖДЕНИЯ (показываем результат) ⭐
+        keyboard = [[InlineKeyboardButton("🔙 Закрыть", callback_data="burn_close_result")]]
         try:
             await query.edit_message_text(
                 f"✅ **Сжигание успешно!** 🔥\n\n"
                 f"🗑️ Удалено: {card['title']}\n"
-                f"🌟 Редкость: {card['rarity']}\n\n"
+                f"🌟 Редкость: {card['rarity']}\n"
                 f"🎁 Награда получена:\n"
-                f"{' | '.join(reward_parts)}",
+                f"{'| '.join(reward_parts)}",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
         except Exception:
-            await query.edit_message_caption(
-                f"✅ **Сжигание успешно!** 🔥\n\n"
-                f"🗑️ Удалено: {card['title']}\n"
-                f"🌟 Редкость: {card['rarity']}\n\n"
-                f"🎁 Награда получена:\n"
-                f"{' | '.join(reward_parts)}",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            try:
+                await query.edit_message_caption(
+                    f"✅ **Сжигание успешно!** 🔥\n\n"
+                    f"🗑️ Удалено: {card['title']}\n"
+                    f"🌟 Редкость: {card['rarity']}\n"
+                    f"🎁 Награда получена:\n"
+                    f"{'| '.join(reward_parts)}",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            except:
+                pass
+        
+        # ⭐ ОБНОВЛЯЕМ НАВИГАЦИЮ (сообщение с картой) ⭐
+        saved_rarity = context.user_data.get(f"burn_nav_rarity_{user_id}")
+        saved_index = context.user_data.get(f"burn_nav_index_{user_id}", 0)
+        
+        # show_burn_cards сам найдёт сохранённый message_id и отредактирует его
+        await show_burn_cards(update, context, rarity=saved_rarity, start_index=saved_index)
         
         logger.info(f"Игрок {user_id} сжёг карту #{card_id} ({card['rarity']})")
-        
     except Exception as e:
         logger.error(f"Ошибка в burn_execute: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -6625,16 +6690,33 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         query = update.callback_query
         await query.answer()
+        user_id = str(query.from_user.id)
+
+        # ⭐ НОВОЕ: Отмена подтверждения ⭐
+        if query.data == "burn_cancel_confirm":
+            try:
+                await query.message.delete()
+            except:
+                pass
+            return
+        
+        # ⭐ НОВОЕ: Закрыть результат сжигания ⭐
+        if query.data == "burn_close_result":
+            try:
+                await query.message.delete()
+            except:
+                pass
+            return
         
         # Меню редкостей
         # ⭐ ОБРАБОТКА СЖИГАНИЯ ВСЕХ КАРТ ⭐
         if query.data == "burn_all_preview":
             await burn_all_preview(update, context)
             return
-            
         if query.data == "burn_all_execute":
             await burn_all_execute(update, context)
             return
+            
         if query.data == "burn_menu":
             await burn_menu(update, context)
             return
@@ -6691,6 +6773,10 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         # Назад в меню сжигания
         if query.data == "burn_back":
+            # ⭐ НОВОЕ: Очищаем сохранённые данные навигации ⭐
+            context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+            context.user_data.pop(f"burn_nav_rarity_{user_id}", None)
+            context.user_data.pop(f"burn_nav_index_{user_id}", None)
             await burn_menu(update, context)
             return
             
