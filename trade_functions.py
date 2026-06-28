@@ -584,8 +584,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "from_user": user_id,
                 "cards_offered": selected_card_ids,
                 "trade_type": trade_info["trade_type"],
-                "timestamp": int(time.time()),
-                "expires_at": int(time.time()) + 86400
+                "timestamp": int(time.time())
             }
             save_data(data)
 
@@ -652,27 +651,11 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         data = load_data()
         
         if user_id not in data.get("active_trades", {}):
-            logger.warning(
-                f"Трейд не найден для пользователя {user_id}. "
-                f"Активные трейды: {list(data.get('active_trades', {}).keys())}"
-            )
+            logger.warning(f"Трейд не найден для пользователя {user_id}")
             await query.edit_message_text("❌ Трейд не найден или истёк!")
             return
         
         trade_info = data["active_trades"][user_id]
-
-        # ⭐ Проверка истечения ⭐
-        if trade_info.get("expires_at") and time.time() > trade_info["expires_at"]:
-            del data["active_trades"][user_id]
-            save_data(data)
-            await query.edit_message_text("❌ Трейд истёк (прошло больше 24 часов)!")
-            return
-
-        # ⭐ ДОБАВИТЬ: Проверка на обработку ⭐
-        if trade_info.get("processing"):
-            await query.answer("⏳ Трейд уже обрабатывается!", show_alert=True)
-            return
-            
         from_user = trade_info["from_user"]
         cards_offered = trade_info["cards_offered"]
         
