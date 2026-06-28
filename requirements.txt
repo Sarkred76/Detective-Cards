@@ -23,7 +23,6 @@ packaging==26.0
 pathspec==1.0.4
 platformdirs==4.9.4
 propcache==0.4.1
-pyaes==1.6.1
 pydantic==2.12.5
 pydantic_core==2.41.5
 Pyrogram==2.0.106
