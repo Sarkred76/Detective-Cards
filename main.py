@@ -6223,7 +6223,7 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            msg = "❌ У вас нет карт!"
+            msg = "❌ У вас нет карт для сжигания!"
             saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
             if query and saved_msg_id:
                 try:
@@ -6234,8 +6234,11 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="burn_back")]])
                     )
                     return
-                except:
-                    pass
+                except Exception as e:
+                    if "Message is not modified" in str(e):
+                        return
+                    # При другой ошибке — очищаем и отправляем новое
+                    context.user_data.pop(f"burn_nav_msg_{user_id}", None)
             if query:
                 await query.edit_message_text(msg)
             else:
@@ -6264,8 +6267,10 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="burn_back")]])
                     )
                     return
-                except:
-                    pass
+                except Exception as e:
+                    if "Message is not modified" in str(e):
+                        return
+                    context.user_data.pop(f"burn_nav_msg_{user_id}", None)
             if query:
                 await query.edit_message_text(msg)
             else:
@@ -6317,11 +6322,18 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
             [InlineKeyboardButton("🔙 Назад в меню сжигания", callback_data="burn_back")]
         ]
         
-        # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ СОХРАНЁННЫЙ MESSAGE_ID ДЛЯ РЕДАКТИРОВАНИЯ ⭐
+        # ⭐ ПРОВЕРЯЕМ, СМЕНИЛАСЬ ЛИ РЕДКОСТЬ ⭐
         saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
+        saved_rarity = context.user_data.get(f"burn_nav_rarity_{user_id}")
+        
+        # ⭐ Если редкость сменилась — очищаем saved_msg_id ⭐
+        # Это нужно, чтобы не пытаться редактировать сообщение с другой редкостью
+        if saved_rarity != rarity:
+            saved_msg_id = None
+            context.user_data.pop(f"burn_nav_msg_{user_id}", None)
         
         if query and saved_msg_id:
-            # ⭐ РЕДАКТИРУЕМ СОХРАНЁННОЕ СООБЩЕНИЕ НАВИГАЦИИ ⭐
+            # ⭐ РЕДАКТИРУЕМ СОХРАНЁННОЕ СООБЩЕНИЕ ⭐
             try:
                 if card.get("media_type") == "animation":
                     media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="Markdown")
@@ -6334,15 +6346,23 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
             except Exception as edit_error:
-                if "Message is not modified" in str(edit_error):
-                    await context.bot.edit_message_reply_markup(
-                        chat_id=query.message.chat_id,
-                        message_id=saved_msg_id,
-                        reply_markup=InlineKeyboardMarkup(keyboard)
-                    )
+                error_str = str(edit_error)
+                if "Message is not modified" in error_str:
+                    # ⭐ СООБЩЕНИЕ УЖЕ СОДЕРЖИТ ТО ЖЕ САМОЕ — просто выходим ⭐
+                    # Сохраняем параметры для будущих вызовов
+                    context.user_data[f"burn_nav_rarity_{user_id}"] = rarity
+                    context.user_data[f"burn_nav_index_{user_id}"] = start_index
+                    return
                 else:
                     logger.warning(f"Не удалось отредактировать навигацию: {edit_error}. Отправляю новое.")
-                    # Fallback: отправляем новое сообщение
+                    context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+                    saved_msg_id = None
+                    # Продолжим вниз — отправим новое сообщение
+        
+        if not saved_msg_id:
+            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ⭐
+            try:
+                if query:
                     if card.get("media_type") == "animation":
                         sent_message = await query.message.reply_animation(
                             animation=card["image_url"],
@@ -6357,40 +6377,27 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                             reply_markup=InlineKeyboardMarkup(keyboard),
                             parse_mode="Markdown"
                         )
-                    context.user_data[f"burn_nav_msg_{user_id}"] = sent_message.message_id
-        else:
-            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ⭐
-            if query:
-                if card.get("media_type") == "animation":
-                    sent_message = await query.message.reply_animation(
-                        animation=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
                 else:
-                    sent_message = await query.message.reply_photo(
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
-            else:
-                if card.get("media_type") == "animation":
-                    sent_message = await update.message.reply_animation(
-                        animation=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
-                else:
-                    sent_message = await update.message.reply_photo(
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
-            context.user_data[f"burn_nav_msg_{user_id}"] = sent_message.message_id
+                    if card.get("media_type") == "animation":
+                        sent_message = await update.message.reply_animation(
+                            animation=card["image_url"],
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="Markdown"
+                        )
+                    else:
+                        sent_message = await update.message.reply_photo(
+                            photo=card["image_url"],
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="Markdown"
+                        )
+                context.user_data[f"burn_nav_msg_{user_id}"] = sent_message.message_id
+            except Exception as send_error:
+                logger.error(f"Не удалось отправить новое сообщение: {send_error}")
+                if query:
+                    await query.answer("❌ Ошибка при показе карты", show_alert=True)
+                return
         
         # ⭐ СОХРАНЯЕМ ПАРАМЕТРЫ НАВИГАЦИИ ⭐
         context.user_data[f"burn_nav_rarity_{user_id}"] = rarity
