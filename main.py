@@ -6227,18 +6227,29 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
             saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
             if query and saved_msg_id:
                 try:
+                    if card.get("media_type") == "animation":
+                        media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                    else:
+                        
+                        media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
                     await context.bot.edit_message_text(
                         chat_id=query.message.chat_id,
                         message_id=saved_msg_id,
-                        text=msg,
-                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="burn_back")]])
+                        media=media,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
                     )
-                    return
-                except Exception as e:
-                    if "Message is not modified" in str(e):
+                except Exception as edit_error:
+                    error_str = str(edit_error)
+                    if "Message is not modified" in error_str:
+                        # Сообщение уже содержит то же самое — просто выходим
+                        context.user_data[f"burn_nav_rarity_{user_id}"] = rarity
+                        context.user_data[f"burn_nav_index_{user_id}"] = start_index
                         return
-                    # При другой ошибке — очищаем и отправляем новое
-                    context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+                    else:
+                        # ⭐ НОВОЕ: При любой другой ошибке — очищаем и отправляем новое ⭐
+                        logger.warning(f"Не удалось отредактировать навигацию: {edit_error}. Отправляю новое.")
+                        context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+                        saved_msg_id = None
             if query:
                 await query.edit_message_text(msg)
             else:
@@ -6731,11 +6742,17 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Выбор редкости
         if query.data.startswith("burn_rarity_"):
             rarity = query.data.replace("burn_rarity_", "")
+            context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+            context.user_data.pop(f"burn_nav_rarity_{user_id}", None)
+            context.user_data.pop(f"burn_nav_index_{user_id}", None)
             await show_burn_cards(update, context, rarity=rarity, start_index=0)
             return
         
         # Все карты
         if query.data == "burn_all":
+            context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+            context.user_data.pop(f"burn_nav_rarity_{user_id}", None)
+            context.user_data.pop(f"burn_nav_index_{user_id}", None)
             await show_burn_cards(update, context, rarity="all", start_index=0)
             return
         
