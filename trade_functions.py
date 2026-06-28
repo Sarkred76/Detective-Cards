@@ -517,18 +517,20 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if query.data.startswith("trade_prev_") or query.data.startswith("trade_next_"):
             action = "prev" if "prev" in query.data else "next"
             current_index = trade_info.get("current_index", 0)
+
+            display_card_ids = trade_info.get("display_card_ids", [])
             
-            if not user_card_ids:
+            if not display_card_ids:
                 await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
             
             if action == "prev":
-                current_index = (current_index - 1) % len(user_card_ids)
+                current_index = (current_index - 1) % len(display_card_ids)
             else:
-                current_index = (current_index + 1) % len(user_card_ids)
+                current_index = (current_index + 1) % len(display_card_ids)
             
             # ⭐ ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ ⭐
-            await _show_trade_card(query, context, trade_info, user_card_ids, current_index)
+            await _show_trade_card(query, context, trade_info, display_card_ids, current_index)
         
         # Выбор карты
         elif query.data.startswith("trade_select_"):
@@ -962,24 +964,25 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("❌ Сессия выбора карт истекла!")
             return
         data = load_data()
-        user_card_ids = trade_info.get("user_card_ids", [])
+        display_card_ids = trade_info.get("display_card_ids", [])
+        
         # Навигация
         if query.data.startswith("trade_return_prev_") or query.data.startswith("trade_return_next_"):
             action = "prev" if "prev" in query.data else "next"
             current_index = trade_info.get("current_index", 0)
-            if not user_card_ids:
+            if not display_card_ids:
                 await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
             if action == "prev":
-                current_index = (current_index - 1) % len(user_card_ids)
+                current_index = (current_index - 1) % len(display_card_ids)
             else:
-                current_index = (current_index + 1) % len(user_card_ids)
+                current_index = (current_index + 1) % len(display_card_ids)
             trade_info["current_index"] = current_index
-            card = find_card_by_id(user_card_ids[current_index], data["cards"])
+            card = find_card_by_id(display_card_ids[current_index], data["cards"])
             if card:
-                selected_count = len(trade_info.get("selected_cards", []))
+                selected_count = len(trade_info.get("selected_full_indices", []))
                 cards_count = trade_info.get("cards_count", 1)
-                card_counts = Counter(user_card_ids)
+                card_counts = Counter(trade_info.get("full_card_ids", []))
                 card_in_collection = card_counts.get(card["id"], 1)
                 caption = (
                     f"{card['title']}\n"
@@ -987,7 +990,10 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
-                is_selected = current_index in trade_info.get("selected_cards", [])
+                # ⭐ ИСПРАВЛЕНИЕ: Проверяем по индексу в полном списке ⭐
+                display_to_full_map = trade_info.get("display_to_full_map", {})
+                full_index = display_to_full_map.get(current_index, current_index)
+                is_selected = full_index in trade_info.get("selected_full_indices", [])
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
                 keyboard = [
                     [
