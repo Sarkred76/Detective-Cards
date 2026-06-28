@@ -137,16 +137,18 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         if text.lower() == "/cancel":
             if step == "search_mode":
                 # ⭐ ПРИ ОТМЕНЕ ПОИСКА ВОЗВРАЩАЕМ ПОЛНЫЙ СПИСОК ⭐
-                data = load_data()
-                user_data = data["users"].get(user_id)
-                full_card_ids = user_data.get("cards", []) if user_data else []
-                
-                trade_info["step"] = "select_cards"
-                trade_info["user_card_ids"] = full_card_ids  # Восстанавливаем полный список
+                trade_info["step"] = trade_info.get("previous_step_before_search", "select_cards")
+                if "previous_step_before_search" in trade_info:
+                    del trade_info["previous_step_before_search"]
+        
+                full_card_ids = trade_info.get("full_card_ids", [])
+                trade_info["display_card_ids"] = full_card_ids
+                # ⭐ Восстанавливаем маппинг ⭐
+                trade_info["display_to_full_map"] = {i: i for i in range(len(full_card_ids))}
                 trade_info["current_index"] = 0
-                
+        
                 await update.message.reply_text("❌ Поиск отменён. Показан полный список карт.")
-                # Показываем первую карту из полного списка
+                # ⭐ selected_full_indices НЕ трогаем — выбор сохраняется! ⭐
                 await _show_trade_card(update, context, trade_info, full_card_ids, 0)
                 return
             elif step == "select_partner":
@@ -198,7 +200,21 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             trade_type = trade_info["trade_type"]
             cards_count = int(trade_type.split("v")[0])
             trade_info["cards_count"] = cards_count
-            trade_info["selected_cards"] = []
+            # ⭐ ИСПРАВЛЕНИЕ: Инициализируем с маппингом ⭐
+            user_data = data["users"][user_id]
+            full_card_ids = user_data.get("cards", [])
+
+            if len(full_card_ids) < cards_count:
+                await update.message.reply_text("❌ Недостаточно карт для трейда!")
+                del context.user_data[user_id]
+                return
+
+            trade_info["full_card_ids"] = full_card_ids
+            trade_info["display_card_ids"] = full_card_ids
+            # ⭐ Маппинг: индекс в display → индекс в full (при старте они совпадают) ⭐
+            trade_info["display_to_full_map"] = {i: i for i in range(len(full_card_ids))}
+            trade_info["selected_full_indices"] = []  # ⭐ Индексы в ПОЛНОМ списке ⭐
+            trade_info["current_index"] = 0
 
             await update.message.reply_text(
                 f"✅ Партнёр: {partner_id}\n"
@@ -210,19 +226,9 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 f"• [➡️ Далее] - завершить выбор",
                 parse_mode="Markdown"
             )
-            
-            user_data = data["users"][user_id]
-            user_card_ids = user_data.get("cards", [])
-            if len(user_card_ids) < cards_count:
-                await update.message.reply_text("❌ Недостаточно карт для трейда!")
-                del context.user_data[user_id]
-                return
 
-            trade_info["user_card_ids"] = user_card_ids
-            trade_info["current_index"] = 0
-            
-            # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ КАРТУ ЧЕРЕЗ ОБЩУЮ ФУНКЦИЮ ⭐
-            await _show_trade_card(update, context, trade_info, user_card_ids, 0)
+            # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ КАРТУ ⭐
+            await _show_trade_card(update, context, trade_info, full_card_ids, 0)
 
     except Exception as e:
         logger.error(f"Ошибка process_partner_selection: {e}")
@@ -238,21 +244,21 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
              pass
 
 
-async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, index):
+async def _show_trade_card(update_or_query, context, trade_info, display_card_ids, index):
     """
     ⭐ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КАРТЫ ДЛЯ ТРЕЙДА ⭐
-    Используется и для обычного просмотра, и для результатов поиска.
+    Поддерживает дубликаты карт и поиск.
     """
-    if not card_ids_list:
+    if not display_card_ids:
         if hasattr(update_or_query, 'message'):
             await update_or_query.message.reply_text("❌ Карты не найдены!")
         return
 
     # Корректировка индекса
-    index = max(0, min(index, len(card_ids_list) - 1))
+    index = max(0, min(index, len(display_card_ids) - 1))
     trade_info["current_index"] = index
     
-    card_id = card_ids_list[index]
+    card_id = display_card_ids[index]
     data = load_data()
     card = find_card_by_id(card_id, data["cards"])
     
@@ -266,37 +272,38 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
     user_data = data["users"].get(user_id, {})
     all_user_cards = user_data.get("cards", [])
     
-    # Считаем количество в архиве (по полному списку, а не по фильтрованному)
+    # ⭐ Считаем количество в архиве (по полному списку) ⭐
     card_counts = Counter(all_user_cards)
     card_in_collection = card_counts.get(card["id"], 1)
     
-    selected_cards = trade_info.get("selected_cards", [])
+    # ⭐ ИСПРАВЛЕНИЕ: Используем индексы в ПОЛНОМ списке ⭐
+    selected_full_indices = trade_info.get("selected_full_indices", [])
     cards_count = trade_info.get("cards_count", 1)
     
     caption = (
         f"{card['title']}\n"
         f"Редкость: {card['rarity']}\n"
         f"🛡 В архиве: {card_in_collection} шт.\n\n"
-        f"{len(selected_cards)}/{cards_count} выбрано"
+        f"{len(selected_full_indices)}/{cards_count} выбрано"
     )
     
-    is_selected = index in selected_cards
+    # ⭐ ИСПРАВЛЕНИЕ: Проверяем по индексу в полном списке ⭐
+    display_to_full_map = trade_info.get("display_to_full_map", {})
+    full_index = display_to_full_map.get(index, index)
+    is_selected = full_index in selected_full_indices
     select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
     
     # Определяем префикс кнопок
     step = trade_info.get("step", "select_cards")
     
-    # ⭐ ИСПРАВЛЕНИЕ: КОРРЕКТНЫЕ НАЗВАНИЯ КНОПОК ДЛЯ КАЖДОГО ШАГА ⭐
     if step == "select_return_cards":
-        # Для получателя (Игрок Б)
         button_prefix = "trade_return_"
         search_callback = "trade_return_search_button"
         finish_callback = "trade_return_finish"
     else:
-        # Для отправителя (Игрок А)
         button_prefix = "trade_"
-        search_callback = "trade_open_search"      # ← Совпадает с trade_callback
-        finish_callback = "trade_finish_select"    # ← Совпадает с trade_callback
+        search_callback = "trade_open_search"
+        finish_callback = "trade_finish_select"
     
     keyboard = [
         [
@@ -312,7 +319,6 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
     
     # Отправка или редактирование сообщения
     if hasattr(update_or_query, 'edit_message_media'):
-        # Это callback query
         try:
             media = InputMediaPhoto(media=card["image_url"], caption=caption)
             await update_or_query.edit_message_media(media=media, reply_markup=reply_markup)
@@ -320,7 +326,6 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
             if "Message is not modified" not in str(e):
                 logger.error(f"Ошибка редактирования в _show_trade_card: {e}")
     elif hasattr(update_or_query, 'message'):
-        # Это обычное сообщение (текстовое)
         await update_or_query.message.reply_photo(
             photo=card["image_url"],
             caption=caption,
@@ -330,7 +335,8 @@ async def _show_trade_card(update_or_query, context, trade_info, card_ids_list, 
 
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    ⭐ ОБНОВЛЁННЫЙ ПОИСК: ФИЛЬТРУЕТ СПИСОК ВМЕСТО ВЫВОДА МЕНЮ ⭐
+    ⭐ ПОИСК С ПОДДЕРЖКОЙ ДУБЛИКАТОВ ⭐
+    Фильтрует список, сохраняя маппинг индексов.
     """
     try:
         user_id = str(update.effective_user.id)
@@ -353,14 +359,18 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             return
         
         search_query = text.lower()
-        full_card_ids = user_data["cards"]
+        full_card_ids = trade_info.get("full_card_ids", user_data["cards"])
         
-        # ⭐ ФИЛЬТРУЕМ СПИСОК, СОХРАНЯЯ ВСЕ ДУБЛИКАТЫ ⭐
+        # ⭐ ФИЛЬТРУЕМ, СОХРАНЯЯ МАППИНГ ИНДЕКСОВ ⭐
         filtered_ids = []
-        for cid in full_card_ids:
-            card = find_card_by_id(cid, data["cards"])
+        display_to_full_map = {}
+        
+        for full_index, card_id in enumerate(full_card_ids):
+            card = find_card_by_id(card_id, data["cards"])
             if card and search_query in card["title"].lower():
-                filtered_ids.append(cid)
+                display_index = len(filtered_ids)
+                filtered_ids.append(card_id)
+                display_to_full_map[display_index] = full_index
         
         if not filtered_ids:
             await update.message.reply_text(
@@ -369,11 +379,12 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             )
             return
         
-        # ⭐ ЗАМЕНЯЕМ СПИСОК В СЕССИИ НА ОТФИЛЬТРОВАННЫЙ ⭐
-        trade_info["user_card_ids"] = filtered_ids
+        # ⭐ ОБНОВЛЯЕМ СЕССИЮ ⭐
+        trade_info["display_card_ids"] = filtered_ids
+        trade_info["display_to_full_map"] = display_to_full_map
         trade_info["current_index"] = 0
         
-        # Возвращаемся к шагу выбора (чтобы кнопки работали корректно)
+        # Возвращаемся к шагу выбора
         prev_step = trade_info.get("previous_step_before_search", "select_cards")
         trade_info["step"] = prev_step
         if "previous_step_before_search" in trade_info:
@@ -385,7 +396,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             f"Выберите карту кнопками ниже:"
         )
         
-        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ НАЙДЕННУЮ КАРТУ ЧЕРЕЗ ОБЩУЮ ФУНКЦИЮ ⭐
+        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ НАЙДЕННУЮ КАРТУ ⭐
         await _show_trade_card(update, context, trade_info, filtered_ids, 0)
         
     except Exception as e:
@@ -521,23 +532,32 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Выбор карты
         elif query.data.startswith("trade_select_"):
-            card_index = int(query.data.split("_")[-1])
-            selected_cards = trade_info.get("selected_cards", [])
+            display_index = int(query.data.split("_")[-1])
+    
+            # ⭐ ИСПРАВЛЕНИЕ: Работаем с индексами в полном списке ⭐
+            selected_full_indices = trade_info.get("selected_full_indices", [])
             cards_count = trade_info.get("cards_count", 1)
-            
-            if card_index in selected_cards:
-                selected_cards.remove(card_index)
+            display_to_full_map = trade_info.get("display_to_full_map", {})
+    
+            # Получаем индекс в полном списке
+            full_index = display_to_full_map.get(display_index, display_index)
+    
+            if full_index in selected_full_indices:
+                # Убираем карту
+                selected_full_indices.remove(full_index)
             else:
-                if len(selected_cards) >= cards_count:
+                # Добавляем карту
+                if len(selected_full_indices) >= cards_count:
                     await query.answer("❌ Максимум карт выбрано!", show_alert=True)
                     return
-                selected_cards.append(card_index)
-            
-            trade_info["selected_cards"] = selected_cards
-            
+                selected_full_indices.append(full_index)
+    
+            trade_info["selected_full_indices"] = selected_full_indices
+    
             # ⭐ ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ ⭐
             current_index = trade_info.get("current_index", 0)
-            await _show_trade_card(query, context, trade_info, user_card_ids, current_index)
+            display_card_ids = trade_info.get("display_card_ids", [])
+            await _show_trade_card(query, context, trade_info, display_card_ids, current_index)
         
         elif query.data == "trade_open_search":
             trade_info["previous_step_before_search"] = trade_info["step"]
@@ -552,23 +572,27 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
         
         elif query.data == "trade_finish_select":
-            selected_cards = trade_info.get("selected_cards", [])
+            # ⭐ ИСПРАВЛЕНИЕ: Используем selected_full_indices ⭐
+            selected_full_indices = trade_info.get("selected_full_indices", [])
             cards_count = trade_info.get("cards_count", 1)
             partner_id = trade_info["partner_id"]
-            
-            if len(selected_cards) != cards_count:
+            full_card_ids = trade_info.get("full_card_ids", [])
+    
+            if len(selected_full_indices) != cards_count:
                 await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
                 return
-            
+    
+            # ⭐ Получаем ID карт по индексам ⭐
+            selected_card_ids = [full_card_ids[i] for i in selected_full_indices]
+    
             trade_info["step"] = "confirm"
-            selected_card_ids = [user_card_ids[i] for i in selected_cards]
             trade_info["selected_card_ids"] = selected_card_ids
-            
+    
             try:
                 await query.message.delete()
             except:
                 pass
-            
+    
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
@@ -578,7 +602,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ),
                 parse_mode="Markdown"
             )
-            
+    
             data = load_data()
             data["active_trades"][partner_id] = {
                 "from_user": user_id,
@@ -603,22 +627,22 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     sender_name += f" {sender_data['last_name']}"
                 if sender_data.get("username"):
                     sender_name = f"@{sender_data['username']}"
-    
+
                 cards_info = []
                 for card_id in selected_card_ids:
                     card = find_card_by_id(card_id, data["cards"])
                     if card:
                         cards_info.append(f"• {card['title']} ({card['rarity']})")
-    
+
                 cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
-    
+
                 keyboard = [
                     [
                         InlineKeyboardButton("✅ Принять", callback_data=f"trade_accept_btn_{user_id}"),
                         InlineKeyboardButton("❌ Отклонить", callback_data=f"trade_decline_btn_{user_id}"),
                     ]
                 ]
-    
+
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
@@ -850,38 +874,41 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data[user_id]["step"] = "select_return_cards"
             from_user = trade_info.get("trade_partner")
             cards_count = len(cards_offered)
-            
+    
             await query.message.reply_text(
                 f"✅ Запрос принят!\n\n"
                 f"🐦‍🔥 Теперь выберите {cards_count} карты для обмена\n\n"
                 "Используйте кнопки для выбора...",
                 parse_mode="Markdown"
             )
-            
+    
             # Показываем карты пользователя для выбора
             user_data = data["users"][user_id]
-            user_card_ids = user_data.get("cards", [])
-            
-            if len(user_card_ids) < cards_count:
+            full_card_ids = user_data.get("cards", [])
+    
+            if len(full_card_ids) < cards_count:
                 await query.message.reply_text(
                     f"❌ Недостаточно карт для трейда!\n"
-                    f"У вас: {len(user_card_ids)} карт, нужно: {cards_count}"
+                    f"У вас: {len(full_card_ids)} карт, нужно: {cards_count}"
                 )
                 if "incoming_trade" in context.user_data.get(user_id, {}):
                     del context.user_data[user_id]["incoming_trade"]
                 return
-            
-            context.user_data[user_id]["user_card_ids"] = user_card_ids
+    
+            # ⭐ ИСПРАВЛЕНИЕ: Инициализируем с маппингом ⭐
+            context.user_data[user_id]["full_card_ids"] = full_card_ids
+            context.user_data[user_id]["display_card_ids"] = full_card_ids
+            context.user_data[user_id]["display_to_full_map"] = {i: i for i in range(len(full_card_ids))}
             context.user_data[user_id]["cards_count"] = cards_count
-            context.user_data[user_id]["selected_cards"] = []
+            context.user_data[user_id]["selected_full_indices"] = []  # ⭐ Индексы в полном списке ⭐
             context.user_data[user_id]["current_index"] = 0
-            
+    
             # Показываем первую карту
-            if not user_card_ids:
+            if not full_card_ids:
                 await query.message.reply_text("❌ У вас нет карт!")
                 return
-            
-            card = find_card_by_id(user_card_ids[0], data["cards"])
+    
+            card = find_card_by_id(full_card_ids[0], data["cards"])
             if card:
                 caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n0/{cards_count} выбрано"
                 keyboard = [
@@ -975,29 +1002,43 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         # Выбор карты
         elif query.data.startswith("trade_return_select_"):
-            card_index = int(query.data.split("_")[-1])
-            selected_cards = trade_info.get("selected_cards", [])
+            display_index = int(query.data.split("_")[-1])
+    
+            # ⭐ ИСПРАВЛЕНИЕ: Работаем с индексами в полном списке ⭐
+            selected_full_indices = trade_info.get("selected_full_indices", [])
             cards_count = trade_info.get("cards_count", 1)
-            if card_index in selected_cards:
-                selected_cards.remove(card_index)
+            display_to_full_map = trade_info.get("display_to_full_map", {})
+    
+            # Получаем индекс в полном списке
+            full_index = display_to_full_map.get(display_index, display_index)
+    
+            if full_index in selected_full_indices:
+                # Убираем карту
+                selected_full_indices.remove(full_index)
             else:
-                if len(selected_cards) >= cards_count:
+                # Добавляем карту
+                if len(selected_full_indices) >= cards_count:
                     await query.answer("❌ Максимум карт выбрано!", show_alert=True)
                     return
-                selected_cards.append(card_index)
-            trade_info["selected_cards"] = selected_cards
+                selected_full_indices.append(full_index)
+    
+            trade_info["selected_full_indices"] = selected_full_indices
+    
             current_index = trade_info.get("current_index", 0)
-            card = find_card_by_id(user_card_ids[current_index], data["cards"])
+            display_card_ids = trade_info.get("display_card_ids", [])
+    
+            card_id = display_card_ids[current_index]
+            card = find_card_by_id(card_id, data["cards"])
             if card:
-                card_counts = Counter(user_card_ids)
+                card_counts = Counter(trade_info.get("full_card_ids", []))
                 card_in_collection = card_counts.get(card["id"], 1)
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
                     f"🛡 В архиве: {card_in_collection} шт.\n"
-                    f"{len(selected_cards)}/{cards_count} выбрано"
+                    f"{len(selected_full_indices)}/{cards_count} выбрано"
                 )
-                is_selected = current_index in selected_cards
+                is_selected = full_index in selected_full_indices
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
                 keyboard = [
                     [
@@ -1010,6 +1051,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 ]
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+        
         elif query.data == "trade_return_search_button":
             # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ПОЛУЧАТЕЛЯ
             if user_id in context.user_data:
@@ -1026,16 +1068,22 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             return
         # ⭐ ЗАВЕРШЕНИЕ ВЫБОРА КАРТ ⭐
         elif query.data == "trade_return_finish":
-            selected_cards = trade_info.get("selected_cards", [])
+            # ⭐ ИСПРАВЛЕНИЕ: Используем selected_full_indices ⭐
+            selected_full_indices = trade_info.get("selected_full_indices", [])
             cards_count = trade_info.get("cards_count", 1)
-            if len(selected_cards) != cards_count:
+            full_card_ids = trade_info.get("full_card_ids", [])
+    
+            if len(selected_full_indices) != cards_count:
                 await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
                 return
-            # Получаем выбранные карты
-            selected_card_ids = [user_card_ids[i] for i in selected_cards]
+    
+            # ⭐ Получаем ID карт по индексам ⭐
+            selected_card_ids = [full_card_ids[i] for i in selected_full_indices]
+    
             received_cards = trade_info.get("received_cards", [])  # Карты от отправителя
             partner_id = trade_info.get("trade_partner")  # ID отправителя (Игрок А)
-            # ⭐ СОХРАНЯЕМ В ФАЙЛ ВМЕСТО context.user_data ⭐
+    
+            # ⭐ СОХРАНЯЕМ В ФАЙЛ ⭐
             data = load_data()
             data["active_trades"][partner_id] = {
                 "from_user": partner_id,
@@ -1046,15 +1094,18 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 "timestamp": int(time.time())
             }
             save_data(data)
-            # ⭐ ИСПРАВЛЕНИЕ: Очищаем context.user_data Получателя ⭐
+    
+            # ⭐ Очищаем context.user_data Получателя ⭐
             if user_id in context.user_data:
                 del context.user_data[user_id]
+    
             # Отправляем уведомление отправителю (Игрок А)
             try:
                 sender_data = data["users"].get(user_id, {})
                 sender_name = sender_data.get("first_name", "Игрок")
                 if sender_data.get("last_name"):
                     sender_name += f" {sender_data['last_name']}"
+        
                 # Информация о картах получателя
                 return_cards_info = []
                 for card_id in selected_card_ids:
@@ -1062,6 +1113,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     if card:
                         return_cards_info.append(f"• {card['title']} ({card['rarity']})")
                 return_cards_text = "\n".join(return_cards_info) if return_cards_info else "Нет карт"
+        
                 # Информация о картах отправителя (что он получит)
                 offered_cards_info = []
                 for card_id in received_cards:
@@ -1069,6 +1121,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     if card:
                         offered_cards_info.append(f"• {card['title']} ({card['rarity']})")
                 offered_cards_text = "\n".join(offered_cards_info) if offered_cards_info else "Нет карт"
+        
                 # Инлайн-кнопки для подтверждения
                 keyboard = [
                     [
@@ -1076,6 +1129,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         InlineKeyboardButton("❌ Отменить", callback_data=f"trade_final_decline_{user_id}"),
                     ]
                 ]
+        
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
@@ -1089,7 +1143,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="Markdown"
                 )
-                # ⭐ ИСПРАВЛЕНИЕ: удаляем фото и отправляем текстовое сообщение ⭐
+        
                 try:
                     await query.message.delete()
                 except:
