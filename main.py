@@ -6130,6 +6130,14 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         query = update.callback_query if hasattr(update, 'callback_query') else None
         user_id = str(update.effective_user.id)
+        
+        # ⭐ НОВОЕ: Очищаем сохранённые данные навигации при входе в меню ⭐
+        # Это нужно, чтобы при повторном выборе той же редкости
+        # создавалось новое сообщение, а не редактировалось старое
+        context.user_data.pop(f"burn_nav_msg_{user_id}", None)
+        context.user_data.pop(f"burn_nav_rarity_{user_id}", None)
+        context.user_data.pop(f"burn_nav_index_{user_id}", None)
+        
         data = load_data()
         user_data = data["users"].get(user_id)
         
@@ -6147,7 +6155,6 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "Epic", "Epic Team-up", "Legendary",
             "Legendary Team-up", "Highlight", "Limited"
         ]
-        
         keyboard = []
         for i in range(0, len(rarities), 3):
             row = []
@@ -6165,15 +6172,11 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             keyboard.append(row)
         
         # Кнопка "Все карты"
-        keyboard.append([
-            InlineKeyboardButton("📋 Все карты", callback_data="burn_all")
-        ])
-        keyboard.append([
-            InlineKeyboardButton("🔥 Сжечь ВСЁ", callback_data="burn_all_preview")
-        ])
+        keyboard.append([InlineKeyboardButton("📋 Все карты", callback_data="burn_all")])
+        keyboard.append([InlineKeyboardButton("🔥 Сжечь ВСЁ", callback_data="burn_all_preview")])
         
         caption = (
-            "🔥 **Меню сжигания**\n"
+            "🔥 **Меню сжигания**\n\n"
             "Выберите редкость для просмотра карт:\n\n"
             "💰 **Награды за сжигание:**\n"
             "• Common: 100 бэт-коинов 💰\n"
@@ -6183,23 +6186,21 @@ async def burn_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "• Epic Team-up: 3 бесплатных найма 🔍\n"
             "• Legendary: 5 бесплатных наймов 🔍\n"
             "• Legendary Team-up: 7 бесплатных наймов 🔍\n"
-            "• Highlight: 10 бесплатных наймов 🔍"
+            "• Highlight: 10 бесплатных наймов 🔍\n\n"
+            "🔒 **Карты редкости Limited защищены от массового сжигания!**"
         )
         
         if query:
             try:
-                await query.edit_message_text(
-                    caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
+                await query.message.delete()
             except:
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
+                pass
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         else:
             await update.message.reply_text(
                 caption,
