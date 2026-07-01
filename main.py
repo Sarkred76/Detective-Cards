@@ -1122,7 +1122,7 @@ async def archive_search_execute(update: Update, context: ContextTypes.DEFAULT_T
             photo=card["image_url"],
             caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
     except Exception as e:
@@ -1150,7 +1150,15 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
         # ⭐ Отмена поиска ⭐
         if query.data == "archive_search_cancel":
             del context.user_data[user_id]
-            await query.edit_message_text("❌ Поиск отменён.")
+            # ✅ Правильно: либо удаляем сообщение, либо редактируем caption
+            try:
+                await query.message.delete()
+            except:
+                # Если не удалось удалить, редактируем caption
+                await query.edit_message_caption(
+                    caption="❌ Поиск отменён.",
+                    reply_markup=None
+                )
             return
         
         # ⭐ Информация ⭐
@@ -1163,58 +1171,93 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
             action = "prev" if "prev" in query.data else "next"
             current_index = search_info.get("current_index", 0)
             filtered_cards = search_info.get("filtered_cards", [])
-            
+    
             if not filtered_cards:
                 await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
-            
+    
             if action == "prev":
                 new_index = current_index - 1
             else:
                 new_index = current_index + 1
-            
+    
             # Проверка границ
             if new_index < 0 or new_index >= len(filtered_cards):
                 await query.answer("Нельзя пролистнуть дальше", show_alert=True)
                 return
-            
+    
             search_info["current_index"] = new_index
-            
+    
             current_card_id, count = filtered_cards[new_index]
             data = load_data()
             user_data = data["users"].get(user_id)
             card = find_card_by_id(current_card_id, data["cards"])
-            
+    
             if not card:
                 await query.edit_message_text("❌ Карта не найдена!")
                 return
-            
+    
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
             caption += f"\n\n🔍 Найдено карт: {len(filtered_cards)}"
-            
+    
             # ⭐ Клавиатура ⭐
             nav_buttons = []
             if new_index > 0:
-                nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index - 1}"))
-            
+                nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index}"))
+    
             nav_buttons.append(InlineKeyboardButton(f"{new_index + 1}/{len(filtered_cards)}", callback_data="archive_search_info"))
-            
+    
             if new_index < len(filtered_cards) - 1:
-                nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index + 1}"))
-            
+                nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index}"))
+    
             keyboard = [
                 nav_buttons,
                 [InlineKeyboardButton("🔍 Новый поиск", callback_data=f"archive_search_{search_info.get('search_type', 'all')}")],
                 [InlineKeyboardButton("❌ Отмена поиска", callback_data="archive_search_cancel")]
             ]
-            
+    
             try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                # ✅ ИСПРАВЛЕНИЕ: Используем HTML и правильный метод
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
+                else:
+                    media = InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-            except Exception as e:
-                if "Message is not modified" not in str(e):
-                    logger.error(f"Ошибка редактирования: {e}")
-        
+            except Exception as edit_error:
+                if "Message is not modified" in str(edit_error):
+                    # Просто обновляем клавиатуру
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+                    return
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                # Отправляем новое сообщение
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="HTML"
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="HTML"
+                    )        
     except Exception as e:
         logger.error(f"Ошибка в archive_search_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
