@@ -6832,7 +6832,7 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"• Стоимость игры: {DARTS_GAME_COST} бэт-коинов\n"
             f"• Бот бросает 3 дротика 🎯\n"
             f"• Мишень имеет 5 зон: от 1 до 5 очков\n"
-            f"• Наберите {DARTS_WIN_THRESHOLD}+ очков за 3 броска, чтобы получить 3 бесплатные попытки 🎲\n"
+            f"• Наберите {DARTS_WIN_THRESHOLD}+ очков за 3 броска, чтобы получить 5 бесплатных попыток 🎲\n"
             f"• Лимит: {MAX_DARTS_DAILY_PLAYS} игр в день (сброс в 00:00 МСК)\n\n"
             f"{balance_text}\n"
         )
@@ -6907,14 +6907,14 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
         win = total_points >= DARTS_WIN_THRESHOLD
         if win:
-            user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + 5
             save_data(data)
             await update_quest_progress(context, user_id, "darts_win_2", 1)
 
         await query.message.reply_text(
             f"🎯 **Результаты бросков:** {', '.join(map(str, results))}\n"
             f"📊 **Итого очков:** {total_points}/10\n"
-            f"{'✅ Победа! Получено 3 бесплатные попытки 🎲' if win else '😔 Не хватило очков. Попробуйте ещё раз.'}",
+            f"{'✅ Победа! Получено 5 бесплатных попыток 🎲' if win else '😔 Не хватило очков. Попробуйте ещё раз.'}",
             parse_mode="Markdown"
         )
 
