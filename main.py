@@ -1426,7 +1426,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="HTML"
                 )
-        return
+            return
         # Кнопка "Назад в казарму" → вернуться в главное меню
         elif query.data == "barracks_back":
             try:
