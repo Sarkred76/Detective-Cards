@@ -801,13 +801,98 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         else:
             await update.message.reply_text("Произошла ошибка")
             
-async def show_cards_by_rarity(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    rarity: str,
-    start_index: int = 0
-) -> None:
+async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYPE, rarity: str, start_index: int = 0) -> None:
     """Показывает карты конкретной редкости."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') else None
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            if query:
+                await query.edit_message_text("У вас нет карточек!")
+            else:
+                await update.message.reply_text("У вас нет карточек!")
+            return
+        
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
+        
+        # Фильтруем карты по редкости
+        rarity_cards = []
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("rarity") == rarity:
+                rarity_cards.append((card_id, count))
+        
+        if not rarity_cards:
+            msg = f"У вас нет карт редкости {rarity}!"
+            if query:
+                await query.edit_message_text(msg)
+            else:
+                await update.message.reply_text(msg)
+            return
+        
+        # Сортируем по ID
+        rarity_cards.sort(key=lambda x: x[0])
+        total_cards = len(rarity_cards)
+        
+        # Корректировка индекса
+        start_index = max(0, min(start_index, total_cards - 1))
+        current_card_id, count = rarity_cards[start_index]
+        card = find_card_by_id(current_card_id, data["cards"])
+        
+        if not card:
+            if query:
+                await query.edit_message_text("❌ Ошибка: карта не найдена!")
+            else:
+                await update.message.reply_text("❌ Ошибка: карта не найдена!")
+            return
+        
+        caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+        
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
+        nav_buttons = []
+        if start_index > 0:
+            nav_buttons.append(InlineKeyboardButton("<", callback_data=f"card_prev_{rarity}_{start_index - 1}"))
+        
+        nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
+        
+        if start_index < total_cards - 1:
+            nav_buttons.append(InlineKeyboardButton(">", callback_data=f"card_next_{rarity}_{start_index + 1}"))
+        
+        keyboard = [
+            nav_buttons,
+            [InlineKeyboardButton("🔍 Поиск", callback_data=f"archive_search_{rarity}")],  # ⭐ НОВОЕ
+            [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if query:
+            try:
+                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            except Exception as e:
+                if "Message is not modified" not in str(e):
+                    logger.error(f"Ошибка редактирования: {e}")
+        else:
+            await update.message.reply_photo(
+                photo=card["image_url"],
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в show_cards_by_rarity: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("Произошла ошибка")
+
+async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, start_index: int = 0) -> None:
+    """Показывает все карты пользователя."""
     try:
         query = update.callback_query if hasattr(update, 'callback_query') else None
         user_id = str(update.effective_user.id)
@@ -823,129 +908,280 @@ async def show_cards_by_rarity(
         
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
+        unique_card_ids = list(card_counts.keys())
         
-        # Фильтруем карты по редкости
-        rarity_cards = []
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("rarity") == rarity:
-                rarity_cards.append((card_id, count))
-        
-        if not rarity_cards:
+        if not unique_card_ids:
             if query:
-                await query.edit_message_text(f"У вас нет существ редкости {rarity}!")
+                await query.edit_message_text("У вас нет существ!")
             else:
-                await update.message.reply_text(f"У вас нет существ редкости {rarity}!")
+                await update.message.reply_text("У вас нет существ!")
             return
         
-        # Сортируем карты по ID
-        rarity_cards.sort(key=lambda x: x[0])
-        total_cards = len(rarity_cards)
+        # Сортируем по ID
+        unique_card_ids.sort()
+        total_cards = len(unique_card_ids)
         
-        # Обработка навигации
-        if start_index < 0:
-            start_index = 0
-        elif start_index >= total_cards:
-            start_index = total_cards - 1
-        
-        card_id, count = rarity_cards[start_index]
-        card = find_card_by_id(card_id, data["cards"])
+        # Корректировка индекса
+        start_index = max(0, min(start_index, total_cards - 1))
+        current_card_id = unique_card_ids[start_index]
+        card = find_card_by_id(current_card_id, data["cards"])
         
         if not card:
             if query:
-                await query.edit_message_text("Ошибка: существо не найдено")
+                await query.edit_message_text("❌ Ошибка: карта не найдена!")
             else:
-                await update.message.reply_text("Ошибка: существо не найдено")
+                await update.message.reply_text("❌ Ошибка: карта не найдена!")
             return
         
-        # Создаём клавиатуру навигации
+        count = card_counts[current_card_id]
+        caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+        
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
         nav_buttons = []
         if start_index > 0:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    "<",
-                    callback_data=f"barracks_rarity_nav_{rarity}_{start_index - 1}"
-                )
-            )
-        nav_buttons.append(
-            InlineKeyboardButton(
-                f"{start_index + 1}/{total_cards}",
-                callback_data="card_info"
-            )
-        )
+            nav_buttons.append(InlineKeyboardButton("<", callback_data=f"card_prev_all_{start_index - 1}"))
+        
+        nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
+        
         if start_index < total_cards - 1:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    ">",
-                    callback_data=f"barracks_rarity_nav_{rarity}_{start_index + 1}"
-                )
-            )
+            nav_buttons.append(InlineKeyboardButton(">", callback_data=f"card_next_all_{start_index + 1}"))
         
-        # ⭐ КНОПКА "НАЗАД" ⭐
-        keyboard = [nav_buttons]
-        keyboard.append([
-            InlineKeyboardButton(
-                "🔙 Назад",
-                callback_data="barracks_back"
-            )
-        ])
+        keyboard = [
+            nav_buttons,
+            [InlineKeyboardButton("🔍 Поиск", callback_data="archive_search_all")],  # ⭐ НОВОЕ
+            [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
+        ]
         
-        # Генерируем описание (уже содержит HTML-теги для catchphrase)
-        caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
-
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         if query:
             try:
-                # ⭐ ДОБАВЛЕНО parse_mode="HTML" В InputMedia ⭐
-                if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(
-                        media=card["image_url"], 
-                        caption=caption,
-                        parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
-                    )
-                else:
-                    media = InputMediaPhoto(
-                        media=card["image_url"], 
-                        caption=caption,
-                        parse_mode="HTML"  # ← ЭТО ИСПРАВЛЯЕТ КУРСИВ И QUOTE
-                    )
-        
-                await query.edit_message_media(
-                    media=media,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                # ⭐ ОТПРАВЛЯЕМ С УЧЁТОМ ТИПА МЕДИА ⭐
-                if card.get("media_type") == "animation":
-                    await context.bot.send_animation(
-                        chat_id=query.message.chat_id,
-                        animation=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="HTML" 
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="HTML" 
-                    )
+                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            except Exception as e:
+                if "Message is not modified" not in str(e):
+                    logger.error(f"Ошибка редактирования: {e}")
         else:
-            # ⭐ ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ИСПОЛЬЗУЕМ send_card ⭐
-            await send_card(update, card, context, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard))
-        
+            await update.message.reply_photo(
+                photo=card["image_url"],
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
     except Exception as e:
-        logger.error(f"Ошибка при показе карт редкости {rarity}: {e}")
+        logger.error(f"Ошибка в show_all_cards: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.answer("Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("Произошла ошибка")
+
+async def archive_search_start(update: Update, context: ContextTypes.DEFAULT_TYPE, search_type: str) -> None:
+    """Начинает процесс поиска карт в архиве."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Сохраняем состояние поиска ⭐
+        context.user_data[user_id] = {
+            "step": "archive_search",
+            "search_type": search_type  # "all" или конкретная редкость
+        }
+        
+        await query.message.reply_text(
+            "🔍 **Поиск карт**\n\n"
+            "Введите часть названия карты:\n"
+            "❌ Для отмены: /cancel",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в archive_search_start: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def archive_search_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выполняет поиск карт по названию."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        
+        if user_id not in context.user_data:
+            await update.message.reply_text("❌ Сессия поиска истекла!")
+            return
+        
+        search_info = context.user_data[user_id]
+        if search_info.get("step") != "archive_search":
+            return
+        
+        # ⭐ Обработка отмены ⭐
+        if text.lower() == "/cancel":
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Поиск отменён.")
+            return
+        
+        search_query = text.lower()
+        search_type = search_info.get("search_type", "all")
+        
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ У вас нет карт!")
+            return
+        
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
+        
+        # ⭐ Фильтруем карты ⭐
+        filtered_cards = []
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                continue
+            
+            # Фильтр по редкости (если не "all")
+            if search_type != "all" and card.get("rarity") != search_type:
+                continue
+            
+            # Фильтр по названию
+            if search_query in card["title"].lower():
+                filtered_cards.append((card_id, count))
+        
+        if not filtered_cards:
+            await update.message.reply_text(
+                f"❌ Карт с названием \"{text}\" не найдено!\n"
+                "Попробуйте другой запрос или нажмите /cancel для отмены."
+            )
+            return
+        
+        # ⭐ Сортируем и показываем первую карту ⭐
+        filtered_cards.sort(key=lambda x: x[0])
+        
+        # ⭐ Сохраняем результаты поиска ⭐
+        search_info["step"] = "archive_search_results"
+        search_info["filtered_cards"] = filtered_cards
+        search_info["current_index"] = 0
+        
+        current_card_id, count = filtered_cards[0]
+        card = find_card_by_id(current_card_id, data["cards"])
+        
+        caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+        caption += f"\n\n🔍 Найдено карт: {len(filtered_cards)}\nПо запросу: \"{text}\""
+        
+        # ⭐ Клавиатура для результатов поиска ⭐
+        nav_buttons = []
+        if len(filtered_cards) > 1:
+            nav_buttons.append(InlineKeyboardButton("<", callback_data="archive_search_prev_0"))
+            nav_buttons.append(InlineKeyboardButton(f"1/{len(filtered_cards)}", callback_data="archive_search_info"))
+            nav_buttons.append(InlineKeyboardButton(">", callback_data="archive_search_next_0"))
+        
+        keyboard = [
+            nav_buttons,
+            [InlineKeyboardButton("🔍 Новый поиск", callback_data=f"archive_search_{search_type}")],
+            [InlineKeyboardButton("❌ Отмена поиска", callback_data="archive_search_cancel")]
+        ]
+        
+        await update.message.reply_photo(
+            photo=card["image_url"],
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в archive_search_execute: {e}")
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        await update.message.reply_text("❌ Ошибка при поиске карт")
+
+async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок навигации по результатам поиска."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        
+        if user_id not in context.user_data:
+            await query.edit_message_text("❌ Сессия поиска истекла!")
+            return
+        
+        search_info = context.user_data[user_id]
+        if search_info.get("step") != "archive_search_results":
+            await query.edit_message_text("❌ Поиск не активен!")
+            return
+        
+        # ⭐ Отмена поиска ⭐
+        if query.data == "archive_search_cancel":
+            del context.user_data[user_id]
+            await query.edit_message_text("❌ Поиск отменён.")
+            return
+        
+        # ⭐ Информация ⭐
+        if query.data == "archive_search_info":
+            await query.answer("Используйте < > для навигации", show_alert=False)
+            return
+        
+        # ⭐ Навигация ⭐
+        if query.data.startswith("archive_search_prev_") or query.data.startswith("archive_search_next_"):
+            action = "prev" if "prev" in query.data else "next"
+            current_index = search_info.get("current_index", 0)
+            filtered_cards = search_info.get("filtered_cards", [])
+            
+            if not filtered_cards:
+                await query.answer("❌ Карты не найдены!", show_alert=True)
+                return
+            
+            if action == "prev":
+                new_index = current_index - 1
+            else:
+                new_index = current_index + 1
+            
+            # Проверка границ
+            if new_index < 0 or new_index >= len(filtered_cards):
+                await query.answer("Нельзя пролистнуть дальше", show_alert=True)
+                return
+            
+            search_info["current_index"] = new_index
+            
+            current_card_id, count = filtered_cards[new_index]
+            data = load_data()
+            user_data = data["users"].get(user_id)
+            card = find_card_by_id(current_card_id, data["cards"])
+            
+            if not card:
+                await query.edit_message_text("❌ Карта не найдена!")
+                return
+            
+            caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+            caption += f"\n\n🔍 Найдено карт: {len(filtered_cards)}"
+            
+            # ⭐ Клавиатура ⭐
+            nav_buttons = []
+            if new_index > 0:
+                nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index - 1}"))
+            
+            nav_buttons.append(InlineKeyboardButton(f"{new_index + 1}/{len(filtered_cards)}", callback_data="archive_search_info"))
+            
+            if new_index < len(filtered_cards) - 1:
+                nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index + 1}"))
+            
+            keyboard = [
+                nav_buttons,
+                [InlineKeyboardButton("🔍 Новый поиск", callback_data=f"archive_search_{search_info.get('search_type', 'all')}")],
+                [InlineKeyboardButton("❌ Отмена поиска", callback_data="archive_search_cancel")]
+            ]
+            
+            try:
+                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as e:
+                if "Message is not modified" not in str(e):
+                    logger.error(f"Ошибка редактирования: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в archive_search_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
             
 async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню выбора редкости."""
@@ -1128,9 +1364,19 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
         
         elif query.data.startswith("card_prev_") or query.data.startswith("card_next_"):
-            if not user_data or not user_data.get("cards"):
-                await query.edit_message_text("У вас пока нет существ!")
-                return
+            parts = query.data.split("_")
+            action = "prev" if "prev" in query.data else "next"
+    
+            # Определяем тип: "all" или конкретная редкость
+            if "all" in query.data:
+                # Все карты: card_prev_all_0 или card_next_all_1
+                new_index = int(parts[-1])
+                await show_all_cards(update, context, start_index=new_index)
+            else:
+                # По редкости: card_prev_Common_0 или card_next_Epic_1
+                rarity = parts[2] if len(parts) > 3 else "Common"
+                new_index = int(parts[-1])
+                await show_cards_by_rarity(update, context, rarity=rarity, start_index=new_index)
             
             user_card_ids = user_data["cards"]
             card_counts = Counter(user_card_ids)
@@ -1944,6 +2190,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_data = data["users"].get(user_id)
 
         text = update.message.text
+
+        # ⭐ СОСТОЯНИЕ ПОИСКА В АРХИВЕ ⭐
+        if user_id in context.user_data:
+            user_step = context.user_data[user_id].get("step", "")
+            if user_step == "archive_search":
+                await archive_search_execute(update, context)
+                return
         
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
@@ -8489,6 +8742,8 @@ def main() -> None:
             CallbackQueryHandler(shop_seasonal_callback, pattern=r"^ss_.*"),
             CallbackQueryHandler(avatar_callback, pattern=r"^avatar_.*"),
             CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
+            CallbackQueryHandler(archive_search_start, pattern=r"^archive_search_(all|Common|Rare|Epic|Legendary|Highlight|Limited|Rare Team-up|Epic Team-up|Legendary Team-up)$"),
+            CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
         ]
 
         for handler in handlers:
