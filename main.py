@@ -1001,12 +1001,16 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         else:
             await update.message.reply_text("Произошла ошибка")
 
-async def archive_search_start(update: Update, context: ContextTypes.DEFAULT_TYPE, search_type: str) -> None:
+async def archive_search_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Начинает процесс поиска карт в архиве."""
     try:
         query = update.callback_query
         await query.answer()
         user_id = str(query.from_user.id)
+        
+        # ⭐ ИСПРАВЛЕНИЕ: Извлекаем search_type из callback_data ⭐
+        # callback_data = "archive_search_all" или "archive_search_Common" и т.д.
+        search_type = query.data.replace("archive_search_", "")
         
         # ⭐ Сохраняем состояние поиска ⭐
         context.user_data[user_id] = {
@@ -1014,16 +1018,22 @@ async def archive_search_start(update: Update, context: ContextTypes.DEFAULT_TYP
             "search_type": search_type  # "all" или конкретная редкость
         }
         
+        # ⭐ Определяем текст подсказки ⭐
+        if search_type == "all":
+            hint = "Среди всех карт"
+        else:
+            hint = f"Среди карт редкости {search_type}"
+        
         await query.message.reply_text(
-            "🔍 **Поиск карт**\n\n"
-            "Введите часть названия карты:\n"
-            "❌ Для отмены: /cancel",
+            f"🔍 **Поиск карт**\n\n"
+            f"📂 {hint}\n\n"
+            f"Введите часть названия карты:\n"
+            f"❌ Для отмены: /cancel",
             parse_mode="Markdown"
         )
     except Exception as e:
         logger.error(f"Ошибка в archive_search_start: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def archive_search_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выполняет поиск карт по названию."""
