@@ -873,17 +873,35 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if query:
             try:
-                # ⭐ ИСПРАВЛЕНИЕ: parse_mode="HTML" + поддержка анимаций ⭐
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(
-                        media=card["image_url"],
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            except Exception as e:
+                error_str = str(e)
+                if "Message is not modified" in error_str:
+                    return
+                # ⭐ НОВОЕ: Если не удалось отредактировать (например, это текст), отправляем новое сообщение ⭐
+                logger.warning(f"Не удалось отредактировать сообщение: {e}. Отправляю новое.")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
                         caption=caption,
+                        reply_markup=reply_markup,
                         parse_mode="HTML"
                     )
                 else:
-                    media = InputMediaPhoto(
-                        media=card["image_url"],
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
                         caption=caption,
+                        reply_markup=reply_markup,
                         parse_mode="HTML"
                     )
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
@@ -970,30 +988,37 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         
         if query:
             try:
-                # ⭐ ИСПРАВЛЕНИЕ: parse_mode="HTML" + поддержка анимаций ⭐
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(
-                        media=card["image_url"],
+                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                else:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            except Exception as e:
+                error_str = str(e)
+                if "Message is not modified" in error_str:
+                    return
+                # ⭐ НОВОЕ: Если не удалось отредактировать (например, это текст), отправляем новое сообщение ⭐
+                logger.warning(f"Не удалось отредактировать сообщение: {e}. Отправляю новое.")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                if card.get("media_type") == "animation":
+                    await context.bot.send_animation(
+                        chat_id=query.message.chat_id,
+                        animation=card["image_url"],
                         caption=caption,
+                        reply_markup=reply_markup,
                         parse_mode="HTML"
                     )
                 else:
-                    media = InputMediaPhoto(
-                        media=card["image_url"],
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
                         caption=caption,
+                        reply_markup=reply_markup,
                         parse_mode="HTML"
                     )
-                await query.edit_message_media(media=media, reply_markup=reply_markup)
-            except Exception as e:
-                if "Message is not modified" not in str(e):
-                    logger.error(f"Ошибка редактирования: {e}")
-        else:
-            await update.message.reply_photo(
-                photo=card["image_url"],
-                caption=caption,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
     except Exception as e:
         logger.error(f"Ошибка в show_all_cards: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -1342,84 +1367,66 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_rarity_menu(update, context)
             return
         
-        # Кнопка "Все существа" → показать все карты с навигацией
         elif query.data == "barracks_all":
             if not user_data or not user_data.get("cards"):
                 await query.edit_message_text("У вас пока нет существ!")
                 return
-            
             user_card_ids = user_data["cards"]
             card_counts = Counter(user_card_ids)
             unique_card_ids = list(card_counts.keys())
-            
             if not unique_card_ids:
                 await query.edit_message_text("У вас пока нет существ!")
                 return
-            
             # ⭐ СОРТИРУЕМ ДЛЯ СТАБИЛЬНОЙ НАВИГАЦИИ ⭐
             unique_card_ids.sort()
-            
             card = find_card_by_id(unique_card_ids[0], data["cards"])
             if not card:
                 await query.edit_message_text("Ошибка: существо не найдено")
                 return
-            
-            # ⭐ ЛИНЕЙНАЯ НАВИГАЦИЯ (как в сортировке по редкости) ⭐
+    
+            count = card_counts[card["id"]]
+            caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
+    
+            # ⭐ ИСПРАВЛЕНИЕ: Правильные callback_data и кнопка поиска ⭐
             nav_buttons = []
-            
-            # Кнопка "<" отсутствует для первой карты
             nav_buttons.append(
                 InlineKeyboardButton(f"1/{len(unique_card_ids)}", callback_data="card_info")
             )
-            
-            # Кнопка ">" появляется только если карт больше 1
             if len(unique_card_ids) > 1:
+                # ⭐ ИСПРАВЛЕНО: Было card_next_all_0, стало card_next_all_1 ⭐
                 nav_buttons.append(
-                    InlineKeyboardButton(">", callback_data=f"card_next_0")
+                    InlineKeyboardButton(">", callback_data=f"card_next_all_1")
                 )
-            
-            keyboard = InlineKeyboardMarkup([
+    
+            keyboard = [
                 nav_buttons,
-                [InlineKeyboardButton("🔙 Назад", callback_data="barracks_back")]
-            ])
-            
-            count = card_counts[card["id"]]
-            caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
-            
+                [InlineKeyboardButton("🔍 Поиск", callback_data="archive_search_all")],  # ⭐ ДОБАВЛЕНО
+                [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
+            ]
+    
+            # ⭐ Удаляем старое текстовое сообщение и отправляем новое фото ⭐
             try:
-                if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
-                else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
-                
-                await query.edit_message_media(media=media, reply_markup=keyboard)
-            except Exception as edit_error:
-                if "Message is not modified" in str(edit_error):
-                    return
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                
-                if card.get("media_type") == "animation":
-                    await context.bot.send_animation(
-                        chat_id=query.message.chat_id,
-                        animation=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                        parse_mode="HTML"
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=keyboard,
-                        parse_mode="HTML"
-                    )
-            return
-        
+                await query.message.delete()
+            except:
+                pass
+    
+            if card.get("media_type") == "animation":
+                await context.bot.send_animation(
+                    chat_id=query.message.chat_id,
+                    animation=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+        return
         # Кнопка "Назад в казарму" → вернуться в главное меню
         elif query.data == "barracks_back":
             try:
