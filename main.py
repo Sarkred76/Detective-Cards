@@ -811,9 +811,9 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if not user_data or not user_data.get("cards"):
             if query:
-                await query.edit_message_text("У вас нет карточек!")
+                await query.edit_message_text("У вас нет существ!")
             else:
-                await update.message.reply_text("У вас нет карточек!")
+                await update.message.reply_text("У вас нет существ!")
             return
         
         user_card_ids = user_data["cards"]
@@ -850,6 +850,7 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
                 await update.message.reply_text("❌ Ошибка: карта не найдена!")
             return
         
+        # ⭐ ИСПРАВЛЕНИЕ: Используем HTML вместо Markdown ⭐
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
         
         # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
@@ -864,7 +865,7 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         keyboard = [
             nav_buttons,
-            [InlineKeyboardButton("🔍 Поиск", callback_data=f"archive_search_{rarity}")],  # ⭐ НОВОЕ
+            [InlineKeyboardButton("🔍 Поиск", callback_data=f"archive_search_{rarity}")],
             [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
         ]
         
@@ -872,7 +873,19 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if query:
             try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                # ⭐ ИСПРАВЛЕНИЕ: parse_mode="HTML" + поддержка анимаций ⭐
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
+                else:
+                    media = InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
             except Exception as e:
                 if "Message is not modified" not in str(e):
@@ -882,7 +895,7 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
                 photo=card["image_url"],
                 caption=caption,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
     except Exception as e:
         logger.error(f"Ошибка в show_cards_by_rarity: {e}")
@@ -934,6 +947,7 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
             return
         
         count = card_counts[current_card_id]
+        # ⭐ ИСПРАВЛЕНИЕ: Используем HTML ⭐
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
         
         # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
@@ -948,7 +962,7 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         
         keyboard = [
             nav_buttons,
-            [InlineKeyboardButton("🔍 Поиск", callback_data="archive_search_all")],  # ⭐ НОВОЕ
+            [InlineKeyboardButton("🔍 Поиск", callback_data="archive_search_all")],
             [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
         ]
         
@@ -956,7 +970,19 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         
         if query:
             try:
-                media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                # ⭐ ИСПРАВЛЕНИЕ: parse_mode="HTML" + поддержка анимаций ⭐
+                if card.get("media_type") == "animation":
+                    media = InputMediaAnimation(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
+                else:
+                    media = InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
             except Exception as e:
                 if "Message is not modified" not in str(e):
@@ -966,7 +992,7 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
                 photo=card["image_url"],
                 caption=caption,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
     except Exception as e:
         logger.error(f"Ошибка в show_all_cards: {e}")
@@ -1377,6 +1403,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 rarity = parts[2] if len(parts) > 3 else "Common"
                 new_index = int(parts[-1])
                 await show_cards_by_rarity(update, context, rarity=rarity, start_index=new_index)
+            return
             
             user_card_ids = user_data["cards"]
             card_counts = Counter(user_card_ids)
