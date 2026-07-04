@@ -2372,6 +2372,94 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         text = update.message.text
 
+        # ⭐ СОСТОЯНИЕ ЗАМЕНЫ МЕДИА ЧЕРЕЗ /edit_card ⭐
+        if user_id in context.user_data:
+            user_state = context.user_data.get(user_id, {})
+            step = user_state.get("step", "")
+    
+            if step == "edit_card_waiting_media":
+                # Обработка отмены
+                if text and text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Редактирование отменено.")
+                    return
+        
+                # Проверяем, что пришло медиа
+                if not (update.message.photo or update.message.video or update.message.animation):
+                    await update.message.reply_text(
+                        "⚠️ Отправьте фото, видео или GIF!\n"
+                        "❌ Для отмены: /cancel"
+                    )
+                    return
+        
+                # Получаем file_id
+                if update.message.photo:
+                    new_file_id = update.message.photo[-1].file_id
+                    new_media_type = "photo"
+                elif update.message.video:
+                    new_file_id = update.message.video.file_id
+                    new_media_type = "animation"
+                elif update.message.animation:
+                    new_file_id = update.message.animation.file_id
+                    new_media_type = "animation"
+        
+                # ⭐ Обновляем карту ⭐
+                card_id = user_state["edit_card_id"]
+                data = load_data()
+                card = find_card_by_id(card_id, data["cards"])
+        
+                if not card:
+                    del context.user_data[user_id]
+                    await update.message.reply_text(f"❌ Карта с ID {card_id} не найдена!")
+                    return
+        
+                # Сохраняем старые значения для отчёта
+                old_source = card.get("media_source", "url")
+                old_url = card.get("image_url", "")
+                old_file_id = card.get("file_id", "")
+        
+                # ⭐ Обновляем поля карты ⭐
+                card["file_id"] = new_file_id
+                card["media_source"] = "file_id"
+                card["media_type"] = new_media_type
+                card["image_url"] = ""  # Очищаем URL
+        
+                save_data(data)
+        
+                # ⭐ Очищаем состояние ⭐
+                del context.user_data[user_id]
+        
+                # ⭐ Отправляем отчёт ⭐
+                await update.message.reply_text(
+                    f"✅ **Медиа карты #{card_id} обновлено!**\n\n"
+                    f"🏷 {card.get('title')}\n"
+                    f"🌟 {card.get('rarity')}\n"
+                    f"📺 Тип: {'🎬 Видео/Анимация' if new_media_type == 'animation' else '📷 Фото'}\n"
+                    f"📤 Источник: file_id\n\n"
+                    f"🔄 Было: {old_source} ({old_url or old_file_id})\n"
+                    f"✅ Стало: file_id"
+                )
+        
+                # ⭐ Отправляем превью ⭐
+                try:
+                    if new_media_type == "animation":
+                        await context.bot.send_video(
+                            chat_id=update.effective_chat.id,
+                            video=new_file_id,
+                            caption=f"Превью карты #{card_id}",
+                            supports_streaming=True
+                        )
+                    else:
+                        await context.bot.send_photo(
+                            chat_id=update.effective_chat.id,
+                            photo=new_file_id,
+                            caption=f"Превью карты #{card_id}"
+                        )
+                except Exception as preview_error:
+                    logger.warning(f"Не удалось отправить превью: {preview_error}")
+        
+                return
+
         # ⭐ ОБРАБОТКА МЕДИА ДЛЯ ДОБАВЛЕНИЯ КАРТЫ ⭐
         if user_id in context.user_data:
             user_state = context.user_data.get(user_id, {})
@@ -3282,7 +3370,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("🚫 Только для администратора!")
             return
         
-        if not context.args or len(context.args) < 3:
+        if not context.args or len(context.args) < 2:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
                 "/edit_card [ID] [параметр] [новое_значение]\n"
@@ -3292,13 +3380,47 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "• rarity - редкость\n"
                 "• catchphrase - цитата (или 'нет')\n"
                 "• available - статус (true/false)\n"
-                "• classic - метка Classic (да/нет)",
+                "• classic - метка Classic (да/нет)\n"
+                "• media - заменить медиафайл (отправьте фото/видео после команды)",
                 parse_mode="Markdown",
             )
             return
-        
+
         card_id = int(context.args[0])
         param = context.args[1].lower()
+
+        # ⭐ НОВОЕ: Для параметра media не требуется значение в команде ⭐
+        if param == "media":
+            # Проверяем, что карта существует
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                await update.message.reply_text(f"❌ Карта с ID {card_id} не найдена!")
+                return
+    
+            # ⭐ Переходим в состояние ожидания медиа ⭐
+            context.user_data[str(update.effective_user.id)] = {
+                "step": "edit_card_waiting_media",
+                "edit_card_id": card_id
+            }
+    
+            await update.message.reply_text(
+                f"📝 **Редактирование карты #{card_id}**\n"
+                f"🏷 {card.get('title')}\n\n"
+                f"📤 **Отправьте новое фото или видео** для замены медиафайла\n\n"
+                f"❌ Для отмены: /cancel",
+                parse_mode="Markdown"
+            )
+            return
+
+        # Для остальных параметров требуется значение
+        if len(context.args) < 3:
+            await update.message.reply_text(
+                f"⚠️ Для параметра `{param}` нужно указать значение!\n\n"
+                f"Пример: `/edit_card {card_id} {param} новое_значение`",
+                parse_mode="Markdown"
+            )
+            return
+
         new_value = " ".join(context.args[2:])
         
         card = find_card_by_id(card_id, data["cards"])
