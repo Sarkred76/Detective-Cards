@@ -4415,8 +4415,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Отправляем карту игроку
         caption = (
-            f"🎉 **Промокод активирован!**\n"
-            f"🎁 Код: {promo_code}\n"
+            f"🎉 Промокод активирован!\n"
             f"🃏 Вы получили: {card['title']}\n"
             f"🌟 Редкость: {card['rarity']}\n"
             f"Приятной игры!"
