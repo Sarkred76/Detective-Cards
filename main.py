@@ -9263,10 +9263,12 @@ async def daily_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             for i, uid in enumerate(active_today[:20], 1):  # Показываем максимум 20
                 udata = users.get(uid, {})
                 name = udata.get("username") or udata.get("first_name") or f"ID: {uid}"
-                message_text += f"{i}. {name}\n"
+                # ⭐ ИСПРАВЛЕНИЕ: Экранируем имя ⭐
+                name_escaped = escape_markdown(name)
+                message_text += f"{i}\. {name_escaped}\n"
             
             if len(active_today) > 20:
-                message_text += f"... и ещё {len(active_today) - 20}\n"
+                message_text += f"\.\.\. и ещё {len(active_today) - 20}\n"
         
         # ⭐ Если есть новые сегодня — показываем их список ⭐
         if new_today:
@@ -9274,10 +9276,12 @@ async def daily_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             for i, uid in enumerate(new_today[:20], 1):
                 udata = users.get(uid, {})
                 name = udata.get("username") or udata.get("first_name") or f"ID: {uid}"
-                message_text += f"{i}. {name}\n"
+                # ⭐ ИСПРАВЛЕНИЕ: Экранируем имя ⭐
+                name_escaped = escape_markdown(name)
+                message_text += f"{i}\. {name_escaped}\n"
             
             if len(new_today) > 20:
-                message_text += f"... и ещё {len(new_today) - 20}\n"
+                message_text += f"\.\.\. и ещё {len(new_today) - 20}\n"
         
         await update.message.reply_text(message_text, parse_mode="Markdown")
         
