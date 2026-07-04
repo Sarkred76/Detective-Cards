@@ -2366,11 +2366,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if context.user_data[user_id].get("step") == "clan_set_avatar":
                 await process_clan_avatar_photo(update, context)
                 return
-        
-        data = load_data()
-        user_data = data["users"].get(user_id)
-
-        text = update.message.text
 
         # ⭐ СОСТОЯНИЕ ЗАМЕНЫ МЕДИА ЧЕРЕЗ /edit_card ⭐
         if user_id in context.user_data:
@@ -2459,6 +2454,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     logger.warning(f"Не удалось отправить превью: {preview_error}")
         
                 return
+
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        text = update.message.text
 
         # ⭐ ОБРАБОТКА МЕДИА ДЛЯ ДОБАВЛЕНИЯ КАРТЫ ⭐
         if user_id in context.user_data:
