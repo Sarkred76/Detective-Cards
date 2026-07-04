@@ -334,6 +334,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["rolls_box_price"] = 25000
                 if "pending_season_boxes" not in user_data:
                     user_data["pending_season_boxes"] = 0
+                if "last_daily_activity" not in user_data:
+                    user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
+                if "registered_at" not in user_data:
+                    user_data["registered_at"] = None  # Дата регистрации в формате "YYYY-MM-DD"
                 if "seasonal_quests" not in user_data:
                     user_data["seasonal_quests"] = {"completed": [], "progress": {}}
                 # ⭐ НОВОЕ: Миграция аватарок ⭐
@@ -575,6 +579,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Инициализация пользователя, если его нет
         if user_id not in data["users"]:
+
+            from datetime import datetime, timezone, timedelta
+            msk_tz = timezone(timedelta(hours=3))
+            today_str = datetime.now(msk_tz).strftime("%Y-%m-%d")
+            
             data["users"][user_id] = {
                 "username": update.effective_user.username or "",
                 "first_name": update.effective_user.first_name or "",
@@ -590,6 +599,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "referral_rewards_claimed": [],
                 "avatar_url": DEFAULT_AVATAR_URL,
                 "avatars": [DEFAULT_AVATAR_URL], 
+                "last_daily_activity": None,
+                "registered_at": today_str, 
             }
             save_data(data)
 
@@ -715,6 +726,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/remove_seasonal [ID] - Убрать из списка сезонных\n"
             response += "/give_season_box [@никнейм] - Выдать игроку сезонный бокс\n"
             response += "/add_cents_to_player [ID] [количество] - добавить/списать бэт-коины\n"
+            response += "/daily_stats - статистика активности за сегодня\n" 
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -2434,6 +2446,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 }
 
                 data["users"][user_id] = user_data
+
+            # ⭐ НОВОЕ: Отмечаем активность пользователя сегодня ⭐
+            from datetime import datetime, timezone, timedelta
+            msk_tz = timezone(timedelta(hours=3))
+            today_str = datetime.now(msk_tz).strftime("%Y-%m-%d")
+            user_data["last_daily_activity"] = today_str
+    
+            # ⭐ Если регистрация ещё не записана (для старых пользователей) ⭐
+            if not user_data.get("registered_at"):
+                user_data["registered_at"] = today_str
 
             COOLDOWN_SECONDS = 3 * 60 * 60
             current_time = int(time.time())
@@ -8754,6 +8776,98 @@ async def add_cents_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка добавления бэт-коинов: {e}")
         await update.message.reply_text("❌ Ошибка при изменении баланса")
 
+async def daily_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает статистику активности и новых пользователей за сегодня."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        from datetime import datetime, timezone, timedelta
+        
+        # ⭐ Определяем сегодняшнюю дату в МСК ⭐
+        msk_tz = timezone(timedelta(hours=3))
+        today_str = datetime.now(msk_tz).strftime("%Y-%m-%d")
+        today_display = datetime.now(msk_tz).strftime("%d.%m.%Y")
+        
+        users = data.get("users", {})
+        
+        # ⭐ Считаем активных пользователей сегодня ⭐
+        active_today = []
+        for uid, udata in users.items():
+            if udata.get("last_daily_activity") == today_str:
+                active_today.append(uid)
+        
+        # ⭐ Считаем новых пользователей сегодня ⭐
+        new_today = []
+        for uid, udata in users.items():
+            if udata.get("registered_at") == today_str:
+                new_today.append(uid)
+        
+        # ⭐ Считаем статистику за вчера ⭐
+        yesterday = datetime.now(msk_tz) - timedelta(days=1)
+        yesterday_str = yesterday.strftime("%Y-%m-%d")
+        yesterday_display = yesterday.strftime("%d.%m.%Y")
+        
+        active_yesterday = sum(1 for u in users.values() if u.get("last_daily_activity") == yesterday_str)
+        new_yesterday = sum(1 for u in users.values() if u.get("registered_at") == yesterday_str)
+        
+        # ⭐ Считаем статистику за неделю ⭐
+        week_ago = datetime.now(msk_tz) - timedelta(days=7)
+        week_ago_str = week_ago.strftime("%Y-%m-%d")
+        
+        active_week = sum(1 for u in users.values() 
+                         if u.get("last_daily_activity") and u.get("last_daily_activity") >= week_ago_str)
+        new_week = sum(1 for u in users.values() 
+                      if u.get("registered_at") and u.get("registered_at") >= week_ago_str)
+        
+        # ⭐ Общее количество пользователей ⭐
+        total_users = len(users)
+        
+        # ⭐ Формируем текст ответа ⭐
+        message_text = (
+            f"📊 **Статистика активности**\n\n"
+            f"📅 **Сегодня ({today_display}):**\n"
+            f"• 🟢 Активных: **{len(active_today)}**\n"
+            f"• 🆕 Новых: **{len(new_today)}**\n\n"
+            f"📅 **Вчера ({yesterday_display}):**\n"
+            f"• 🟢 Активных: **{active_yesterday}**\n"
+            f"• 🆕 Новых: **{new_yesterday}**\n\n"
+            f"📅 **За последние 7 дней:**\n"
+            f"• 🟢 Активных: **{active_week}**\n"
+            f"• 🆕 Новых: **{new_week}**\n\n"
+            f"👥 **Всего пользователей:** **{total_users}**"
+        )
+        
+        # ⭐ Если есть активные сегодня — показываем их список ⭐
+        if active_today:
+            message_text += f"\n\n🟢 **Активные сегодня:**\n"
+            for i, uid in enumerate(active_today[:20], 1):  # Показываем максимум 20
+                udata = users.get(uid, {})
+                name = udata.get("username") or udata.get("first_name") or f"ID: {uid}"
+                message_text += f"{i}. {name}\n"
+            
+            if len(active_today) > 20:
+                message_text += f"... и ещё {len(active_today) - 20}\n"
+        
+        # ⭐ Если есть новые сегодня — показываем их список ⭐
+        if new_today:
+            message_text += f"\n🆕 **Новые сегодня:**\n"
+            for i, uid in enumerate(new_today[:20], 1):
+                udata = users.get(uid, {})
+                name = udata.get("username") or udata.get("first_name") or f"ID: {uid}"
+                message_text += f"{i}. {name}\n"
+            
+            if len(new_today) > 20:
+                message_text += f"... и ещё {len(new_today) - 20}\n"
+        
+        await update.message.reply_text(message_text, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Ошибка daily_stats: {e}")
+        await update.message.reply_text("❌ Ошибка при получении статистики")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -8790,6 +8904,7 @@ def main() -> None:
             CommandHandler("reset_user", reset_user),
             CommandHandler("check_cards", check_cards),
             CommandHandler("list_users", list_users),
+            CommandHandler("daily_stats", daily_stats),
             CommandHandler("list_admins", list_admins),
             CommandHandler("add_admin", add_admin),
             CommandHandler("remove_admin", remove_admin),
