@@ -690,6 +690,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """Показывает список команд."""
     try:
         user_id = str(update.effective_user.id)
+        response = ""
         # Безопасная проверка админа
         try:
             data = load_data()
