@@ -2459,42 +2459,70 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     del context.user_data[user_id]
                     await update.message.reply_text("❌ Добавление карты отменено.")
                     return
-        
+    
                 catchphrase = None if text.lower() == "нет" else text
-        
+                user_state["catchphrase"] = catchphrase
+    
+                # ⭐ ПЕРЕХОДИМ К ВОПРОСУ ПРО CLASSIC ⭐
+                user_state["step"] = ADD_CARD_WAITING_CLASSIC
+    
+                await update.message.reply_text(
+                    f"✅ Catchphrase: **{catchphrase or 'пропущено'}**\n\n"
+                    f"🏛 **Шаг 5/5:** Является ли эта карта Classic?\n\n"
+                    f"Ответьте **да** или **нет**\n\n"
+                    f"❌ Для отмены: /cancel",
+                    parse_mode="Markdown"
+                )
+                return
+
+            # ⭐ НОВОЕ: Если ожидается ответ про Classic ⭐
+            if step == ADD_CARD_WAITING_CLASSIC:
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Добавление карты отменено.")
+                    return
+    
+                # ⭐ Парсим ответ ⭐
+                is_classic = text.lower().strip() in ["да", "true", "1", "yes", "classic"]
+    
                 # ⭐ СОЗДАЁМ НОВУЮ КАРТУ ⭐
                 data = load_data()
                 new_id = max([c["id"] for c in data["cards"]], default=0) + 1
-        
+    
                 new_card = {
                     "id": new_id,
                     "title": user_state["title"],
                     "rarity": user_state["rarity"],
-                    "catchphrase": catchphrase,
+                    "catchphrase": user_state["catchphrase"],
                     "available": True,
                     "media_type": user_state["media_type"],
-                    "media_source": "file_id",  # ⭐ НОВОЕ: источник — file_id
-                    "file_id": user_state["file_id"],  # ⭐ НОВОЕ: file_id файла
-                    "image_url": "",  # Пустой URL, т.к. используем file_id
+                    "media_source": "file_id",
+                    "file_id": user_state["file_id"],
+                    "image_url": "",
+                    "is_classic": is_classic,  # ⭐ НОВОЕ: поле Classic
                 }
-        
+    
                 data["cards"].append(new_card)
                 save_data(data)
-        
+    
                 # ⭐ Очищаем состояние ⭐
                 del context.user_data[user_id]
-        
-                # ⭐ Отправляем превью ⭐
-                catchphrase_text = f"💬 {catchphrase}" if catchphrase else ""
+    
+                # ⭐ Формируем текст ответа ⭐
+                catchphrase_text = f"💬 {user_state['catchphrase']}" if user_state["catchphrase"] else ""
+                classic_text = "🏛 **Classic**" if is_classic else ""
+    
                 await update.message.reply_text(
                     f"✅ **Карточка #{new_id} добавлена!**\n\n"
                     f"🏷 {user_state['title']}\n"
                     f"{catchphrase_text}\n"
                     f"🌟 {user_state['rarity']}\n"
                     f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
-                    f"📤 Источник: file_id"
+                    f"{classic_text}\n"
+                    f"📤 Источник: file_id",
+                    parse_mode="Markdown"
                 )
-        
+    
                 # ⭐ Отправляем превью карты ⭐
                 try:
                     if user_state["media_type"] == "animation":
@@ -2512,7 +2540,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         )
                 except Exception as preview_error:
                     logger.warning(f"Не удалось отправить превью: {preview_error}")
-        
+    
                 return
 
         # ⭐ СОСТОЯНИЕ ПОИСКА В АРХИВЕ ⭐
