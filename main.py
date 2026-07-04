@@ -70,6 +70,7 @@ ADD_CARD_WAITING_MEDIA = "add_card_waiting_media"
 ADD_CARD_WAITING_TITLE = "add_card_waiting_title"
 ADD_CARD_WAITING_RARITY = "add_card_waiting_rarity"
 ADD_CARD_WAITING_CATCHPHRASE = "add_card_waiting_catchphrase"
+ADD_CARD_WAITING_CLASSIC = "add_card_waiting_classic" 
 
 # ===== АВАТАРКИ =====
 DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
