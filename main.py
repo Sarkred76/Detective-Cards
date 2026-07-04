@@ -2360,6 +2360,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Обработчик текстовых сообщений (кнопки)."""
     try:
         user_id = str(update.effective_user.id)
+        text = update.message.text if update.message else None
 
         # ⭐ ОБРАБОТКА ФОТО ДЛЯ УСТАНОВКИ АВАТАРКИ КЛАНА ⭐
         if update.message.photo and user_id in context.user_data:
@@ -9339,7 +9340,7 @@ def main() -> None:
             CommandHandler("list_seasonal", list_seasonal_cards),
             CommandHandler("give_season_box", give_season_box),
             CommandHandler("add_cents_to_player", add_cents_to_player),
-            MessageHandler(filters.PHOTO, handle_message),
+            MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
