@@ -65,6 +65,12 @@ BASKET_GAME_COST = 800
 MAX_BASKET_DAILY_PLAYS = 5
 BASKET_HIT_THRESHOLD = 4 
 
+# ===== СОСТОЯНИЯ ДОБАВЛЕНИЯ КАРТЫ =====
+ADD_CARD_WAITING_MEDIA = "add_card_waiting_media"
+ADD_CARD_WAITING_TITLE = "add_card_waiting_title"
+ADD_CARD_WAITING_RARITY = "add_card_waiting_rarity"
+ADD_CARD_WAITING_CATCHPHRASE = "add_card_waiting_catchphrase"
+
 # ===== АВАТАРКИ =====
 DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
 SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
@@ -508,68 +514,130 @@ def generate_card_caption(
         )
     return caption
 
-async def send_card(update_or_chat_id: Update, card: Dict, context: ContextTypes.DEFAULT_TYPE, caption: Optional[str] = None, reply_markup: Optional[InlineKeyboardMarkup] = None, chat_id: Optional[int] = None) -> None:
+async def send_card(
+    update_or_chat_id,
+    card: Dict,
+    context: ContextTypes.DEFAULT_TYPE,
+    caption: Optional[str] = None,
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
+    chat_id: Optional[int] = None
+) -> None:
+    """Отправляет карту с учётом источника медиа (URL или file_id)."""
     if isinstance(update_or_chat_id, Update):
         chat_id = update_or_chat_id.effective_chat.id
     if chat_id is None:
         return
-
-    url = card["image_url"]
+    
+    # ⭐ НОВОЕ: Определяем источник медиа ⭐
+    media_source = card.get("media_source", "url")
     
     try:
-        # ⭐ Пытаемся отправить как видео (автовоспроизведение в чате)
-        if card.get("media_type") == "animation" or url.lower().endswith((".mp4", ".webm")):
-            await context.bot.send_video(
-                chat_id=chat_id,
-                video=url,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-                supports_streaming=True,  # Включает inline-плеер
-                width=400,  # Опционально: размер превью
-                height=400
-            )
+        if media_source == "file_id":
+            # ⭐ ОТПРАВКА ПО FILE_ID ⭐
+            file_id = card.get("file_id")
+            if not file_id:
+                logger.error(f"У карты {card.get('id')} нет file_id!")
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"⚠️ Ошибка: у карты #{card.get('id')} отсутствует файл"
+                )
+                return
+            
+            if card.get("media_type") == "animation":
+                await context.bot.send_video(
+                    chat_id=chat_id,
+                    video=file_id,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup,
+                    supports_streaming=True
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=file_id,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
         else:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=url,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=reply_markup
-            )
+            # ⭐ СТАРАЯ ЛОГИКА: ОТПРАВКА ПО URL ⭐
+            url = card["image_url"]
+            if card.get("media_type") == "animation" or url.lower().endswith((".mp4", ".webm")):
+                await context.bot.send_video(
+                    chat_id=chat_id,
+                    video=url,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup,
+                    supports_streaming=True
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=url,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
     except Exception as e:
-        # ⭐ Если видео не загрузилось, отправляем как документ/фото с fallback
-        logger.warning(f"Не удалось отправить как видео: {e}. Отправляю как фото/документ.")
-        await context.bot.send_photo(
+        logger.error(f"Ошибка отправки карты: {e}")
+        logger.error(f"URL/file_id: {card.get('image_url') or card.get('file_id')}")
+        await context.bot.send_message(
             chat_id=chat_id,
-            photo=url,
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=reply_markup
+            text=f"⚠️ Не удалось загрузить карту #{card.get('id')}"
         )
-
+        
 async def edit_card_message(query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup) -> None:
-    """Редактирует сообщение с карточкой."""
+    """Редактирует сообщение с карточкой (поддерживает URL и file_id)."""
     try:
-        if card.get("media_type") == "animation":
-            media = InputMediaAnimation(
-                media=card["image_url"], 
-                caption=caption,
-                parse_mode="HTML"  # ← ДОБАВЛЕНО
-            )
+        media_source = card.get("media_source", "url")
+        
+        if media_source == "file_id":
+            # ⭐ РЕДАКТИРОВАНИЕ С FILE_ID ⭐
+            file_id = card.get("file_id")
+            if card.get("media_type") == "animation":
+                media = InputMediaAnimation(
+                    media=file_id,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+            else:
+                media = InputMediaPhoto(
+                    media=file_id,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
         else:
-            media = InputMediaPhoto(
-                media=card["image_url"], 
-                caption=caption,
-                parse_mode="HTML"  # ← ДОБАВЛЕНО
-            )
+            # ⭐ СТАРАЯ ЛОГИКА: С URL ⭐
+            if card.get("media_type") == "animation":
+                media = InputMediaAnimation(
+                    media=card["image_url"],
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+            else:
+                media = InputMediaPhoto(
+                    media=card["image_url"],
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+        
         await query.edit_message_media(media=media, reply_markup=reply_markup)
     except Exception as e:
-        # ⭐ ИГНОРИРУЕМ ОШИБКУ "Message is not modified" ⭐
-        if "Message is not modified" in str(e):
-            logger.debug(f"Сообщение не изменилось, пропускаем редактирование")
-            return
-        logger.error(f"Ошибка редактирования сообщения: {e}")
+        logger.error(f"Ошибка редактирования: {e}")
+        # Fallback: удаляем старое и отправляем новое
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await send_card(
+            query, card,
+            context=query.get_bot() if hasattr(query, 'get_bot') else None,
+            caption=caption,
+            reply_markup=reply_markup,
+            chat_id=query.message.chat_id
+        )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start с поддержкой реферальной системы."""
@@ -886,10 +954,14 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if query:
             try:
+                # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
             except Exception as e:
                 error_str = str(e)
@@ -1001,10 +1073,14 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         
         if query:
             try:
+                # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
             except Exception as e:
                 error_str = str(e)
@@ -1535,10 +1611,14 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ])
             
             try:
+                # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="HTML")
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
                 
                 await query.edit_message_media(media=media, reply_markup=keyboard)
             except Exception as edit_error:
@@ -2291,6 +2371,150 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         text = update.message.text
 
+        # ⭐ ОБРАБОТКА МЕДИА ДЛЯ ДОБАВЛЕНИЯ КАРТЫ ⭐
+        if user_id in context.user_data:
+            user_state = context.user_data.get(user_id, {})
+            step = user_state.get("step", "")
+    
+            # Если ожидается медиа — обрабатываем фото/видео
+            if step == ADD_CARD_WAITING_MEDIA:
+                if update.message.photo or update.message.video or update.message.animation:
+                    await process_add_card_media(update, context)
+                    return
+                elif text and text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Добавление карты отменено.")
+                    return
+                else:
+                    await update.message.reply_text(
+                        "⚠️ Отправьте фото, видео или GIF!\n"
+                        "❌ Для отмены: /cancel"
+                    )
+                    return
+    
+            # Если ожидается название
+            if step == ADD_CARD_WAITING_TITLE:
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Добавление карты отменено.")
+                    return
+        
+                user_state["title"] = text
+                user_state["step"] = ADD_CARD_WAITING_RARITY
+        
+                # Список редкостей
+                rarities = [
+                    "Common", "Rare", "Rare Team-up",
+                    "Epic", "Epic Team-up",
+                    "Legendary", "Legendary Team-up",
+                    "Highlight", "Limited"
+                ]
+                rarity_text = "\n".join([f"• {r}" for r in rarities])
+        
+                await update.message.reply_text(
+                    f"✅ Название: **{text}**\n\n"
+                    f"🌟 **Шаг 3/4:** Выберите редкость:\n\n"
+                    f"{rarity_text}\n\n"
+                    f"❌ Для отмены: /cancel",
+                    parse_mode="Markdown"
+                )
+                return
+    
+            # Если ожидается редкость
+            if step == ADD_CARD_WAITING_RARITY:
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Добавление карты отменено.")
+                    return
+        
+                valid_rarities = [
+                    "Common", "Rare", "Rare Team-up",
+                    "Epic", "Epic Team-up",
+                    "Legendary", "Legendary Team-up",
+                    "Highlight", "Limited"
+                ]
+        
+                if text not in valid_rarities:
+                    await update.message.reply_text(
+                        f"❌ Неверная редкость!\n"
+                        f"Доступные: {', '.join(valid_rarities)}"
+                    )
+                    return
+        
+                user_state["rarity"] = text
+                user_state["step"] = ADD_CARD_WAITING_CATCHPHRASE
+        
+                await update.message.reply_text(
+                    f"✅ Редкость: **{text}**\n\n"
+                    f"💬 **Шаг 4/4:** Введите catchphrase (короткую фразу персонажа)\n"
+                    f"Или отправьте «нет» чтобы пропустить\n\n"
+                    f"❌ Для отмены: /cancel",
+                    parse_mode="Markdown"
+                )
+                return
+    
+            # Если ожидается catchphrase
+            if step == ADD_CARD_WAITING_CATCHPHRASE:
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Добавление карты отменено.")
+                    return
+        
+                catchphrase = None if text.lower() == "нет" else text
+        
+                # ⭐ СОЗДАЁМ НОВУЮ КАРТУ ⭐
+                data = load_data()
+                new_id = max([c["id"] for c in data["cards"]], default=0) + 1
+        
+                new_card = {
+                    "id": new_id,
+                    "title": user_state["title"],
+                    "rarity": user_state["rarity"],
+                    "catchphrase": catchphrase,
+                    "available": True,
+                    "media_type": user_state["media_type"],
+                    "media_source": "file_id",  # ⭐ НОВОЕ: источник — file_id
+                    "file_id": user_state["file_id"],  # ⭐ НОВОЕ: file_id файла
+                    "image_url": "",  # Пустой URL, т.к. используем file_id
+                }
+        
+                data["cards"].append(new_card)
+                save_data(data)
+        
+                # ⭐ Очищаем состояние ⭐
+                del context.user_data[user_id]
+        
+                # ⭐ Отправляем превью ⭐
+                catchphrase_text = f"💬 {catchphrase}" if catchphrase else ""
+                await update.message.reply_text(
+                    f"✅ **Карточка #{new_id} добавлена!**\n\n"
+                    f"🏷 {user_state['title']}\n"
+                    f"{catchphrase_text}\n"
+                    f"🌟 {user_state['rarity']}\n"
+                    f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
+                    f"📤 Источник: file_id"
+                )
+        
+                # ⭐ Отправляем превью карты ⭐
+                try:
+                    if user_state["media_type"] == "animation":
+                        await context.bot.send_video(
+                            chat_id=update.effective_chat.id,
+                            video=user_state["file_id"],
+                            caption=f"Превью карты #{new_id}",
+                            supports_streaming=True
+                        )
+                    else:
+                        await context.bot.send_photo(
+                            chat_id=update.effective_chat.id,
+                            photo=user_state["file_id"],
+                            caption=f"Превью карты #{new_id}"
+                        )
+                except Exception as preview_error:
+                    logger.warning(f"Не удалось отправить превью: {preview_error}")
+        
+                return
+
         # ⭐ СОСТОЯНИЕ ПОИСКА В АРХИВЕ ⭐
         if user_id in context.user_data:
             user_step = context.user_data[user_id].get("step", "")
@@ -2578,85 +2802,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка обработки сообщения: {e}")
 
 async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Добавление новой карточки (многострочно)."""
+    """Начинает процесс добавления новой карточки."""
     try:
+        user_id = str(update.effective_user.id)
         data = load_data()
-        if not is_admin(str(update.effective_user.id), data):
+        
+        if not is_admin(user_id, data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
         
-        full_text = update.message.text
-        lines = full_text.split("\n")
-        
-        if len(lines) < 5:
-            await update.message.reply_text(
-                "ℹ️ Формат:\n"
-                "/add_card\n"
-                "URL\n"
-                "Название\n"
-                "Редкость\n"
-                "Цитата (или 'нет')\n"
-                "Classic (да/нет) — необязательно"
-            )
-            return
-        
-        url = lines[1].strip()
-        title = lines[2].strip()
-        rarity = lines[3].strip()
-        catchphrase = lines[4].strip()
-        
-        # ⭐ НОВОЕ: Парсим 6-ю строку (Classic)
-        is_classic = False
-        if len(lines) >= 6:
-            classic_value = lines[5].strip().lower()
-            is_classic = classic_value in ["да", "true", "1", "yes", "classic"]
-        
-        if rarity not in RARITY_BONUSES:
-            await update.message.reply_text(
-                f"⚠️ Допустимые редкости: {', '.join(RARITY_BONUSES.keys())}"
-            )
-            return
-        
-        # Вычисляем новый ID
-        if data["cards"]:
-            new_id = max(card["id"] for card in data["cards"]) + 1
-        else:
-            new_id = 1
-        
-        media_type = determine_media_type(url, rarity)
-        
-        if catchphrase.lower() != "нет":
-            catchphrase = catchphrase.replace("\\n", "\n")
-        else:
-            catchphrase = None
-        
-        new_card = {
-            "id": new_id,
-            "image_url": url,
-            "title": title,
-            "rarity": rarity,
-            "catchphrase": catchphrase,
-            "available": True,
-            "media_type": media_type,
-            "is_classic": is_classic,  # ⭐ НОВОЕ ПОЛЕ
+        # ⭐ НОВОЕ: Запрашиваем отправку файла ⭐
+        context.user_data[user_id] = {
+            "step": ADD_CARD_WAITING_MEDIA
         }
-        data["cards"].append(new_card)
-        save_data(data)
-        
-        catchphrase_text = f"\n💬 {catchphrase}" if catchphrase else ""
-        classic_text = "🏛 **Classic**" if is_classic else ""
         
         await update.message.reply_text(
-            f"✅ Карточка #{new_id} добавлена!\n"
-            f"🏷 {title}{catchphrase_text}\n"
-            f"🌟 {rarity}\n"
-            f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}\n"
-            f"{classic_text}",
+            "➕ **Добавление новой карты**\n\n"
+            "📤 **Шаг 1/4:** Отправьте фото или видео карты\n\n"
+            "⚠️ Поддерживаются:\n"
+            "• 📷 Фото (JPG, PNG)\n"
+            "• 🎬 Видео (MP4, WEBM)\n"
+            "• 🎞 Анимации (GIF)\n\n"
+            "❌ Для отмены: /cancel",
             parse_mode="Markdown"
         )
     except Exception as e:
-        logger.error(f"Ошибка добавления карточки: {e}")
-        await update.message.reply_text("❌ Ошибка при добавлении")
+        logger.error(f"Ошибка в add_card: {e}")
+        await update.message.reply_text("❌ Ошибка при запуске добавления карты")
 
 async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Список всех карточек (с разбивкой на части)."""
@@ -2700,6 +2872,61 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as e:
         logger.error(f"Ошибка показа карточек: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
+
+async def process_add_card_media(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает полученный медиафайл для новой карты."""
+    try:
+        user_id = str(update.effective_user.id)
+        
+        if user_id not in context.user_data:
+            return
+        
+        user_state = context.user_data[user_id]
+        if user_state.get("step") != ADD_CARD_WAITING_MEDIA:
+            return
+        
+        # ⭐ Определяем тип медиа ⭐
+        file_id = None
+        media_type = "photo"
+        
+        if update.message.photo:
+            # Фото — берём самое большое
+            file_id = update.message.photo[-1].file_id
+            media_type = "photo"
+        elif update.message.video:
+            # Видео
+            file_id = update.message.video.file_id
+            media_type = "animation"  # Считаем как анимацию для автовоспроизведения
+        elif update.message.animation:
+            # GIF/анимация
+            file_id = update.message.animation.file_id
+            media_type = "animation"
+        else:
+            await update.message.reply_text(
+                "❌ Неверный тип файла!\n"
+                "Отправьте фото, видео или GIF."
+            )
+            return
+        
+        # ⭐ Сохраняем информацию о файле ⭐
+        user_state["file_id"] = file_id
+        user_state["media_type"] = media_type
+        user_state["media_source"] = "file_id"  # ⭐ НОВОЕ: источник — file_id
+        
+        # ⭐ Переходим к следующему шагу ⭐
+        user_state["step"] = ADD_CARD_WAITING_TITLE
+        
+        await update.message.reply_text(
+            f"✅ Медиа получено!\n"
+            f"📺 Тип: {'🎬 Видео/Анимация' if media_type == 'animation' else '📷 Фото'}\n\n"
+            f"📝 **Шаг 2/4:** Введите название карты\n\n"
+            f"❌ Для отмены: /cancel",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка process_add_card_media: {e}")
+        await update.message.reply_text("❌ Ошибка при обработке файла")
+
 
 
 async def toggle_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3098,6 +3325,38 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             card["media_type"] = determine_media_type(new_value, card.get("rarity", ""))
             display_new = new_value
             display_old = old_value
+
+        elif param == "media":
+            # ⭐ НОВОЕ: Замена медиафайла ⭐
+            if not update.message.photo and not update.message.video and not update.message.animation:
+                await update.message.reply_text(
+                    "⚠️ Отправьте фото или видео для замены!\n"
+                    "Используйте: /edit_card [ID] media"
+                )
+                return
+    
+            # Определяем file_id
+            if update.message.photo:
+                new_file_id = update.message.photo[-1].file_id
+                new_media_type = "photo"
+            elif update.message.video:
+                new_file_id = update.message.video.file_id
+                new_media_type = "animation"
+            elif update.message.animation:
+                new_file_id = update.message.animation.file_id
+                new_media_type = "animation"
+    
+            card["file_id"] = new_file_id
+            card["media_source"] = "file_id"
+            card["media_type"] = new_media_type
+            card["image_url"] = ""  # Очищаем URL
+    
+            await update.message.reply_text(
+                f"✅ Медиа карты #{card_id} обновлено!\n"
+                f"📺 Тип: {'🎬 Видео' if new_media_type == 'animation' else '📷 Фото'}\n"
+                f"📤 Источник: file_id"
+            )
+            return
             
         else:  # title
             card[param] = new_value
@@ -6591,11 +6850,14 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
             saved_msg_id = context.user_data.get(f"burn_nav_msg_{user_id}")
             if query and saved_msg_id:
                 try:
+                    # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                    media_source = card.get("media_source", "url")
+                    media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
                     if card.get("media_type") == "animation":
-                        media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                        media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                     else:
-                        
-                        media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                        media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
                     await context.bot.edit_message_text(
                         chat_id=query.message.chat_id,
                         message_id=saved_msg_id,
@@ -6710,10 +6972,14 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
         if query and saved_msg_id:
             # ⭐ РЕДАКТИРУЕМ СОХРАНЁННОЕ СООБЩЕНИЕ ⭐
             try:
+                # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(media=card["image_url"], caption=caption, parse_mode="Markdown")
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
                 await context.bot.edit_message_media(
                     chat_id=query.message.chat_id,
                     message_id=saved_msg_id,
