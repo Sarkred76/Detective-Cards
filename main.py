@@ -80,7 +80,11 @@ SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
-MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"  # ⭐ НОВОЕ: Картинка для Меню
+# ===== SUPERGIRL-BOX =====
+SUPERGIRL_BOX_AVATAR_URL = "https://files.catbox.moe/a3hjp2.webp"
+SUPERGIRL_BOX_CARDS = [114, 115, 116, 117, 118, 119, 120]
+
+MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
 QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
 
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
@@ -341,6 +345,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["rolls_box_price"] = 25000
                 if "pending_season_boxes" not in user_data:
                     user_data["pending_season_boxes"] = 0
+                if "pending_supergirl_boxes" not in user_data:
+                    user_data["pending_supergirl_boxes"] = 0
                 if "last_daily_activity" not in user_data:
                     user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
                 if "registered_at" not in user_data:
@@ -6554,6 +6560,236 @@ async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.error(f"Ошибка give_season_box: {e}")
         await update.message.reply_text("❌ Ошибка при выдаче Season-Box")
 
+async def give_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт Supergirl-Box игроку по ID или @никнейму."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/give_supergirl_box [ID_или_@никнейм]\n"
+                "**Примеры:**\n"
+                "/give_supergirl_box 881692999\n"
+                "/give_supergirl_box @username",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        
+        # Определяем ID игрока
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # ⭐ Миграция ⭐
+        if "pending_supergirl_boxes" not in user_data:
+            user_data["pending_supergirl_boxes"] = 0
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+        
+        # ⭐ Увеличиваем счётчик pending ⭐
+        user_data["pending_supergirl_boxes"] += 1
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока с кнопкой "Открыть" ⭐
+        try:
+            keyboard = [
+                [InlineKeyboardButton("🦸‍♀️ Открыть Supergirl-Box", callback_data="open_supergirl_box")]
+            ]
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    "🦸‍♀️ <b>Вам был выдан Supergirl-Box!</b>\n\n"
+                    "🎁 Содержимое:\n"
+                    "• Набор эксклюзивных карт\n"
+                    "• Эксклюзивная аватарка 🖼\n\n"
+                    "Нажмите кнопку ниже, чтобы открыть бокс:"
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        
+        await update.message.reply_text(
+            f"✅ **Supergirl-Box выдан!**\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"📦 Всего накоплено: {user_data['pending_supergirl_boxes']}",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Админ выдал Supergirl-Box игроку {target_user_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка give_supergirl_box: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче Supergirl-Box")
+
+async def open_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает 1 Supergirl-Box: карты из списка + аватарка."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        # ⭐ Миграция ⭐
+        if "pending_supergirl_boxes" not in user_data:
+            user_data["pending_supergirl_boxes"] = 0
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+        
+        pending = user_data["pending_supergirl_boxes"]
+        if pending <= 0:
+            await query.answer("❌ У вас нет накопленных Supergirl-Box", show_alert=True)
+            return
+        
+        # ⭐ Собираем карты из SUPERGIRL_BOX_CARDS ⭐
+        supergirl_cards = []
+        for card_id in SUPERGIRL_BOX_CARDS:
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                supergirl_cards.append(card)
+        
+        if not supergirl_cards:
+            await query.answer("❌ В боксе нет доступных карт", show_alert=True)
+            return
+        
+        # ⭐ Выдаём карты (дубликаты как обычно) ⭐
+        for card in supergirl_cards:
+            user_data["cards"].append(card["id"])
+        
+        # ⭐ Эксклюзивная аватарка (если её нет) ⭐
+        avatar_added = False
+        if SUPERGIRL_BOX_AVATAR_URL not in user_data["avatars"]:
+            user_data["avatars"].append(SUPERGIRL_BOX_AVATAR_URL)
+            avatar_added = True
+        
+        # ⭐ Уменьшаем счётчик pending ⭐
+        user_data["pending_supergirl_boxes"] = pending - 1
+        save_data(data)
+        
+        await query.answer("🦸‍♀️ Supergirl-Box открыт!", show_alert=True)
+        
+        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
+        # ⚠️ Используем InputMediaVideo вместо InputMediaAnimation
+        media_group = []
+        for i, card in enumerate(supergirl_cards):
+            caption = None
+            if i == 0:
+                caption = (
+                    f"🦸‍♀️ <b>Supergirl-Box открыт!</b>\n"
+                    f"🎴 Получено {len(supergirl_cards)} карт\n"
+                    f"🖼 {'+Эксклюзивная аватарка' if avatar_added else ''}\n"
+                    f"📦 Осталось открытых боксов: {user_data['pending_supergirl_boxes']}"
+                )
+            
+            # ⭐ Используем InputMediaVideo для анимаций ⭐
+            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")):
+                media_group.append(
+                    InputMediaVideo(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None,
+                        supports_streaming=True
+                    )
+                )
+            else:
+                media_group.append(
+                    InputMediaPhoto(
+                        media=card["image_url"],
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+        
+        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
+        try:
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id,
+                media=media_group
+            )
+        except Exception as media_error:
+            # Fallback: отправляем по одному
+            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
+            for i, card in enumerate(supergirl_cards):
+                cap = None
+                if i == 0:
+                    cap = (
+                        f"🦸‍♀️ <b>Supergirl-Box открыт!</b>\n"
+                        f"🎴 Получено {len(supergirl_cards)} карт\n"
+                        f"🖼 {'+Эксклюзивная аватарка' if avatar_added else ''}"
+                    )
+                
+                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")):
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
+                        video=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None,
+                        supports_streaming=True
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=cap,
+                        parse_mode="HTML" if cap else None
+                    )
+                await asyncio.sleep(0.3)
+        
+        # ⭐ Финальное сообщение ⭐
+        kb = []
+        if user_data["pending_supergirl_boxes"] > 0:
+            kb.append([InlineKeyboardButton(
+                f"🦸‍♀️ Открыть ещё ({user_data['pending_supergirl_boxes']} шт.)",
+                callback_data="open_supergirl_box"
+            )])
+        kb.append([InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")])
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="✅ <b>Supergirl-Box успешно открыт!</b>",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"Игрок {user_id} открыл Supergirl-Box (осталось: {user_data['pending_supergirl_boxes']})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка открытия Supergirl-Box: {e}")
+        try:
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text="❌ Произошла ошибка при открытии Supergirl-Box",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
+                ]])
+            )
+        except Exception:
+            pass
+
 async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
     """Показывает сезонные карты с навигацией."""
     try:
@@ -9343,6 +9579,7 @@ def main() -> None:
             CommandHandler("list_seasonal", list_seasonal_cards),
             CommandHandler("give_season_box", give_season_box),
             CommandHandler("add_cents_to_player", add_cents_to_player),
+            CommandHandler("give_supergirl_box", give_supergirl_box),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
@@ -9367,6 +9604,7 @@ def main() -> None:
             CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
             CallbackQueryHandler(archive_search_start, pattern=r"^archive_search_(all|Common|Rare|Epic|Legendary|Highlight|Limited|Rare Team-up|Epic Team-up|Legendary Team-up)$"),
             CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
+            CallbackQueryHandler(open_supergirl_box, pattern=r"^open_supergirl_box$"),
         ]
 
         for handler in handlers:
