@@ -82,7 +82,7 @@ DEFAULT_CLAN_AVATAR = None  # None означает отсутствие ава�
 
 # ===== SUPERGIRL-BOX =====
 SUPERGIRL_BOX_AVATAR_URL = "https://files.catbox.moe/ddtttj.jpg"
-SUPERGIRL_BOX_CARDS = [114, 115, 116, 117, 118, 119, 120]
+SUPERGIRL_BOX_CARDS = [114, 115, 116, 117, 118, 119, 120, 121]
 
 MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
 QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
