@@ -81,7 +81,7 @@ SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
 # ===== SUPERGIRL-BOX =====
-SUPERGIRL_BOX_AVATAR_URL = "https://files.catbox.moe/a3hjp2.webp"
+SUPERGIRL_BOX_AVATAR_URL = "https://files.catbox.moe/ddtttj.jpg"
 SUPERGIRL_BOX_CARDS = [114, 115, 116, 117, 118, 119, 120]
 
 MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
