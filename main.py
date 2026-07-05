@@ -6693,7 +6693,7 @@ async def open_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer("🦸‍♀️ Supergirl-Box открыт!", show_alert=True)
         
         # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
-        # ⚠️ Используем InputMediaVideo вместо InputMediaAnimation
+        # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
         media_group = []
         for i, card in enumerate(supergirl_cards):
             caption = None
@@ -6705,11 +6705,20 @@ async def open_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     f"📦 Осталось открытых боксов: {user_data['pending_supergirl_boxes']}"
                 )
             
-            # ⭐ Используем InputMediaVideo для анимаций ⭐
-            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")):
+            # ⭐ НОВОЕ: Определяем источник медиа ⭐
+            media_source = card.get("media_source", "url")
+            media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+            
+            # ⭐ Проверяем, что медиа существует ⭐
+            if not media_value:
+                logger.warning(f"У карты #{card['id']} отсутствует медиа! Пропускаем.")
+                continue
+            
+            # ⭐ Формируем медиа-элемент ⭐
+            if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
                 media_group.append(
                     InputMediaVideo(
-                        media=card["image_url"],
+                        media=media_value,
                         caption=caption,
                         parse_mode="HTML" if caption else None,
                         supports_streaming=True
@@ -6718,7 +6727,7 @@ async def open_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE)
             else:
                 media_group.append(
                     InputMediaPhoto(
-                        media=card["image_url"],
+                        media=media_value,
                         caption=caption,
                         parse_mode="HTML" if caption else None
                     )
@@ -6742,21 +6751,35 @@ async def open_supergirl_box(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         f"🖼 {'+Эксклюзивная аватарка' if avatar_added else ''}"
                     )
                 
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm", ".gif")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=cap,
-                        parse_mode="HTML" if cap else None,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=cap,
-                        parse_mode="HTML" if cap else None
-                    )
+                # ⭐ НОВОЕ: Определяем источник медиа ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+                
+                if not media_value:
+                    logger.warning(f"У карты #{card['id']} отсутствует медиа! Пропускаем.")
+                    continue
+                
+                try:
+                    if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
+                        await context.bot.send_video(
+                            chat_id=query.message.chat_id,
+                            video=media_value,
+                            caption=cap,
+                            parse_mode="HTML" if cap else None,
+                            supports_streaming=True
+                        )
+                    else:
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id,
+                            photo=media_value,
+                            caption=cap,
+                            parse_mode="HTML" if cap else None
+                        )
+                except Exception as single_error:
+                    logger.error(f"Не удалось отправить карту #{card['id']}: {single_error}")
+                    # Пропускаем проблемную карту и продолжаем
+                    continue
+                
                 await asyncio.sleep(0.3)
         
         # ⭐ Финальное сообщение ⭐
