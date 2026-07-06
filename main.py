@@ -1366,7 +1366,7 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
                     media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
     
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-            except Exception as edit_error
+            except Exception as edit_error:
             
                 if "Message is not modified" in str(edit_error):
                     # Просто обновляем клавиатуру
