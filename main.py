@@ -100,6 +100,13 @@ BURN_REWARDS = {
     "Limited": {"cents": 0, "free_rolls": 15},  # бонус для редкой
 }
 
+def get_card_media_value(card: Dict) -> str:
+    """Возвращает правильный источник медиа для карты (file_id или URL)."""
+    media_source = card.get("media_source", "url")
+    if media_source == "file_id":
+        return card.get("file_id", "")
+    return card.get("image_url", "")
+
 # Бонусы по редкостям
 RARITY_BONUSES = {
     "Common": {"cents": 100, "points": 200, "probability": 57.93},
@@ -1239,12 +1246,24 @@ async def archive_search_execute(update: Update, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton("❌ Отмена поиска", callback_data="archive_search_cancel")]
         ]
         
-        await update.message.reply_photo(
-            photo=card["image_url"],
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
+        # ⭐ ИСПРАВЛЕНИЕ: Универсальная логика ⭐
+        media_source = card.get("media_source", "url")
+        media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+
+        if card.get("media_type") == "animation":
+            await update.message.reply_animation(
+                animation=media_value,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_photo(
+                photo=media_value,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
         
     except Exception as e:
         logger.error(f"Ошибка в archive_search_execute: {e}")
@@ -1338,21 +1357,17 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
             ]
     
             try:
-                # ✅ ИСПРАВЛЕНИЕ: Используем HTML и правильный метод
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card["image_url"]
+    
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML"
-                    )
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML"
-                    )
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
+    
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-            except Exception as edit_error:
+            except Exception as edit_error
+            
                 if "Message is not modified" in str(edit_error):
                     # Просто обновляем клавиатуру
                     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
@@ -1366,7 +1381,7 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
                 if card.get("media_type") == "animation":
                     await context.bot.send_animation(
                         chat_id=query.message.chat_id,
-                        animation=card["image_url"],
+                        animation=media_value,
                         caption=caption,
                         reply_markup=InlineKeyboardMarkup(keyboard),
                         parse_mode="HTML"
@@ -1374,7 +1389,7 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
                 else:
                     await context.bot.send_photo(
                         chat_id=query.message.chat_id,
-                        photo=card["image_url"],
+                        photo=media_value,
                         caption=caption,
                         reply_markup=InlineKeyboardMarkup(keyboard),
                         parse_mode="HTML"
@@ -7415,7 +7430,7 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                 if query:
                     if card.get("media_type") == "animation":
                         sent_message = await query.message.reply_animation(
-                            animation=card["image_url"],
+                            animation=media_value,
                             caption=caption,
                             reply_markup=InlineKeyboardMarkup(keyboard),
                             parse_mode="Markdown"
@@ -7430,7 +7445,7 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
                 else:
                     if card.get("media_type") == "animation":
                         sent_message = await update.message.reply_animation(
-                            animation=card["image_url"],
+                            animation=media_value,
                             caption=caption,
                             reply_markup=InlineKeyboardMarkup(keyboard),
                             parse_mode="Markdown"
