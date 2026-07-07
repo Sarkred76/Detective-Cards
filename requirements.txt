@@ -1,6 +1,7 @@
 # ===== Основные зависимости =====
 python-telegram-bot==22.7
 python-dotenv==1.2.2
+APScheduler>=3.10.0
 
 # ===== Системные (для надёжной сборки) =====
 setuptools>=68.0.0
