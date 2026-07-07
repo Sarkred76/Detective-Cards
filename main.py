@@ -360,9 +360,16 @@ def load_data() -> Dict[str, Any]:
                     user_data["batpass_expires_at"] = 0
                 if "batpass_privileges" not in user_data:
                     user_data["batpass_privileges"] = {
-                        "reduced_cooldown": True,  # 2.5 часа вместо 3 часов
-                        # ⭐ Здесь будут добавляться новые привилегии ⭐
+                        "reduced_cooldown": True,      # 2.5 часа вместо 3 часов
+                        "extra_dice_rolls": True,      # 2 броска кубика в неделю
+                        "free_clan_creation": True,    # Бесплатное создание клана
+                        "extra_casino_attempts": True, # 7 попыток в казино вместо 5
                     }
+                # ⭐ НОВОЕ: Счётчик бросков кубика за неделю ⭐
+                if "weekly_dice_rolls" not in user_data:
+                    user_data["weekly_dice_rolls"] = 1  # 1 бросок по умолчанию
+                if "last_dice_week_reset" not in user_data:
+                    user_data["last_dice_week_reset"] = 0
                 if "last_daily_activity" not in user_data:
                     user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
                 if "registered_at" not in user_data:
@@ -399,23 +406,23 @@ def load_data() -> Dict[str, Any]:
     }
 
 def check_casino_reset(user_data: Dict) -> None:
-    """Проверяет и сбрасывает попытки казино в полночь по МСК."""
-    import datetime
-
-    # Получаем текущее время по МСК
-    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-    now_msk = datetime.datetime.now(msk_tz)
-
-    # Получаем дату последнего сброса
+    """Проверяет и выполняет сброс попыток казино в 00:00 МСК."""
+    from datetime import datetime, timezone, timedelta
+    msk_tz = timezone(timedelta(hours=3))
+    now = datetime.now(msk_tz)
+    
     last_reset = user_data.get("last_casino_reset", 0)
-
-    # Если сегодня ещё не сбрасывали
-    if (
-        last_reset == 0
-        or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day
-    ):
-        user_data["casino_attempts"] = 5
-        user_data["last_casino_reset"] = int(now_msk.timestamp())
+    
+    # Определяем начало текущего дня (00:00 МСК)
+    current_day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    current_day_start_ts = int(current_day_start.timestamp())
+    
+    if current_day_start_ts > last_reset:
+        # ⭐ НОВОЕ: Проверяем Бэт-пасс ⭐
+        max_attempts = 7 if is_batpass_active(user_data) else 5
+        
+        user_data["casino_attempts"] = max_attempts
+        user_data["last_casino_reset"] = current_day_start_ts
 
 def save_data(data: Dict[str, Any]) -> None:
     """Сохраняет данные в файл, компактно оформляя списки."""
@@ -837,6 +844,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/check_probabilities - проверить вероятности выпадения карт\n"
             response += "/give_batpass [@никнейм] [дней] - выдать Бэт-пасс\n"
             response += "/remove_batpass [@никнейм] - отозвать Бэт-пасс\n"
+            response += "/give_card_to_batpass [ID_карты] [количество] - выдать карту всем с Бэт-пассом\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -3730,7 +3738,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("❌ Ошибка при удалении администратора")
         
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Бросок кубика для получения бесплатных попыток (раз в неделю, сброс в понедельник 00:00 МСК)."""
+    """Бросок кубика для получения бесплатных попыток (раз в неделю, с Бэт-пассом — 2 раза)."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
@@ -3751,22 +3759,28 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             }
             data["users"][user_id] = user_data
 
+        # ⭐ Миграция для старых пользователей ⭐
+        if "weekly_dice_rolls" not in user_data:
+            user_data["weekly_dice_rolls"] = 1
+        
         # ⭐ ПРОВЕРКА ЕЖЕНЕДЕЛЬНОГО СБРОСА ⭐
         check_dice_reset(user_data)
         
-        current_time = int(time.time())
-        last_dice_time = user_data.get("last_dice_time", 0)
+        # ⭐ НОВОЕ: Проверяем Бэт-пасс для определения максимума бросков ⭐
+        max_rolls = 2 if is_batpass_active(user_data) else 1
         
-        # Если last_dice_time != 0, значит на этой неделе игрок уже бросал кубик
-        if last_dice_time != 0:
+        # ⭐ Проверяем, есть ли доступные броски ⭐
+        rolls_left = user_data.get("weekly_dice_rolls", 0)
+        
+        if rolls_left <= 0:
+            # ⭐ Броски закончились — показываем время до следующего понедельника ⭐
             import datetime
             msk_tz = datetime.timezone(datetime.timedelta(hours=3))
             now_msk = datetime.datetime.now(msk_tz)
             
-            # Вычисляем, сколько дней осталось до следующего понедельника
             days_until_monday = (7 - now_msk.weekday()) % 7
             if days_until_monday == 0:
-                days_until_monday = 7  # Если сегодня понедельник, но бросок уже был, ждем 7 дней
+                days_until_monday = 7
                 
             next_monday = now_msk.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=days_until_monday)
             remaining_seconds = int((next_monday - now_msk).total_seconds())
@@ -3780,9 +3794,15 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 time_text += f"{days} дн. "
             time_text += f"{hours} ч {minutes} мин"
             
+            # ⭐ НОВОЕ: Показываем лимит с учётом Бэт-пасса ⭐
+            batpass_text = " (🎫 Бэт-пасс: 2 броска/нед.)" if is_batpass_active(user_data) else ""
+            
             await update.message.reply_text(
-                f"⏳ Вы уже бросали кубик на этой неделе!\n"
-                f"Осталось ждать: {time_text}\n"
+                f"⏳ **Все броски кубика на этой неделе использованы!**\n\n"
+                f"🎲 Лимит: {max_rolls} бросок(а){batpass_text}\n"
+                f"⏳ Следующий бросок через: {time_text}\n"
+                f"📅 В понедельник в 00:00 МСК",
+                parse_mode="Markdown"
             )
             return
 
@@ -3792,14 +3812,32 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Добавляем бесплатные попытки (ровно столько, сколько выпало)
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + dice_value
-        user_data["last_dice_time"] = current_time
+        
+        # ⭐ НОВОЕ: Уменьшаем счётчик бросков ⭐
+        user_data["weekly_dice_rolls"] = rolls_left - 1
+        user_data["last_dice_time"] = int(time.time())  # Для обратной совместимости
         save_data(data)
         
+        rolls_left_after = user_data["weekly_dice_rolls"]
+        
         await asyncio.sleep(4)
+        
+        # ⭐ Формируем текст с учётом оставшихся бросков ⭐
+        if rolls_left_after > 0:
+            remaining_text = f"🎲 Осталось бросков на этой неделе: **{rolls_left_after}**"
+        else:
+            remaining_text = "✅ Все броски на этой неделе использованы!\n📅 Следующий бросок в понедельник в 00:00 МСК"
+        
+        batpass_info = ""
+        if is_batpass_active(user_data):
+            batpass_info = "\n🎫 _Бэт-пасс: 2 броска/нед._"
+        
         await update.message.reply_text(
-            f"🔍 Получено бесплатных попыток: {dice_value}\n"
-            f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n"
-            f"⏳ Следующий бросок доступен в следующий понедельник в 00:00 МСК"
+            f"🔍 **Получено бесплатных попыток:** {dice_value}\n"
+            f"📊 **Всего бесплатных попыток:** {user_data['free_rolls']}\n\n"
+            f"{remaining_text}"
+            f"{batpass_info}",
+            parse_mode="Markdown"
         )
     except Exception as e:
         logger.error(f"Ошибка броска кубика: {e}")
@@ -3816,9 +3854,16 @@ def check_dice_reset(user_data: Dict) -> None:
     last_year = user_data.get("last_dice_reset_year", 0)
     last_week = user_data.get("last_dice_reset_week", 0)
     
-    # Если год или неделя изменились, сбрасываем время последнего броска
+    # ⭐ Миграция для старых пользователей ⭐
+    if "weekly_dice_rolls" not in user_data:
+        user_data["weekly_dice_rolls"] = 1
+    
+    # Если год или неделя изменились, сбрасываем счётчик
     if last_year == 0 or current_year != last_year or current_week != last_week:
-        user_data["last_dice_time"] = 0
+        # ⭐ НОВОЕ: Определяем количество бросков по Бэт-пассу ⭐
+        max_rolls = 2 if is_batpass_active(user_data) else 1
+        user_data["weekly_dice_rolls"] = max_rolls
+        user_data["last_dice_time"] = 0  # Для обратной совместимости
         user_data["last_dice_reset_year"] = current_year
         user_data["last_dice_reset_week"] = current_week
 
@@ -3927,10 +3972,12 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         else:
             await asyncio.sleep(2)
+            attempts = user_data['casino_attempts'] + 2 if is_batpass_active(user_data) else user_data['casino_attempts']
+            
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
                 f"💰 Списано: 1500 бэт-коинов\n"
-                f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
+                f"🎲 Осталось попыток: {attempts}\n"
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 reply_markup=InlineKeyboardMarkup(keyboard), 
                 parse_mode="Markdown",
@@ -4689,6 +4736,8 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         
         keyboard = [[InlineKeyboardButton("🎰 Сыграть)", callback_data="casino_play")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
+
+        max_casino_attempts = 7 if is_batpass_active(user_data) else 5
         
         await update.message.reply_text(
             f"🎰 **Казино**\n"
@@ -4696,7 +4745,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
             f"• Стоимость игры: 1500 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных попыток\n"
-            f"• Лимит: 5 игр в день (сброс в 00:00 МСК)\n\n"
+            f"• Лимит: {max_casino_attempts} игр в день (сброс в 00:00 МСК)\n"
             f"{balance_text}\n",
             reply_markup=reply_markup,
             parse_mode="Markdown"
@@ -5502,10 +5551,15 @@ async def create_clan_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             [KeyboardButton("❌ Отмена")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        user_data = data["users"].get(user_id, {})
+        creation_cost = 0 if is_batpass_active(user_data) else CLAN_CREATION_COST
+
+        cost_text = "**Бесплатно** (Бэт-пасс)" if creation_cost == 0 else f"**{creation_cost:,}** бэт-коинов"
         
         await update.message.reply_text(
             f"🏰 **Создание клана**\n\n"
-            f"Стоимость: **30 000 бэт-коинов**\n\n"
+            f"Стоимость: **{cost_text}**\n\n"
             f"После подтверждения вам нужно будет ввести название клана.\n"
             f"Название должно быть уникальным!\n\n"
             f"Подтверждаете создание?",
@@ -6010,13 +6064,19 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
     # Проверка и списание бэт-коинов
     if user_id not in data.get("users", {}):
         return False, "Ошибка: профиль пользователя не найден."
-        
-    current_cents = data["users"][user_id].get("cents", 0)
-    if current_cents < CLAN_CREATION_COST:
-        return False, f"Недостаточно бэт-коинов! Нужно {CLAN_CREATION_COST}."
-        
-    # ✅ Списываем стоимость создания
-    data["users"][user_id]["cents"] -= CLAN_CREATION_COST
+
+    user_data = data["users"][user_id]
+
+    # ⭐ НОВОЕ: Проверяем Бэт-пасс ⭐
+    creation_cost = 0 if is_batpass_active(user_data) else CLAN_CREATION_COST
+
+    if creation_cost > 0:
+        current_cents = user_data.get("cents", 0)
+        if current_cents < creation_cost:
+            return False, f"Недостаточно бэт-коинов! Нужно {creation_cost}."
+    
+        # ✅ Списываем стоимость создания
+        user_data["cents"] -= creation_cost
     
     # Создаём клан
     clan_id = f"clan_{int(time.time())}_{user_id}"
@@ -9874,7 +9934,10 @@ async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     f"📅 <b>Срок действия:</b> {days} дней\n"
                     f"⏰ <b>Истекает:</b> {expires_display}\n\n"
                     f"✨ <b>Привилегии:</b>\n"
-                    f"• Получение досье раз в 2.5 часа (вместо 3 часов)"
+                    f"• Получение досье раз в 2.5 часа (вместо 3 часов)\n"
+                    f"• 2 броска кубика в баре за неделю (вместо 1)\n"
+                    f"• Бесплатное создание кланов (0 бэт-коинов)\n"
+                    f"• 7 попыток в казино в день (вместо 5)"
                 ),
                 parse_mode="HTML"
             )
@@ -9961,7 +10024,144 @@ async def remove_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка remove_batpass: {e}")
         await update.message.reply_text("❌ Ошибка при отзыве Бэт-пасса")
 
-
+async def give_card_to_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт карту всем игрокам с активным Бэт-пассом."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы
+        if not context.args or len(context.args) < 1:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/give_card_to_batpass [ID_карты] [количество]\n"
+                "**Примеры:**\n"
+                "/give_card_to_batpass 45 - выдать 1 карту всем\n"
+                "/give_card_to_batpass 45 3 - выдать 3 карты всем",
+                parse_mode="Markdown"
+            )
+            return
+        
+        card_id = int(context.args[0])
+        count = int(context.args[1]) if len(context.args) > 1 else 1
+        
+        # Проверяем существование карты
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+            return
+        
+        # ⭐ Собираем список игроков с активным Бэт-пассом ⭐
+        from datetime import datetime, timezone, timedelta
+        msk_tz = timezone(timedelta(hours=3))
+        now = int(datetime.now(msk_tz).timestamp())
+        
+        batpass_holders = []
+        for uid, udata in data["users"].items():
+            if udata.get("has_batpass", False):
+                expires_at = udata.get("batpass_expires_at", 0)
+                if expires_at > now:
+                    batpass_holders.append(uid)
+        
+        if not batpass_holders:
+            await update.message.reply_text(
+                "⚠️ Нет игроков с активным Бэт-пассом!"
+            )
+            return
+        
+        # ⭐ Выдаём карту каждому ⭐
+        success_count = 0
+        failed_count = 0
+        
+        for uid in batpass_holders:
+            user_data = data["users"][uid]
+            
+            # Добавляем карту
+            if "cards" not in user_data:
+                user_data["cards"] = []
+            
+            for _ in range(count):
+                user_data["cards"].append(card_id)
+            
+            # ⭐ Уведомляем игрока ⭐
+            try:
+                # Формируем caption
+                if count > 1:
+                    caption_text = (
+                        f"🎁 <b>Вам была выдана награда!</b>\n\n"
+                        f"🃏 <b>Карта:</b> {card['title']}\n"
+                        f"🌟 <b>Редкость:</b> {card['rarity']}\n"
+                        f"📦 <b>Количество:</b> {count} шт.\n\n"
+                        f"🎫 <i>Награда за Бэт-пасс</i>"
+                    )
+                else:
+                    caption_text = (
+                        f"🎁 <b>Вам была выдана награда!</b>\n\n"
+                        f"🃏 <b>Карта:</b> {card['title']}\n"
+                        f"🌟 <b>Редкость:</b> {card['rarity']}\n\n"
+                        f"🎫 <i>Награда за Бэт-пасс</i>"
+                    )
+                
+                # ⭐ Универсальная логика: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+                
+                if not media_value:
+                    await context.bot.send_message(
+                        chat_id=uid,
+                        text=caption_text,
+                        parse_mode="HTML"
+                    )
+                elif card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
+                    await context.bot.send_video(
+                        chat_id=uid,
+                        video=media_value,
+                        caption=caption_text,
+                        parse_mode="HTML",
+                        supports_streaming=True
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=uid,
+                        photo=media_value,
+                        caption=caption_text,
+                        parse_mode="HTML"
+                    )
+                
+                success_count += 1
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить игрока {uid}: {notify_error}")
+                failed_count += 1
+                # ⭐ Продолжаем выдачу остальным ⭐
+                continue
+        
+        save_data(data)
+        
+        # ⭐ Отчёт админу ⭐
+        await update.message.reply_text(
+            f"✅ **Карта выдана игрокам с Бэт-пассом!**\n\n"
+            f"🃏 Карта: {card['title']} (#{card_id})\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"📦 Количество: {count} шт.\n\n"
+            f"👥 Всего получателей: {len(batpass_holders)}\n"
+            f"✅ Успешно: {success_count}\n"
+            f"❌ Не удалось уведомить: {failed_count}",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(
+            f"Админ выдал карту #{card_id} (x{count}) "
+            f"{len(batpass_holders)} игрокам с Бэт-пассом "
+            f"(успешно: {success_count}, не удалось: {failed_count})"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID карты и количество должны быть числами!")
+    except Exception as e:
+        logger.error(f"Ошибка give_card_to_batpass: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче карты")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -10021,6 +10221,7 @@ def main() -> None:
             CommandHandler("check_probabilities", check_probabilities),
             CommandHandler("give_batpass", give_batpass),
             CommandHandler("remove_batpass", remove_batpass),
+            CommandHandler("give_card_to_batpass", give_card_to_batpass),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
