@@ -810,6 +810,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/give_season_box [@никнейм] - Выдать игроку сезонный бокс\n"
             response += "/add_cents_to_player [ID] [количество] - добавить/списать бэт-коины\n"
             response += "/daily_stats - статистика активности за сегодня\n" 
+            response += "/check_probabilities - проверить вероятности выпадения карт\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -9563,6 +9564,98 @@ async def daily_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.error(f"Ошибка daily_stats: {e}")
         await update.message.reply_text("❌ Ошибка при получении статистики")
 
+
+async def check_probabilities(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает реальные вероятности выпадения карт по редкостям."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Собираем доступные карты
+        available_cards = [c for c in data["cards"] if c.get("available", True)]
+        
+        # Группируем по редкостям
+        cards_by_rarity = {}
+        for card in available_cards:
+            rarity = card.get("rarity", "Unknown")
+            if rarity not in cards_by_rarity:
+                cards_by_rarity[rarity] = []
+            cards_by_rarity[rarity].append(card)
+        
+        # Собираем веса
+        available_rarities = []
+        weights = []
+        for rarity, rarity_cards in cards_by_rarity.items():
+            if rarity_cards:
+                probability = RARITY_BONUSES.get(rarity, {"probability": 0}).get("probability", 0)
+                if probability > 0:
+                    available_rarities.append(rarity)
+                    weights.append(probability)
+        
+        if not available_rarities:
+            await update.message.reply_text("❌ Нет доступных карт с положительной вероятностью!")
+            return
+        
+        total_weight = sum(weights)
+        
+        # Формируем отчёт
+        message_text = (
+            f"📊 **Реальные вероятности выпадения карт**\n\n"
+            f"📦 Всего доступных карт: **{len(available_cards)}**\n"
+            f"🎯 Сумма весов: **{total_weight}**\n\n"
+            f"**По редкостям:**\n"
+        )
+        
+        # Сортируем по вероятности (по убыванию)
+        rarity_data = []
+        for rarity, weight in zip(available_rarities, weights):
+            normalized = round((weight / total_weight) * 100, 2)
+            card_count = len(cards_by_rarity[rarity])
+            # Вероятность конкретной карты этой редкости
+            per_card = round(normalized / card_count, 2) if card_count > 0 else 0
+            rarity_data.append({
+                "rarity": rarity,
+                "weight": weight,
+                "normalized": normalized,
+                "card_count": card_count,
+                "per_card": per_card
+            })
+        
+        rarity_data.sort(key=lambda x: x["normalized"], reverse=True)
+        
+        for rd in rarity_data:
+            message_text += (
+                f"\n🌟 **{rd['rarity']}**\n"
+                f"   • Вес: {rd['weight']}\n"
+                f"   • Шанс редкости: **{rd['normalized']}%**\n"
+                f"   • Карт в базе: {rd['card_count']}\n"
+                f"   • Шанс конкретной карты: **{rd['per_card']}%**\n"
+            )
+        
+        # ⭐ Симуляция 1000 выпадений для проверки ⭐
+        message_text += "\n\n🎲 **Симуляция 1000 выпадений:**\n"
+        simulation = {}
+        normalized_weights = [w / total_weight for w in weights]
+        
+        for _ in range(1000):
+            chosen_rarity = random.choices(available_rarities, weights=normalized_weights, k=1)[0]
+            simulation[chosen_rarity] = simulation.get(chosen_rarity, 0) + 1
+        
+        for rarity, count in sorted(simulation.items(), key=lambda x: x[1], reverse=True):
+            actual_percent = round((count / 1000) * 100, 2)
+            expected = next((rd["normalized"] for rd in rarity_data if rd["rarity"] == rarity), 0)
+            diff = round(actual_percent - expected, 2)
+            diff_sign = "+" if diff >= 0 else ""
+            message_text += f"• {rarity}: {count}/1000 ({actual_percent}%) [ожид. {expected}%, откл. {diff_sign}{diff}%]\n"
+        
+        await update.message.reply_text(message_text, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Ошибка check_probabilities: {e}")
+        await update.message.reply_text("❌ Ошибка при проверке вероятностей")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -9618,6 +9711,7 @@ def main() -> None:
             CommandHandler("give_season_box", give_season_box),
             CommandHandler("add_cents_to_player", add_cents_to_player),
             CommandHandler("give_supergirl_box", give_supergirl_box),
+            CommandHandler("check_probabilities", check_probabilities),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
