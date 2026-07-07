@@ -22,6 +22,23 @@ from telegram.ext import ContextTypes
 logger = logging.getLogger(__name__)
 
 # ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (если нужны) =====
+
+def get_card_media_value(card: Dict) -> str:
+    """Возвращает правильный источник медиа для карты (file_id или URL)."""
+    media_source = card.get("media_source", "url")
+    if media_source == "file_id":
+        return card.get("file_id", "")
+    return card.get("image_url", "")
+
+
+def is_card_animation(card: Dict, media_value: str) -> bool:
+    """Определяет, является ли карта анимацией/видео."""
+    if card.get("media_type") == "animation":
+        return True
+    if isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")):
+        return True
+    return False
+    
 def find_card_by_id(card_id: int, cards: List[Dict]) -> Optional[Dict]:
     """Находит карточку по ID."""
     for card in cards:
@@ -247,7 +264,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 async def _show_trade_card(update_or_query, context, trade_info, display_card_ids, index):
     """
     ⭐ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КАРТЫ ДЛЯ ТРЕЙДА ⭐
-    Поддерживает дубликаты карт и поиск.
+    Поддерживает дубликаты карт, поиск и file_id.
     """
     if not display_card_ids:
         if hasattr(update_or_query, 'message'):
@@ -276,7 +293,7 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
     card_counts = Counter(all_user_cards)
     card_in_collection = card_counts.get(card["id"], 1)
     
-    # ⭐ ИСПРАВЛЕНИЕ: Используем индексы в ПОЛНОМ списке ⭐
+    # ⭐ Используем индексы в ПОЛНОМ списке ⭐
     selected_full_indices = trade_info.get("selected_full_indices", [])
     cards_count = trade_info.get("cards_count", 1)
     
@@ -287,7 +304,7 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
         f"{len(selected_full_indices)}/{cards_count} выбрано"
     )
     
-    # ⭐ ИСПРАВЛЕНИЕ: Проверяем по индексу в полном списке ⭐
+    # ⭐ Проверяем по индексу в полном списке ⭐
     display_to_full_map = trade_info.get("display_to_full_map", {})
     full_index = display_to_full_map.get(index, index)
     is_selected = full_index in selected_full_indices
@@ -317,21 +334,37 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    # ⭐ НОВОЕ: Универсальная логика для file_id и URL ⭐
+    media_value = get_card_media_value(card)
+    is_animation = is_card_animation(card, media_value)
+    
     # Отправка или редактирование сообщения
     if hasattr(update_or_query, 'edit_message_media'):
         try:
-            media = InputMediaPhoto(media=card["image_url"], caption=caption)
+            if is_animation:
+                media = InputMediaAnimation(media=media_value, caption=caption)
+            else:
+                media = InputMediaPhoto(media=media_value, caption=caption)
             await update_or_query.edit_message_media(media=media, reply_markup=reply_markup)
         except Exception as e:
             if "Message is not modified" not in str(e):
                 logger.error(f"Ошибка редактирования в _show_trade_card: {e}")
     elif hasattr(update_or_query, 'message'):
-        await update_or_query.message.reply_photo(
-            photo=card["image_url"],
-            caption=caption,
-            reply_markup=reply_markup
-        )
-
+        try:
+            if is_animation:
+                await update_or_query.message.reply_animation(
+                    animation=media_value,
+                    caption=caption,
+                    reply_markup=reply_markup
+                )
+            else:
+                await update_or_query.message.reply_photo(
+                    photo=media_value,
+                    caption=caption,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            logger.error(f"Ошибка отправки в _show_trade_card: {e}")
 
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -463,12 +496,27 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         [InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish")],
                         [InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button")],
                     ]
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard)
-                    )
+                    # ⭐ НОВОЕ: Универсальная логика ⭐
+                    media_value = get_card_media_value(card)
+                    is_animation = is_card_animation(card, media_value)
+
+                    try:
+                        if is_animation:
+                            await context.bot.send_animation(
+                                chat_id=query.message.chat_id,
+                                animation=media_value,
+                                caption=caption,
+                                reply_markup=InlineKeyboardMarkup(keyboard)
+                            )
+                        else:
+                            await context.bot.send_photo(
+                                chat_id=query.message.chat_id,
+                                photo=media_value,
+                                caption=caption,
+                                reply_markup=InlineKeyboardMarkup(keyboard)
+                            )
+                    except Exception as e:
+                        logger.error(f"Ошибка отправки после отмены поиска: {e}")
             return
 
         # Если вдруг пришла старая кнопка выбора из поиска — игнорируем
@@ -768,12 +816,27 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     InlineKeyboardButton("❌ Отклонить", callback_data="trade_offer_decline"),
                 ])
                 
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
+                is_animation = is_card_animation(card, media_value)
+
+                try:
+                    if is_animation:
+                        await context.bot.send_animation(
+                            chat_id=query.message.chat_id,
+                            animation=media_value,
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                    else:
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id,
+                            photo=media_value,
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                except Exception as e:
+                    logger.error(f"Ошибка отправки карты предложения: {e}")
         
         # Отклонение трейда
         elif query.data.startswith("trade_decline_btn_"):
@@ -867,8 +930,19 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     InlineKeyboardButton("❌ Отклонить", callback_data="trade_offer_decline"),
                 ])
                 
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
+                is_animation = is_card_animation(card, media_value)
+
+                try:
+                    if is_animation:
+                        media = InputMediaAnimation(media=media_value, caption=caption)
+                    else:
+                        media = InputMediaPhoto(media=media_value, caption=caption)
+                    await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                except Exception as e:
+                    if "Message is not modified" not in str(e):
+                        logger.error(f"Ошибка редактирования в trade_offer_callback: {e}")
         
         # Принятие обмена
         elif query.data == "trade_offer_accept":
@@ -921,11 +995,25 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     ],
                     [InlineKeyboardButton("➡️ Отправить встречное предложение", callback_data="trade_return_finish")],
                 ]
-                await query.message.reply_photo(
-                    photo=card["image_url"],
-                    caption=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
+                is_animation = is_card_animation(card, media_value)
+
+                try:
+                    if is_animation:
+                        await query.message.reply_animation(
+                            animation=media_value,
+                            caption=caption,
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                    else:
+                        await query.message.reply_photo(
+                            photo=media_value,
+                            caption=caption,
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                except Exception as e:
+                    logger.error(f"Ошибка отправки первой карты: {e}")
         
         # Отклонение обмена
         elif query.data == "trade_offer_decline":
@@ -1004,8 +1092,19 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
+                is_animation = is_card_animation(card, media_value)
+
+                try:
+                    if is_animation:
+                        media = InputMediaAnimation(media=media_value, caption=caption)
+                    else:
+                        media = InputMediaPhoto(media=media_value, caption=caption)
+                    await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                except Exception as e:
+    if "Message is not modified" not in str(e):
+        logger.error(f"Ошибка редактирования в trade_return_callback: {e}")
         # Выбор карты
         elif query.data.startswith("trade_return_select_"):
             display_index = int(query.data.split("_")[-1])
@@ -1055,8 +1154,19 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
+                is_animation = is_card_animation(card, media_value)
+
+                try:
+                    if is_animation:
+                        media = InputMediaAnimation(media=media_value, caption=caption)
+                    else:
+                        media = InputMediaPhoto(media=media_value, caption=caption)
+                    await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+                except Exception as e:
+                    if "Message is not modified" not in str(e):
+                        logger.error(f"Ошибка редактирования при выборе: {e}")
         
         elif query.data == "trade_return_search_button":
             # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ПОЛУЧАТЕЛЯ
