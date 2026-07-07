@@ -3972,12 +3972,12 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         else:
             await asyncio.sleep(2)
-            attempts = user_data['casino_attempts'] + 2 if is_batpass_active(user_data) else user_data['casino_attempts']
+            #attempts = user_data['casino_attempts'] + 2 if is_batpass_active(user_data) else user_data['casino_attempts']
             
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
                 f"💰 Списано: 1500 бэт-коинов\n"
-                f"🎲 Осталось попыток: {attempts}\n"
+                f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 reply_markup=InlineKeyboardMarkup(keyboard), 
                 parse_mode="Markdown",
