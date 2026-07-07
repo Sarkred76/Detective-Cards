@@ -1103,8 +1103,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         media = InputMediaPhoto(media=media_value, caption=caption)
                     await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
                 except Exception as e:
-    if "Message is not modified" not in str(e):
-        logger.error(f"Ошибка редактирования в trade_return_callback: {e}")
+                    if "Message is not modified" not in str(e):
+                        logger.error(f"Ошибка редактирования в trade_return_callback: {e}")
         # Выбор карты
         elif query.data.startswith("trade_return_select_"):
             display_index = int(query.data.split("_")[-1])
