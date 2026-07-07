@@ -354,6 +354,15 @@ def load_data() -> Dict[str, Any]:
                     user_data["pending_season_boxes"] = 0
                 if "pending_supergirl_boxes" not in user_data:
                     user_data["pending_supergirl_boxes"] = 0
+                if "has_batpass" not in user_data:
+                    user_data["has_batpass"] = False
+                if "batpass_expires_at" not in user_data:
+                    user_data["batpass_expires_at"] = 0
+                if "batpass_privileges" not in user_data:
+                    user_data["batpass_privileges"] = {
+                        "reduced_cooldown": True,  # 2.5 часа вместо 3 часов
+                        # ⭐ Здесь будут добавляться новые привилегии ⭐
+                    }
                 if "last_daily_activity" not in user_data:
                     user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
                 if "registered_at" not in user_data:
@@ -601,6 +610,21 @@ async def send_card(
             chat_id=chat_id,
             text=f"⚠️ Не удалось загрузить карту #{card.get('id')}"
         )
+
+def is_batpass_active(user_data: Dict) -> bool:
+    """Проверяет, активен ли Бэт-пасс у игрока."""
+    if not user_data.get("has_batpass", False):
+        return False
+    
+    expires_at = user_data.get("batpass_expires_at", 0)
+    if expires_at == 0:
+        return False
+    
+    from datetime import datetime, timezone, timedelta
+    msk_tz = timezone(timedelta(hours=3))
+    now = int(datetime.now(msk_tz).timestamp())
+    
+    return now < expires_at
         
 async def edit_card_message(query, card: Dict, caption: str, reply_markup: InlineKeyboardMarkup) -> None:
     """Редактирует сообщение с карточкой (поддерживает URL и file_id)."""
@@ -811,6 +835,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/add_cents_to_player [ID] [количество] - добавить/списать бэт-коины\n"
             response += "/daily_stats - статистика активности за сегодня\n" 
             response += "/check_probabilities - проверить вероятности выпадения карт\n"
+            response += "/give_batpass [@никнейм] [дней] - выдать Бэт-пасс\n"
+            response += "/remove_batpass [@никнейм] - отозвать Бэт-пасс\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -2482,6 +2508,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_data = data["users"].get(user_id)
         text = update.message.text
 
+        # ⭐ ПРОВЕРКА ИСТЕЧЕНИЯ БЭТ-ПАССА ⭐
+        if user_data and user_data.get("has_batpass", False):
+            expires_at = user_data.get("batpass_expires_at", 0)
+            if expires_at > 0:
+                from datetime import datetime, timezone, timedelta
+                msk_tz = timezone(timedelta(hours=3))
+                now = int(datetime.now(msk_tz).timestamp())
+        
+                if now >= expires_at:
+                    # Бэт-пасс истёк
+                    user_data["has_batpass"] = False
+                    user_data["batpass_expires_at"] = 0
+                    save_data(data)
+            
+                    # Уведомляем игрока
+                    try:
+                        await context.bot.send_message(
+                            chat_id=int(user_id),
+                            text="⏰ <b>Ваш Бэт-пасс истёк!</b>\n\nВы можете приобрести новый у администратора.",
+                            parse_mode="HTML"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Не удалось уведомить игрока {user_id} об истечении Бэт-пасса: {e}")
+
         # ⭐ ОБРАБОТКА МЕДИА ДЛЯ ДОБАВЛЕНИЯ КАРТЫ ⭐
         if user_id in context.user_data:
             user_state = context.user_data.get(user_id, {})
@@ -2823,6 +2873,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             COOLDOWN_SECONDS = 3 * 60 * 60
             current_time = int(time.time())
+            if is_batpass_active(user_data):
+                COOLDOWN_SECONDS = 9000
             time_passed = current_time - user_data.get("last_card_time", 0)
 
             # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
@@ -9741,6 +9793,176 @@ async def check_probabilities(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка check_probabilities: {e}")
         await update.message.reply_text("❌ Ошибка при проверке вероятностей")
 
+async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт Бэт-пасс игроку на определённое количество дней."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/give_batpass [@никнейм] [дней]\n"
+                "**Примеры:**\n"
+                "/give_batpass @username 30 - выдать на 30 дней\n"
+                "/give_batpass 881692999 7 - выдать на 7 дней",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        days = int(context.args[1])
+        
+        if days <= 0:
+            await update.message.reply_text("⚠️ Количество дней должно быть положительным!")
+            return
+        
+        # Определяем ID игрока
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # ⭐ Миграция ⭐
+        if "batpass_privileges" not in user_data:
+            user_data["batpass_privileges"] = {
+                "reduced_cooldown": True,
+            }
+        
+        # ⭐ Выдаём Бэт-пасс ⭐
+        from datetime import datetime, timezone, timedelta
+        msk_tz = timezone(timedelta(hours=3))
+        expires_at = int((datetime.now(msk_tz) + timedelta(days=days)).timestamp())
+        
+        user_data["has_batpass"] = True
+        user_data["batpass_expires_at"] = expires_at
+        
+        save_data(data)
+        
+        # ⭐ Отчёт админу ⭐
+        expires_display = datetime.fromtimestamp(expires_at, msk_tz).strftime("%d.%m.%Y %H:%M МСК")
+        await update.message.reply_text(
+            f"✅ **Бэт-пасс выдан!**\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"📅 Срок: {days} дней\n"
+            f"⏰ Истекает: {expires_display}",
+            parse_mode="Markdown"
+        )
+        
+        # ⭐ Уведомление игроку ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    f"🎫 <b>Вам выдан Бэт-пасс!</b>\n\n"
+                    f"📅 <b>Срок действия:</b> {days} дней\n"
+                    f"⏰ <b>Истекает:</b> {expires_display}\n\n"
+                    f"✨ <b>Привилегии:</b>\n"
+                    f"• Получение досье раз в 2.5 часа (вместо 3 часов)"
+                ),
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        
+        logger.info(f"Админ выдал Бэт-пасс игроку {target_user_id} на {days} дней")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество дней должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка give_batpass: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче Бэт-пасса")
+
+async def remove_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отзывает Бэт-пасс у игрока."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/remove_batpass [@никнейм_или_ID]\n"
+                "**Примеры:**\n"
+                "/remove_batpass @username\n"
+                "/remove_batpass 881692999",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        target_user_id = None
+        
+        # Определяем ID игрока
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # Проверяем, есть ли Бэт-пасс
+        if not user_data.get("has_batpass", False):
+            await update.message.reply_text(f"⚠️ У игрока {target_user_id} нет Бэт-пасса!")
+            return
+        
+        # ⭐ Отзываем Бэт-пасс ⭐
+        user_data["has_batpass"] = False
+        user_data["batpass_expires_at"] = 0
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Бэт-пасс отозван!**\n"
+            f"👤 Игрок: {target_user_id}",
+            parse_mode="Markdown"
+        )
+        
+        # ⭐ Уведомление игроку ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text="🎫 <b>Ваш Бэт-пасс был отозван администратором.</b>",
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        
+        logger.info(f"Админ отозвал Бэт-пасс у игрока {target_user_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка remove_batpass: {e}")
+        await update.message.reply_text("❌ Ошибка при отзыве Бэт-пасса")
+
+
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -9797,6 +10019,8 @@ def main() -> None:
             CommandHandler("add_cents_to_player", add_cents_to_player),
             CommandHandler("give_supergirl_box", give_supergirl_box),
             CommandHandler("check_probabilities", check_probabilities),
+            CommandHandler("give_batpass", give_batpass),
+            CommandHandler("remove_batpass", remove_batpass),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
