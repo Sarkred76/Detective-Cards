@@ -2952,6 +2952,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
             update_seasonal_on_card_get(user_data, card["rarity"])
             save_data(data)
+
+            # ⭐ НОВОЕ: Планируем уведомление для следующего получения ⭐
+            if is_batpass_active(user_data):
+                from datetime import datetime, timezone, timedelta
+                msk_tz = timezone(timedelta(hours=3))
+                now = int(datetime.now(msk_tz).timestamp())
+    
+                notification_time = current_time + 9000  # 2.5 часа
+                delay_seconds = 9000
+                job_name = f"card_notify_{user_id}"
+    
+                # Отменяем старый job, если есть
+                for job in context.job_queue.get_jobs_by_name(job_name):
+                    job.schedule_removal()
+    
+                # Планируем новый job
+                context.job_queue.run_once(
+                    send_card_notification,
+                    when=delay_seconds,
+                    data={"user_id": user_id},
+                    name=job_name
+                )
+    
+                logger.info(f"Запланировано уведомление для игрока {user_id} через {delay_seconds} сек")
+            
             # Ежедневный квест
             if card["rarity"] == "Common":
                 await update_quest_progress(context, user_id, "common_4", 1)
@@ -9915,6 +9940,34 @@ async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         save_data(data)
         
+        # ⭐ НОВОЕ: Планируем уведомление, если у игрока есть кулдаун ⭐
+        if user_data.get("last_card_time", 0) > 0:
+            from datetime import datetime, timezone, timedelta
+            msk_tz = timezone(timedelta(hours=3))
+            now = int(datetime.now(msk_tz).timestamp())
+    
+            last_card_time = user_data.get("last_card_time", 0)
+            cooldown = 9000  # 2.5 часа для Бэт-пасса
+            notification_time = last_card_time + cooldown
+    
+            if notification_time > now:
+                delay_seconds = notification_time - now
+                job_name = f"card_notify_{target_user_id}"
+        
+                # Отменяем старый job, если есть
+                for job in context.job_queue.get_jobs_by_name(job_name):
+                    job.schedule_removal()
+        
+                # Планируем новый job
+                context.job_queue.run_once(
+                    send_card_notification,
+                    when=delay_seconds,
+                    data={"user_id": target_user_id},
+                    name=job_name
+                )
+        
+                logger.info(f"Запланировано уведомление для игрока {target_user_id} через {delay_seconds} сек")
+        
         # ⭐ Отчёт админу ⭐
         expires_display = datetime.fromtimestamp(expires_at, msk_tz).strftime("%d.%m.%Y %H:%M МСК")
         await update.message.reply_text(
@@ -10001,6 +10054,12 @@ async def remove_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_data["has_batpass"] = False
         user_data["batpass_expires_at"] = 0
         save_data(data)
+
+        # ⭐ НОВОЕ: Отменяем уведомление, если оно было запланировано ⭐
+        job_name = f"card_notify_{target_user_id}"
+        for job in context.job_queue.get_jobs_by_name(job_name):
+            job.schedule_removal()
+            logger.info(f"Отменено уведомление для игрока {target_user_id}")
         
         await update.message.reply_text(
             f"✅ **Бэт-пасс отозван!**\n"
@@ -10163,6 +10222,94 @@ async def give_card_to_batpass(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.error(f"Ошибка give_card_to_batpass: {e}")
         await update.message.reply_text("❌ Ошибка при выдаче карты")
 
+async def check_and_schedule_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Проверяет всех игроков с Бэт-пассом и планирует уведомления.
+    Запускается каждую минуту через JobQueue.
+    """
+    try:
+        data = load_data()
+        from datetime import datetime, timezone, timedelta
+        msk_tz = timezone(timedelta(hours=3))
+        now = int(datetime.now(msk_tz).timestamp())
+        
+        # Получаем список уже запланированных jobs
+        existing_jobs = {
+            job.name: job for job in context.job_queue.jobs()
+            if job.name and job.name.startswith("card_notify_")
+        }
+        
+        for user_id, user_data in data.get("users", {}).items():
+            # Проверяем, что у игрока активный Бэт-пасс
+            if not is_batpass_active(user_data):
+                continue
+            
+            # Вычисляем время окончания кулдауна
+            last_card_time = user_data.get("last_card_time", 0)
+            cooldown = 9000  # 2.5 часа
+            notification_time = last_card_time + cooldown
+            
+            # Если время уведомления в будущем
+            if notification_time > now:
+                job_name = f"card_notify_{user_id}"
+                
+                # Если job ещё не запланирован
+                if job_name not in existing_jobs:
+                    delay_seconds = notification_time - now
+                    
+                    # Планируем job
+                    context.job_queue.run_once(
+                        send_card_notification,
+                        when=delay_seconds,
+                        data={"user_id": user_id},
+                        name=job_name
+                    )
+                    
+                    logger.debug(f"Запланировано уведомление для игрока {user_id} через {delay_seconds} сек")
+        
+    except Exception as e:
+        logger.error(f"Ошибка check_and_schedule_notifications: {e}")
+
+async def send_card_notification(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отправляет уведомление о возможности получить досье."""
+    try:
+        job = context.job
+        user_id = job.data["user_id"]
+        
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            return
+        
+        # ⭐ Проверяем, что Бэт-пасс всё ещё активен ⭐
+        if not is_batpass_active(user_data):
+            logger.info(f"Бэт-пасс игрока {user_id} истёк, уведомление не отправлено")
+            return
+        
+        # ⭐ Проверяем, что кулдаун действительно прошёл ⭐
+        last_card_time = user_data.get("last_card_time", 0)
+        cooldown = 9000  # 2.5 часа
+        current_time = int(time.time())
+        
+        if current_time - last_card_time < cooldown:
+            logger.info(f"Кулдаун игрока {user_id} ещё не прошёл, уведомление не отправлено")
+            return
+        
+        # ⭐ Отправляем уведомление ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text="⏰ <b>Вы можете получить новое досье!</b>",
+                parse_mode="HTML"
+            )
+            logger.info(f"Уведомление отправлено игроку {user_id}")
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление игроку {user_id}: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка send_card_notification: {e}")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -10178,6 +10325,15 @@ def main() -> None:
 
         # Регистрируем обработчики
         application = Application.builder().token(BOT_TOKEN).build()
+        
+        # ⭐ НОВОЕ: Планируем уведомления при старте бота ⭐
+        application.job_queue.run_repeating(
+            check_and_schedule_notifications,
+            interval=60,  # Каждую минуту
+            first=5,      # Через 5 секунд после старта
+            name="notification_scheduler"
+        )
+        
         handlers = [
             CommandHandler("start", start),
             CommandHandler("profile", my_profile),
