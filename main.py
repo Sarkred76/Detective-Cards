@@ -10390,7 +10390,23 @@ async def shop_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     parse_mode="HTML"
                 )
             except Exception as e:
-                if "Message is not modified" not in str(e):
+                error_str = str(e)
+                if "Message is not modified" in error_str:
+                    # Сообщение уже содержит то же самое — просто выходим
+                    return
+                elif "There is no text" in error_str:
+                    # ⭐ НОВОЕ: Сообщение — медиа (фото/видео), удаляем и отправляем новое ⭐
+                    try:
+                        await query.message.delete()
+                    except:
+                        pass
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=text,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode="HTML"
+                    )
+                else:
                     logger.error(f"Ошибка редактирования shop_batpass: {e}")
         else:
             await update.message.reply_text(
