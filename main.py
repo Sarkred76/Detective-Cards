@@ -6277,6 +6277,7 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         [InlineKeyboardButton("📦 Боксы", callback_data="shop_boxes")],
         [InlineKeyboardButton("🎴 Сезонные карты", callback_data="shop_seasonal")], 
         [InlineKeyboardButton("💎 Донат", callback_data="shop_donate")],
+        [InlineKeyboardButton("🎫 Бэт-пасс", callback_data="shop_batpass")], 
     ]
     if hasattr(update, 'callback_query') and update.callback_query:
         try:
@@ -7288,6 +7289,9 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     if query.data == "shop_menu":
         await shop_menu(update, context)
+    elif query.data == "shop_batpass":
+        await shop_batpass(update, context)
+        return
     elif query.data == "shop_seasonal":
         await shop_seasonal(update, context, page=0)
     elif query.data == "shop_donate":
@@ -10309,6 +10313,102 @@ async def send_card_notification(context: ContextTypes.DEFAULT_TYPE) -> None:
         
     except Exception as e:
         logger.error(f"Ошибка send_card_notification: {e}")
+
+async def shop_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает информацию о Бэт-пассе."""
+    try:
+        query = update.callback_query if hasattr(update, 'callback_query') else None
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        from datetime import datetime, timezone, timedelta
+        msk_tz = timezone(timedelta(hours=3))
+        now = int(datetime.now(msk_tz).timestamp())
+        
+        # ⭐ Проверяем, активен ли Бэт-пасс ⭐
+        has_active_batpass = False
+        remaining_text = ""
+        
+        if user_data.get("has_batpass", False):
+            expires_at = user_data.get("batpass_expires_at", 0)
+            if expires_at > now:
+                has_active_batpass = True
+                remaining_seconds = expires_at - now
+                
+                # Форматируем оставшееся время
+                days = remaining_seconds // 86400
+                hours = (remaining_seconds % 86400) // 3600
+                minutes = (remaining_seconds % 3600) // 60
+                
+                parts = []
+                if days > 0:
+                    parts.append(f"{days} дн.")
+                if hours > 0 or days > 0:
+                    parts.append(f"{hours} ч.")
+                parts.append(f"{minutes} мин.")
+                
+                remaining_text = " ".join(parts)
+                expires_display = datetime.fromtimestamp(expires_at, msk_tz).strftime("%d.%m.%Y %H:%M МСК")
+        
+        # ⭐ Формируем текст ⭐
+        text = "🎫 <b>Бэт-пасс</b>\n\n"
+        
+        if has_active_batpass:
+            text += (
+                f"✅ <b>Ваш Бэт-пасс активен!</b>\n"
+                f"⏰ <b>Осталось:</b> {remaining_text}\n"
+                f"📅 <b>Истекает:</b> {expires_display}\n\n"
+            )
+        else:
+            text += (
+                "❌ <b>У вас нет активного Бэт-пасса</b>\n\n"
+                "Приобретите Бэт-пасс, чтобы получить эксклюзивные привилегии!\n\n"
+            )
+        
+        text += (
+            "✨ <b>Привилегии Бэт-пасса:</b>\n"
+            "• 🔍 Получение досье раз в 2.5 часа\n"
+            "• 🎲 2 броска кубика в неделю\n"
+            "• 🏰 Бесплатное создание кланов\n"
+            "• 💰 Скидка на донат 20% кроме покупки Бэт-пасса\n"
+            "• 🎰 7 попыток в казино в день\n\n"
+            "💰 <b>Стоимость:</b>\n"
+            "• 1 месяц — <b>149₽</b>\n"
+            "• 3 месяца — <b>399₽</b>\n"
+            "• 6 месяцев — <b>599₽</b>\n"
+            "• 12 месяцев — <b>999₽</b>\n\n"
+            "💬 <b>Для покупки писать:</b> @Be9onder"
+        )
+        
+        # ⭐ Клавиатура ⭐
+        keyboard = [
+            [InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")],
+            [InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")],
+        ]
+        
+        if query:
+            try:
+                await query.edit_message_text(
+                    text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                if "Message is not modified" not in str(e):
+                    logger.error(f"Ошибка редактирования shop_batpass: {e}")
+        else:
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка shop_batpass: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Ошибка при открытии раздела Бэт-пасс")
 
 # ===== ЗАПУСК БОТА =====
 
