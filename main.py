@@ -2949,33 +2949,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             elif not is_super_admin:
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
                 user_data["last_card_time"] = current_time
-                user_data["notification_sent"] = False
-                update_seasonal_on_card_get(user_data, card["rarity"])
-                save_data(data)
+            user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
+            update_seasonal_on_card_get(user_data, card["rarity"])
+            save_data(data)
+
+            # ⭐ НОВОЕ: Планируем уведомление для следующего получения ⭐
+            if is_batpass_active(user_data) and not use_free_roll:
+                from datetime import datetime, timezone, timedelta
+                msk_tz = timezone(timedelta(hours=3))
+                now = int(datetime.now(msk_tz).timestamp())
     
-                # ⭐ ИСПРАВЛЕНИЕ: Планируем уведомление ТОЛЬКО если НЕ использовалась бесплатная попытка ⭐
-                if is_batpass_active(user_data) and not use_free_roll:
-                    from datetime import datetime, timezone, timedelta
-                    msk_tz = timezone(timedelta(hours=3))
-                    now = int(datetime.now(msk_tz).timestamp())
-        
-                    notification_time = current_time + 9000  # 2.5 часа
-                    delay_seconds = 9000
-                    job_name = f"card_notify_{user_id}"
-        
-                    # Отменяем старый job, если есть
-                    for job in context.job_queue.get_jobs_by_name(job_name):
-                        job.schedule_removal()
-        
-                    # Планируем новый job
-                    context.job_queue.run_once(
-                        send_card_notification,
-                        when=delay_seconds,
-                        data={"user_id": user_id},
-                        name=job_name
-                    )
-        
-                    logger.info(f"Запланировано уведомление для игрока {user_id} через {delay_seconds} сек")
+                notification_time = current_time + 9000  # 2.5 часа
+                delay_seconds = 9000
+                job_name = f"card_notify_{user_id}"
+    
+                # Отменяем старый job, если есть
+                for job in context.job_queue.get_jobs_by_name(job_name):
+                    job.schedule_removal()
+    
+                # Планируем новый job
+                context.job_queue.run_once(
+                    send_card_notification,
+                    when=delay_seconds,
+                    data={"user_id": user_id},
+                    name=job_name
+                )
+    
+                logger.info(f"Запланировано уведомление для игрока {user_id} через {delay_seconds} сек")
             
             # Ежедневный квест
             if card["rarity"] == "Common":
