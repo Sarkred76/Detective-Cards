@@ -9989,12 +9989,7 @@ async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 text=(
                     f"🎫 <b>Вам выдан Бэт-пасс!</b>\n\n"
                     f"📅 <b>Срок действия:</b> {days} дней\n"
-                    f"⏰ <b>Истекает:</b> {expires_display}\n\n"
-                    f"✨ <b>Привилегии:</b>\n"
-                    f"• Получение досье раз в 2.5 часа (вместо 3 часов)\n"
-                    f"• 2 броска кубика в баре за неделю (вместо 1)\n"
-                    f"• Бесплатное создание кланов (0 бэт-коинов)\n"
-                    f"• 7 попыток в казино в день (вместо 5)"
+                    f"⏰ <b>Истекает:</b> {expires_display}"
                 ),
                 parse_mode="HTML"
             )
