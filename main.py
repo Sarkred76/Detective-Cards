@@ -78,7 +78,7 @@ SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
 SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 
 # ===== ПРОТОКОЛ ПАУЗЫ =====
-PAUSE_PROTOCOL_IMAGE = "https://files.catbox.moe/rgg242.jpeg"
+PAUSE_PROTOCOL_IMAGE = "https://files.catbox.moe/74d3du.png"
 
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
