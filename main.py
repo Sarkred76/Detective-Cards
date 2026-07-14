@@ -77,6 +77,9 @@ DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg"
 SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
 SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
 
+# ===== ПРОТОКОЛ ПАУЗЫ =====
+PAUSE_PROTOCOL_IMAGE = "..."
+
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
@@ -291,6 +294,9 @@ def load_data() -> Dict[str, Any]:
 
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
+
+            if "paused_players" not in data:
+                data["paused_players"] = {}
 
             if "seasonal_cards" not in data:
                 data["seasonal_cards"] = {}  # {card_id: price}
@@ -2515,6 +2521,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         data = load_data()
         user_data = data["users"].get(user_id)
         text = update.message.text
+
+        # ⭐ НОВОЕ: ПРОВЕРКА ПРОТОКОЛА ПАУЗЫ ⭐
+        if is_player_paused(user_id, data):
+            # ⭐ Игнорируем все сообщения от игрока в паузе ⭐
+            logger.info(f"Игрок {user_id} в паузе, сообщение проигнорировано")
+            return
 
         # ⭐ ПРОВЕРКА ИСТЕЧЕНИЯ БЭТ-ПАССА ⭐
         if user_data and user_data.get("has_batpass", False):
@@ -10504,6 +10516,201 @@ async def shop_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         else:
             await update.message.reply_text("❌ Ошибка при открытии раздела Бэт-пасс")
 
+def is_player_paused(user_id: str, data: Dict) -> bool:
+    """Проверяет, находится ли игрок в режиме паузы."""
+    paused_players = data.get("paused_players", {})
+    return user_id in paused_players
+
+async def protocol_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Активирует протокол 'Пора бы вам отдохнуть' для указанных игроков."""
+    try:
+        data = load_data()
+        admin_id = str(update.effective_user.id)
+        
+        if not is_admin(admin_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/protocol_pause [@никнейм1] [@никнейм2] ...\n\n"
+                "**Примеры:**\n"
+                "/protocol_pause @username1 @username2\n"
+                "/protocol_pause @player1 @player2 @player3",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ Миграция ⭐
+        if "paused_players" not in data:
+            data["paused_players"] = {}
+        
+        # ⭐ Собираем никнеймы ⭐
+        nicknames = [arg for arg in context.args if arg.startswith("@")]
+        
+        if not nicknames:
+            await update.message.reply_text("⚠️ Укажите хотя бы один @никнейм!")
+            return
+        
+        # ⭐ Обрабатываем каждого игрока ⭐
+        success_list = []
+        failed_list = []
+        
+        for nickname in nicknames:
+            username_to_find = nickname[1:].strip().lower()
+            target_user_id = None
+            
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            
+            if not target_user_id:
+                failed_list.append(f"{nickname} — не найден")
+                continue
+            
+            # ⭐ Активируем паузу ⭐
+            data["paused_players"][target_user_id] = {
+                "paused_at": int(time.time()),
+                "paused_by": admin_id
+            }
+            
+            # ⭐ Уведомляем игрока ⭐
+            try:
+                await context.bot.send_photo(
+                    chat_id=int(target_user_id),
+                    photo=PAUSE_PROTOCOL_IMAGE,
+                    caption=(
+                        "🛑 <b>Запущен протокол «Пора бы вам отдохнуть»</b>\n\n"
+                        "⏸ Бот временно приостановил работу для вашего аккаунта.\n"
+                        "Пожалуйста, сделайте перерыв и вернитесь позже!\n\n"
+                        "💤 <i>Ваше здоровье важнее игр.</i>"
+                    ),
+                    parse_mode="HTML"
+                )
+                success_list.append(f"{nickname} — пауза активирована ✅")
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+                success_list.append(f"{nickname} — пауза активирована (уведомление не доставлено) ⚠️")
+        
+        save_data(data)
+        
+        # ⭐ Отчёт админу ⭐
+        report = "🛑 **Протокол «Пора бы вам отдохнуть»**\n\n"
+        if success_list:
+            report += "✅ **Успешно:**\n" + "\n".join(success_list) + "\n\n"
+        if failed_list:
+            report += "❌ **Ошибки:**\n" + "\n".join(failed_list) + "\n"
+        
+        await update.message.reply_text(report, parse_mode="Markdown")
+        logger.info(f"Админ {admin_id} активировал протокол паузы для {len(success_list)} игроков")
+        
+    except Exception as e:
+        logger.error(f"Ошибка protocol_pause: {e}")
+        await update.message.reply_text("❌ Ошибка при активации протокола")
+
+async def protocol_pause_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отключает протокол паузы для указанных игроков."""
+    try:
+        data = load_data()
+        admin_id = str(update.effective_user.id)
+        
+        if not is_admin(admin_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/protocol_pause_off [@никнейм1] [@никнейм2] ...\n\n"
+                "**Пример:**\n"
+                "/protocol_pause_off @username1 @username2",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ Миграция ⭐
+        if "paused_players" not in data:
+            data["paused_players"] = {}
+        
+        # ⭐ Собираем никнеймы ⭐
+        nicknames = [arg for arg in context.args if arg.startswith("@")]
+        
+        if not nicknames:
+            await update.message.reply_text("⚠️ Укажите хотя бы один @никнейм!")
+            return
+        
+        # ⭐ Обрабатываем каждого игрока ⭐
+        success_list = []
+        failed_list = []
+        
+        for nickname in nicknames:
+            username_to_find = nickname[1:].strip().lower()
+            target_user_id = None
+            
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            
+            if not target_user_id:
+                failed_list.append(f"{nickname} — не найден")
+                continue
+            
+            if target_user_id not in data["paused_players"]:
+                failed_list.append(f"{nickname} — не в паузе")
+                continue
+            
+            # ⭐ Снимаем паузу ⭐
+            del data["paused_players"][target_user_id]
+            
+            # ⭐ Уведомляем игрока ⭐
+            try:
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        "✅ <b>Протокол «Пора бы вам отдохнуть» отключён!</b>\n\n"
+                        "🎮 Бот снова работает для вашего аккаунта.\n"
+                        "С возвращением!"
+                    ),
+                    parse_mode="HTML"
+                )
+                success_list.append(f"{nickname} — пауза снята ✅")
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+                success_list.append(f"{nickname} — пауза снята (уведомление не доставлено) ⚠️")
+        
+        save_data(data)
+        
+        # ⭐ Отчёт админу ⭐
+        report = "✅ **Протокол паузы отключён**\n\n"
+        if success_list:
+            report += "✅ **Успешно:**\n" + "\n".join(success_list) + "\n\n"
+        if failed_list:
+            report += "❌ **Ошибки:**\n" + "\n".join(failed_list) + "\n"
+        
+        await update.message.reply_text(report, parse_mode="Markdown")
+        logger.info(f"Админ {admin_id} отключил протокол паузы для {len(success_list)} игроков")
+        
+    except Exception as e:
+        logger.error(f"Ошибка protocol_pause_off: {e}")
+        await update.message.reply_text("❌ Ошибка при отключении протокола")
+
+async def check_paused_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Блокирует нажатия кнопок для игроков в паузе."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        
+        if is_player_paused(user_id, data):
+            await query.answer("🛑 Бот на паузе. Отдохните!", show_alert=True)
+            logger.info(f"Игрок {user_id} в паузе, callback проигнорирован")
+            return
+    except Exception as e:
+        logger.error(f"Ошибка check_paused_callback: {e}")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -10572,8 +10779,11 @@ def main() -> None:
             CommandHandler("give_batpass", give_batpass),
             CommandHandler("remove_batpass", remove_batpass),
             CommandHandler("give_card_to_batpass", give_card_to_batpass),
+            CommandHandler("protocol_pause", protocol_pause),
+            CommandHandler("protocol_pause_off", protocol_pause_off),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
+            CallbackQueryHandler(check_paused_callback),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
             CallbackQueryHandler(casino_callback, pattern=r"^casino_.*"),
