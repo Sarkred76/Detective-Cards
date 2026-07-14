@@ -2654,6 +2654,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Парсим ответ ⭐
                 is_classic = text.lower().strip() in ["да", "true", "1", "yes", "classic"]
     
+                # ⭐ ИСПРАВЛЕНИЕ 1: Заменяем \\n на реальный перенос строки ⭐
+                catchphrase_raw = user_state.get("catchphrase")
+                if catchphrase_raw:
+                    catchphrase_raw = catchphrase_raw.replace("\\n", "\n")
+                    user_state["catchphrase"] = catchphrase_raw
+    
                 # ⭐ СОЗДАЁМ НОВУЮ КАРТУ ⭐
                 data = load_data()
                 new_id = max([c["id"] for c in data["cards"]], default=0) + 1
@@ -2668,7 +2674,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     "media_source": "file_id",
                     "file_id": user_state["file_id"],
                     "image_url": "",
-                    "is_classic": is_classic,  # ⭐ НОВОЕ: поле Classic
+                    "is_classic": is_classic,
                 }
     
                 data["cards"].append(new_card)
@@ -2677,20 +2683,53 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Очищаем состояние ⭐
                 del context.user_data[user_id]
     
+                # ⭐ ИСПРАВЛЕНИЕ 2: Экранируем пользовательские данные для Markdown ⭐
+                import html as html_module
+    
+                def escape_md(text: str) -> str:
+                    """Экранирует спецсимволы Markdown."""
+                    if not text:
+                        return ""
+                    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+                    for char in special_chars:
+                        text = text.replace(char, f'\\{char}')
+                    return text
+    
+                title_escaped = escape_md(user_state["title"])
+                catchphrase_escaped = escape_md(user_state["catchphrase"] or "")
+    
                 # ⭐ Формируем текст ответа ⭐
-                catchphrase_text = f"💬 {user_state['catchphrase']}" if user_state["catchphrase"] else ""
+                catchphrase_text = f"💬 {catchphrase_escaped}" if catchphrase_escaped else ""
                 classic_text = "🏛 **Classic**" if is_classic else ""
     
-                await update.message.reply_text(
-                    f"✅ **Карточка #{new_id} добавлена!**\n\n"
-                    f"🏷 {user_state['title']}\n"
+                result_text = (
+                    f"✅ **Карточка #{new_id} добавлена!**\n"
+                    f"🏷 {title_escaped}\n"
                     f"{catchphrase_text}\n"
                     f"🌟 {user_state['rarity']}\n"
                     f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
                     f"{classic_text}\n"
-                    f"📤 Источник: file_id",
-                    parse_mode="Markdown"
+                    f"📤 Источник: file\\_id"
                 )
+    
+                # ⭐ Отправляем сообщение с fallback ⭐
+                try:
+                    await update.message.reply_text(
+                        result_text,
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.warning(f"Ошибка отправки Markdown: {e}. Пробую без parse_mode.")
+                    # Fallback: отправляем без парсинга
+                    await update.message.reply_text(
+                        f"✅ Карточка #{new_id} добавлена!\n"
+                        f"🏷 {user_state['title']}\n"
+                        f"💬 {user_state['catchphrase'] or ''}\n"
+                        f"🌟 {user_state['rarity']}\n"
+                        f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
+                        f"🏛 Classic: {'Да' if is_classic else 'Нет'}\n"
+                        f"📤 Источник: file_id"
+                    )
     
                 # ⭐ Отправляем превью карты ⭐
                 try:
