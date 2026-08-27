@@ -6323,7 +6323,6 @@ SHOP_BOXES = [
     {"name": "Superman Heroes Box", "price": 0, "image": SUPERMAN_HEROES_IMAGE, "is_superman_heroes": True},
     {"name": "Superman Villain Box", "price": 0, "image": SUPERMAN_VILLAIN_IMAGE, "is_superman_villain": True},
 ]
-]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Главное меню магазина."""
