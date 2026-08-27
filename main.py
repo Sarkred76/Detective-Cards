@@ -7032,8 +7032,6 @@ async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     photo=image_url,
                     caption=(
                         f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
-                        f"📦 <b>Количество:</b> {count} {box_word}\n"
-                        f"🎁 <b>Содержимое:</b> набор эксклюзивных карт\n\n"
                         f"Нажмите кнопку ниже, чтобы открыть бокс:"
                     ),
                     reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
