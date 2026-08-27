@@ -7483,6 +7483,12 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif query.data == "shop_open_season_box":
         await open_season_box(update, context)
 
+    elif query.data == "shop_open_superman_heroes":
+        await open_superman_heroes_box(update, context)
+        
+    elif query.data == "shop_open_superman_villain":
+        await open_superman_villain_box(update, context)
+
     elif query.data == "shop_info":
         await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
 
