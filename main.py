@@ -9,7 +9,7 @@ import random
 import time
 import datetime
 from typing import Optional, Dict, Any, List
-from collections import Counаter
+from collections import Counter
 from telegram import (
     Update,
     KeyboardButton,
