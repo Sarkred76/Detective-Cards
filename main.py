@@ -6439,7 +6439,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         text = (
             f"🦸‍♂️ **{current_box['name']}**\n"
             f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор эксклюзивных карт героев\n\n"
+            f"🎁 Содержимое: набор карт героев по Мои приключения с Суперменом\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
     # ⭐ НОВОЕ: Superman Villain Box ⭐
@@ -6448,7 +6448,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         text = (
             f"🦹‍♂️ **{current_box['name']}**\n"
             f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор эксклюзивных карт злодеев\n\n"
+            f"🎁 Содержимое: набор карт злодеев по Мои приключения с Суперменом\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
     else:
@@ -7003,17 +7003,28 @@ async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         user_data[pending_key] += count
         save_data(data)
         
-        # Уведомление игроку
+        # ⭐ Уведомление игроку с кнопкой "Открыть" ⭐
         try:
             box_name = "Superman Heroes Box" if box_type == "heroes" else "Superman Villain Box"
             emoji = "🦸‍♂️" if box_type == "heroes" else "🦹‍♂️"
             
             # Склонение
-            if count % 10 == 1 and count % 100 != 11: box_word = "бокс"
-            elif count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]: box_word = "бокса"
-            else: box_word = "боксов"
+            if count % 10 == 1 and count % 100 != 11: 
+                box_word = "бокс"
+            elif count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]: 
+                box_word = "бокса"
+            else: 
+                box_word = "боксов"
             
             image_url = SUPERMAN_HEROES_IMAGE if box_type == "heroes" else SUPERMAN_VILLAIN_IMAGE
+            
+            # ⭐ ФОРМИРУЕМ КНОПКУ ОТКРЫТИЯ ⭐
+            keyboard = [[
+                InlineKeyboardButton(
+                    f"{emoji} Открыть {box_name}", 
+                    callback_data=f"shop_open_superman_{box_type}"
+                )
+            ]]
             
             try:
                 await context.bot.send_photo(
@@ -7023,14 +7034,21 @@ async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                         f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
                         f"📦 <b>Количество:</b> {count} {box_word}\n"
                         f"🎁 <b>Содержимое:</b> набор эксклюзивных карт\n\n"
-                        f"Перейдите в 🛍️ Магазин -> 📦 Боксы, чтобы открыть его!"
+                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
                     ),
+                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
                     parse_mode="HTML"
                 )
             except Exception:
+                # Fallback, если картинка не загрузилась
                 await context.bot.send_message(
                     chat_id=int(target_user_id),
-                    text=f"{emoji} <b>Вам был выдан {box_name}!</b>\n📦 Количество: {count} {box_word}\nПерейдите в 🛍️ Магазин, чтобы открыть его!",
+                    text=(
+                        f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
+                        f"📦 <b>Количество:</b> {count} {box_word}\n\n"
+                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
+                    ),
+                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
                     parse_mode="HTML"
                 )
         except Exception as notify_error:
@@ -7049,7 +7067,7 @@ async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     except Exception as e:
         logger.error(f"Ошибка give_superman_box: {e}")
         await update.message.reply_text("❌ Ошибка при выдаче бокса")
-
+        
 async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выдаёт Season-Box игроку по ID или @никнейму."""
     try:
