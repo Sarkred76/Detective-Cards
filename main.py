@@ -3234,37 +3234,58 @@ async def toggle_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("❌ Ошибка при изменении")
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Рассылка сообщения всем пользователям."""
+    """Рассылка сообщения всем пользователям с сохранением форматирования."""
     try:
         data = load_data()
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
-        if not context.args:
+        
+        # ⭐ ИСПРАВЛЕНИЕ: Берём весь текст сообщения, а не context.args ⭐
+        # Это сохраняет переносы строк, пробелы и форматирование
+        full_text = update.message.text
+        
+        # ⭐ Убираем команду "/broadcast " из начала ⭐
+        # Ищем первый пробел после команды
+        if " " in full_text:
+            # Берём всё после первого пробела
+            message_text = full_text.split(" ", 1)[1]
+        else:
             await update.message.reply_text("ℹ️ Используйте: /broadcast [текст]")
             return
-        message_text = " ".join(context.args)
+        
+        if not message_text.strip():
+            await update.message.reply_text("ℹ️ Сообщение пустое!")
+            return
+        
         users = data.get("users", {})
         if not users:
             await update.message.reply_text("ℹ️ Нет пользователей для рассылки!")
             return
-        status = await update.message.reply_text(
-            f"📢 Рассылка для {len(users)} пользователей..."
-        )
+        
+        status = await update.message.reply_text(f"📢 Рассылка для {len(users)} пользователей...")
         success, failed = 0, 0
+        
         for i, user_id in enumerate(users.keys(), 1):
             try:
                 await context.bot.send_message(chat_id=user_id, text=message_text)
                 success += 1
             except Exception as e:
                 failed += 1
+            
             if i % 5 == 0 or i == len(users):
                 await status.edit_text(
-                    f"📢 Отправлено {i}/{len(users)}\n✅ Успешно: {success} | ❌ Ошибок: {failed}"
+                    f"📢 Отправлено {i}/{len(users)}\n"
+                    f"✅ Успешно: {success} | ❌ Ошибок: {failed}"
                 )
+        
         await status.edit_text(
-            f"✅ Рассылка завершена!\nВсего: {len(users)}\nУспешно: {success}\nОшибок: {failed}"
+            f"✅ Рассылка завершена!\n"
+            f"Всего: {len(users)}\n"
+            f"Успешно: {success}\n"
+            f"Ошибок: {failed}"
         )
+        
     except Exception as e:
         logger.error(f"Ошибка рассылки: {e}")
         await update.message.reply_text("❌ Ошибка при рассылке")
