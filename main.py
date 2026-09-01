@@ -90,6 +90,140 @@ DEFAULT_CLAN_AVATAR = None  # None означает отсутствие ава�
 MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
 QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
 
+# ===== ИВЕНТ: ДОПРОС БЕЗУМНОГО ШЛЯПНИКА =====
+EVENT_REWARD_CARD_ID = 194  # ⭐ ЗАМЕНИТЕ НА ID КАРТЫ-НАГРАДЫ
+
+# Минимальное количество правильных ответов для получения награды
+EVENT_MIN_CORRECT = 6
+
+# Сценарий допроса (12 реплик)
+INTERROGATION_SCRIPT = [
+    {
+        "hatter": "О-о-о, какие гости! Детектив в плаще... Как это... банально. Вы ведь пришли поговорить о моём дорогом друге Джокере, не так ли?",
+        "options": [
+            "Хватит играть. Где Джокер?",
+            "Да. И я знаю, что ты помог ему сбежать.",
+            "Я просто зашёл поболтать."
+        ],
+        "correct": "Да. И я знаю, что ты помог ему сбежать."
+    },
+    {
+        "hatter": "Помог? Какое грубое слово! Я скорее... курировал процесс. Как настоящий джентльмен помогает другому джентльмену выйти в свет.",
+        "options": [
+            "Курировал? Расскажи подробнее.",
+            "Ты арестован за соучастие.",
+            "Что за 'выход в свет'?"
+        ],
+        "correct": "Курировал? Расскажи подробнее."
+    },
+    {
+        "hatter": "Аркхэм — такое скучное место. Серые стены, скучные врачи... Джокер — художник. Ему нужна была сцена. А я... я просто одолжил ему кисти.",
+        "options": [
+            "Ты романтизируешь побег.",
+            "Какие 'кисти'? Говори конкретно.",
+            "Джокер — не художник, он маньяк."
+        ],
+        "correct": "Какие 'кисти'? Говори конкретно."
+    },
+    {
+        "hatter": "Конкретно? О, с удовольствием! Представьте: вечер, тишина, охрана скучает... И вдруг — вспышка! Странный, сладковатый запах в вентиляции. Охранники увидели свои худшие кошмары.",
+        "options": [
+            "Ты отравил их?",
+            "Какие кошмары?",
+            "Это был газ. Химическое оружие."
+        ],
+        "correct": "Это был газ. Химическое оружие."
+    },
+    {
+        "hatter": "Газ! Бинго! Вы умнее, чем кажетесь. Да-да, особый газ... зелёный, с запахом страха. Он действует на разум, а не на тело. Охрана была парализована ужасом за считанные секунды.",
+        "options": [
+            "Зелёный газ страха... Я знаю этот газ.",
+            "Где ты его взял?",
+            "Это незаконно."
+        ],
+        "correct": "Зелёный газ страха... Я знаю этот газ."
+    },
+    {
+        "hatter": "Пока охрана кричала и видела своих демонов, Джокер... спокойно вышел. Через главное крыло. Как настоящий джентльмен! Ни одна пуля не была выпущена. Элегантно, не находите?",
+        "options": [
+            "Это не элегантно, это преступление.",
+            "А ты? Что делал ты в это время?",
+            "Почему он не стрелял?"
+        ],
+        "correct": "А ты? Что делал ты в это время?"
+    },
+    {
+        "hatter": "Я? О, я был режиссёром этого представления! Я знал график смены охраны. Я знал, где камеры. Я... подкупил одного санитара, чтобы он оставил вентиляцию открытой. Всё было продумано до мелочей.",
+        "options": [
+            "Значит, ты спланировал всё заранее.",
+            "Кто этот санитар?",
+            "Зачем тебе это?"
+        ],
+        "correct": "Зачем тебе это?"
+    },
+    {
+        "hatter": "Зачем? О, это лучший вопрос! Джокер — мой друг. Мы оба ценим хаос, театр, красоту безумия. Когда он попросил помощи, я не мог отказать. Это было... искусство.",
+        "options": [
+            "Дружба с Джокером — плохая идея.",
+            "Ты просто фанат.",
+            "Что Джокер обещал тебе взамен?"
+        ],
+        "correct": "Что Джокер обещал тебе взамен?"
+    },
+    {
+        "hatter": "Обещал? О нет... Джокер не обещает. Он вдохновляет. Он сказал, что после побега устроит такое представление, что весь Готэм будет говорить о нём. И я... я хотел быть в первом ряду.",
+        "options": [
+            "Какое представление? Что он планирует?",
+            "Ты предал город ради шоу.",
+            "Ты не в первом ряду, ты в камере."
+        ],
+        "correct": "Какое представление? Что он планирует?"
+    },
+    {
+        "hatter": "Представление? О, это будет шедевр! Но... *заминается*. Об этом я, пожалуй, промолчу. Джокер не любит, когда его секреты... раскрывают раньше времени.",
+        "options": [
+            "Я и так всё узнаю.",
+            "Мне не нужны твои секреты.",
+            "Ты что-то скрываешь. Говори."
+        ],
+        "correct": "Ты что-то скрываешь. Говори."
+    },
+    {
+        "hatter": "Ладно-ладно! Вы победили. Но это... *оглядывается*. Это не мой секрет. Джокер не действовал один. У него был поставщик газа. Очень... специфический поставщик.",
+        "options": [
+            "Кто этот поставщик?",
+            "Пугало. Это его газ.",
+            "Мне не интересны поставщики."
+        ],
+        "correct": "Пугало. Это его газ."
+    },
+    {
+        "hatter": "Тссс! *прикладывает палец к губам* Вы... умны. Да. Да, это был его газ. Джокер связывался с Пугало лично. Они... договорились. О чём именно — я не знаю. Но Пугало дал ему кое-что особенное. Не просто газ... что-то большее.",
+        "options": [
+            "Спасибо за сотрудничество. Допрос окончен.",
+            "Ты пожалеешь, что рассказал.",
+            "Я найду и Пугало."
+        ],
+        "correct": [ "Спасибо за сотрудничество. Допрос окончен.", "Ты пожалеешь, что рассказал.", "Я найду и Пугало." ]
+    },
+]
+
+# ===== ФРАЗЫ ШЛЯПНИКА НА НЕПРАВИЛЬНЫЕ ОТВЕТЫ =====
+WRONG_ANSWER_RESPONSES = [
+    "Нет, так дело не пойдёт! Спроси что-то поинтереснее!",
+    "Ха-ха! Ты пытаешься меня запутать? Попробуй ещё раз.",
+    "Скучно... У тебя есть вопрос получше?",
+    "О, какая банальность! Я ожидал от тебя большего, детектив.",
+    "Нет-нет-нет, это не то, что я хочу услышать.",
+    "Ты ходишь вокруг да около. Спроси прямо!",
+    "Мои уши вянут от таких вопросов. Давай что-нибудь поострее!",
+    "Пфф... Это всё, на что ты способен? Разочарован.",
+    "Ты что, серьёзно? Задай нормальный вопрос!",
+    "Снова мимо! Подумай ещё раз, у тебя получится лучше.",
+    "Нет, это не мой стиль. Попробуй зайти с другой стороны.",
+    "Ой, как предсказуемо... Мне нужны вопросы поинтереснее!",
+]
+
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
     "Common": {"cents": 100, "free_rolls": 0},
@@ -389,6 +523,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["avatar_url"] = DEFAULT_AVATAR_URL
                 if "avatars" not in user_data:
                     user_data["avatars"] = [DEFAULT_AVATAR_URL]
+                if "event_completed" not in user_data:
+                    user_data["event_completed"] = False
+                if "event_completed_at" not in user_data:
+                    user_data["event_completed_at"] = 0
 
                 for card in data.get("cards", []):
                     if "is_classic" not in card:
@@ -2768,6 +2906,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if user_step == "archive_search":
                 await archive_search_execute(update, context)
                 return
+
+        # ⭐ СОСТОЯНИЕ ДОПРОСА ⭐
+        if user_id in context.user_data:
+            user_state = context.user_data.get(user_id, {})
+            step = user_state.get("step", "")
+    
+            if step == "interrogation":
+                await process_interrogation_answer(update, context, user_id)
+                return
         
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
@@ -2867,6 +3014,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "📋 Меню":
             await submenu(update, context)
+            return
+
+        elif text == "🎩 Ивент":
+            await event_menu(update, context)
+            return
+
+        elif text == "🎙 Начать допрос":
+            await start_interrogation(update, context)
             return
 
         elif text == "🔙 Назад":
@@ -8501,6 +8656,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🎩 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -10613,6 +10769,372 @@ async def shop_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await update.callback_query.answer("❌ Ошибка", show_alert=True)
         else:
             await update.message.reply_text("❌ Ошибка при открытии раздела Бэт-пасс")
+
+async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню ивента."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await update.message.reply_text("❌ Профиль не найден!")
+            return
+        
+        # ⭐ Миграция ⭐
+        if "event_completed" not in user_data:
+            user_data["event_completed"] = False
+        if "event_completed_at" not in user_data:
+            user_data["event_completed_at"] = 0
+        
+        # ⭐ Проверяем, завершён ли ивент ⭐
+        if user_data.get("event_completed", False):
+            keyboard = [
+            [KeyboardButton("👤 Личное дело")],
+            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
+            [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🎩 Ивент")],
+            [KeyboardButton("🔙 Назад в главное меню")],
+        ]
+            await update.message.reply_text(
+                "🎩 <b>Ивент</b>\n\n"
+                "🔒 <b>Следующего подозреваемого приведут через неделю!</b>\n\n"
+                "Ожидайте новых расследований...",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                parse_mode="HTML"
+            )
+            return
+        
+        # ⭐ Ивент доступен ⭐
+        intro_text = (
+            "🎩 <b>Ивент: Допрос Безумного Шляпника</b>\n\n"
+            "🃏 Джокер сбежал из Аркхэма! Снова...\n"
+            "Пора расследовать это дело и узнать, что он задумал, пока не случилось непоправимое!\n\n"
+            "👮 Охранники Аркхэма говорят, что здесь как-то замешан Безумный Шляпник. "
+            "Перед своим побегом Джокер проводил с ним удивительно много времени.\n\n"
+            "🕵️ Пора вызвать его на допрос.\n\n"
+            "💡 <b>Вы готовы?</b>"
+        )
+        
+        keyboard = [
+            [KeyboardButton("🎙 Начать допрос")]
+        ]
+        
+        await update.message.reply_text(
+            intro_text,
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в event_menu: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии ивента")
+
+async def start_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начинает допрос Безумного Шляпника."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await update.message.reply_text("❌ Профиль не найден!")
+            return
+        
+        # ⭐ Проверяем, не завершён ли уже ивент ⭐
+        if user_data.get("event_completed", False):
+            await update.message.reply_text(
+                "🔒 Вы уже прошли этот ивент!\n"
+                "Следующий подозреваемый появится через неделю."
+            )
+            return
+        
+        # ⭐ Инициализируем состояние допроса ⭐
+        context.user_data[user_id] = {
+            "step": "interrogation",
+            "current_step": 0,  # Текущая реплика (0-11)
+            "correct_answers": 0,  # Счётчик правильных ответов
+            "first_attempt": True,  # Первый ли это ответ на текущем шаге
+        }
+        
+        # ⭐ Показываем первую реплику ⭐
+        await show_interrogation_step(update, context, user_id, 0)
+        
+    except Exception as e:
+        logger.error(f"Ошибка start_interrogation: {e}")
+        await update.message.reply_text("❌ Ошибка при начале допроса")
+
+async def show_interrogation_step(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str, step: int) -> None:
+    """Показывает текущую реплику допроса с вариантами ответов."""
+    try:
+        if step >= len(INTERROGATION_SCRIPT):
+            # ⭐ Допрос завершён ⭐
+            await finish_interrogation(update, context, user_id)
+            return
+        
+        script_step = INTERROGATION_SCRIPT[step]
+        hatter_text = script_step["hatter"]
+        options = script_step["options"]
+        
+        # ⭐ Формируем клавиатуру с вариантами ответов ⭐
+        keyboard = []
+        for option in options:
+            keyboard.append([KeyboardButton(option)])
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            f"🎩 <b>Безумный Шляпник:</b>\n"
+            f"<i>{hatter_text}</i>\n\n"
+            f"💬 <b>Выберите вариант ответа:</b>"
+        )
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_interrogation_step: {e}")
+        await update.message.reply_text("❌ Ошибка при показе реплики")
+
+async def process_interrogation_answer(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str) -> None:
+    """Обрабатывает ответ игрока во время допроса."""
+    try:
+        user_state = context.user_data[user_id]
+        current_step = user_state.get("current_step", 0)
+        text = update.message.text.strip()
+        
+        # ⭐ Игнорируем основные кнопки меню ⭐
+        main_buttons = [
+            "🔍 Получить досье", "📁 Мой архив", "🍺 Бар", "🎰 Казино",
+            "🏰 Клан", "🛒 Магазин", "🎩 Ивент", "📋 Меню",
+            "👤 Личное дело", "📜 Квесты", "🏰 Кланы", "🛍️ Магазин"
+        ]
+        if text in main_buttons:
+            await update.message.reply_text(
+                "🎩 <b>Вы находитесь в режиме допроса!</b>\n\n"
+                "Пожалуйста, выберите один из вариантов ответа, чтобы продолжить расследование.",
+                parse_mode="HTML"
+            )
+            return
+        
+        if current_step >= len(INTERROGATION_SCRIPT):
+            await finish_interrogation(update, context, user_id)
+            return
+        
+        script_step = INTERROGATION_SCRIPT[current_step]
+        
+        # ⭐ ИСПРАВЛЕНИЕ 1: Поддержка списка правильных ответов ⭐
+        correct_data = script_step["correct"]
+        if isinstance(correct_data, list):
+            correct_answers = correct_data
+        else:
+            correct_answers = [correct_data]
+        
+        # ⭐ Проверяем, правильный ли ответ ⭐
+        if text in correct_answers:
+            # ⭐ Правильный ответ ⭐
+            first_attempt = user_state.get("first_attempt", True)
+            
+            if first_attempt:
+                user_state["correct_answers"] = user_state.get("correct_answers", 0) + 1
+            
+            next_step = current_step + 1
+            
+            if next_step < len(INTERROGATION_SCRIPT):
+                next_hatter = INTERROGATION_SCRIPT[next_step]["hatter"]
+                response_text = (
+                    f"👤 <b>Вы:</b>\n"
+                    f"<i>{text}</i>\n\n"
+                    f"🎩 <b>Безумный Шляпник:</b>\n"
+                    f"<i>{next_hatter}</i>\n\n"
+                    f"💬 <b>Выберите вариант ответа:</b>"
+                )
+            else:
+                # ⭐ Это была последняя реплика ⭐
+                response_text = (
+                    f"👤 <b>Вы:</b>\n"
+                    f"<i>{text}</i>\n\n"
+                    f"🎩 <b>Безумный Шляпник:</b>\n"
+                    f"<i>*медленно кивает*\n"
+                    f"Что ж, детектив... Вы оказались достойным собеседником. "
+                    f"Джокер будет... разочарован, узнав, что я проговорился. "
+                    f"Но, может быть, это и к лучшему.</i>\n\n"
+                )
+            
+            user_state["current_step"] = next_step
+            user_state["first_attempt"] = True
+            
+            # ⭐ Формируем клавиатуру для следующего шага ⭐
+            if next_step < len(INTERROGATION_SCRIPT):
+                next_options = INTERROGATION_SCRIPT[next_step]["options"]
+                keyboard = []
+                for option in next_options:
+                    keyboard.append([KeyboardButton(option)])
+            else:
+                # ⭐ Финальные кнопки ⭐
+                keyboard = [
+                    [KeyboardButton("👤 Личное дело")],
+                    [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
+                    [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
+                    [KeyboardButton("🎩 Ивент")],
+                ]
+            
+            await update.message.reply_text(
+                response_text,
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                parse_mode="HTML"
+            )
+            
+            if next_step >= len(INTERROGATION_SCRIPT):
+                await finish_interrogation(update, context, user_id)
+            
+        else:
+            # ⭐ Неправильный ответ ⭐
+            user_state["first_attempt"] = False
+            
+            # ⭐ ИСПРАВЛЕНИЕ 2: Рандомный выбор фразы из списка ⭐
+            wrong_response = random.choice(WRONG_ANSWER_RESPONSES)
+            
+            response_text = (
+                f"👤 <b>Вы:</b>\n"
+                f"<i>{text}</i>\n\n"
+                f"🎩 <b>Безумный Шляпник:</b>\n"
+                f"<i>{wrong_response}</i>\n\n"
+                f"💬 <b>Выберите вариант ответа:</b>"
+            )
+            
+            options = script_step["options"]
+            keyboard = []
+            for option in options:
+                keyboard.append([KeyboardButton(option)])
+            
+            await update.message.reply_text(
+                response_text,
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                parse_mode="HTML"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка process_interrogation_answer: {e}")
+        await update.message.reply_text("❌ Ошибка при обработке ответа")
+
+async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str) -> None:
+    """Завершает допрос и выдаёт награду."""
+    try:
+        user_state = context.user_data.get(user_id, {})
+        correct_answers = user_state.get("correct_answers", 0)
+        
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await update.message.reply_text("❌ Профиль не найден!")
+            return
+        
+        # ⭐ Помечаем ивент как завершённый ⭐
+        user_data["event_completed"] = True
+        from datetime import datetime, timezone, timedelta
+        msk_tz = timezone(timedelta(hours=3))
+        user_data["event_completed_at"] = int(datetime.now(msk_tz).timestamp())
+        save_data(data)
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        # ⭐ Формируем итоговое сообщение ⭐
+        if correct_answers >= EVENT_MIN_CORRECT:
+            # ⭐ Выдаём карту-награду ⭐
+            card = find_card_by_id(EVENT_REWARD_CARD_ID, data["cards"])
+            
+            if card:
+                # Добавляем карту в коллекцию
+                if "cards" not in user_data:
+                    user_data["cards"] = []
+                user_data["cards"].append(EVENT_REWARD_CARD_ID)
+                save_data(data)
+                
+                # ⭐ Формируем caption для карты ⭐
+                caption = generate_card_caption(card, user_data, count=1, show_bonus=False)
+                
+                result_text = (
+                    f"✅ <b>Допрос завершён!</b>\n\n"
+                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
+                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
+                    f"📋 <b>Что вы узнали:</b>\n"
+                    f"• 🚪 Джокер сбежал через главное крыло, пока охрана была парализована газом\n"
+                    f"• 🎩 Шляпник спланировал побег: подкупил санитара, знал график охраны\n"
+                    f"• 🎭 Джокер связывался с Пугало, который дал ему особый газ\n\n"
+                )
+                
+                # ⭐ Отправляем результат ⭐
+                await update.message.reply_text(
+                    result_text,
+                    parse_mode="HTML"
+                )
+                
+                # ⭐ Отправляем карту ⭐
+                await send_card(update, card, context, caption=caption)
+                
+                logger.info(f"Игрок {user_id} завершил ивент с {correct_answers} правильными ответами, получил карту #{EVENT_REWARD_CARD_ID}")
+            else:
+                # ⭐ Карта не найдена ⭐
+                result_text = (
+                    f"✅ <b>Допрос завершён!</b>\n\n"
+                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
+                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
+                    f"📋 <b>Что вы узнали:</b>\n"
+                    f"• 🚪 Джокер сбежал через главное крыло, пока охрана была парализована газом\n"
+                    f"• 🎩 Шляпник спланировал побег: подкупил санитара, знал график охраны\n"
+                    f"• 🎭 Джокер связывался с Пугало, который дал ему особый газ\n\n"
+                    f"⚠️ <b>Награда:</b> карта не найдена (проверьте EVENT_REWARD_CARD_ID)"
+                )
+                
+                await update.message.reply_text(
+                    result_text,
+                    parse_mode="HTML"
+                )
+                logger.warning(f"Карта #{EVENT_REWARD_CARD_ID} не найдена для награды ивента")
+        else:
+            # ⭐ Недостаточно правильных ответов ⭐
+            result_text = (
+                f"✅ <b>Допрос завершён!</b>\n\n"
+                f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
+                f"🥉 <b>Ранг:</b> Начинающий детектив\n\n"
+                f"📋 <b>Что вы узнали:</b>\n"
+                f"• 🚪 Джокер сбежал через главное крыло, пока охрана была парализована газом\n"
+                f"• 🎩 Шляпник спланировал побег: подкупил санитара, знал график охраны\n"
+                f"• 🎭 Джокер связывался с Пугало, который дал ему особый газ\n\n"
+                f"💡 Для получения награды нужно минимум {EVENT_MIN_CORRECT} правильных ответов.\n"
+                f"В следующий раз будьте внимательнее!"
+            )
+            
+            await update.message.reply_text(
+                result_text,
+                parse_mode="HTML"
+            )
+            
+            logger.info(f"Игрок {user_id} завершил ивент с {correct_answers} правильными ответами (недостаточно для награды)")
+        
+        # ⭐ Возвращаем главное меню ⭐
+        main_keyboard = [
+            [KeyboardButton("👤 Личное дело")],
+            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
+            [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
+            [KeyboardButton("🎩 Ивент")],
+            [KeyboardButton("🔙 Назад в главное меню")],
+        ]
+        
+        await update.message.reply_text(
+            "🔙 Вы вернулись в главное меню.",
+            reply_markup=ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка finish_interrogation: {e}")
+        await update.message.reply_text("❌ Ошибка при завершении допроса")
 
 # ===== ЗАПУСК БОТА =====
 
