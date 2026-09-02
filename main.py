@@ -938,9 +938,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("📋 Меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        welcome_text = f"🏠 Главное меню\nДобро пожаловать, {update.effective_user.first_name}! Используйте кнопки ниже:"
-        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+
+        if user_id in data["users"]:
+            # ⭐ НОВОЕ: Обновляем данные при входе ⭐
+            if update_user_info(user_id, update.effective_user, data):
+                save_data(data)
+                logger.debug(f"Обновлены данные игрока {user_id} при входе")
+            welcome_text = f"🏠 Главное меню\nДобро пожаловать, {update.effective_user.first_name}! Используйте кнопки ниже:"
+            await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+            return
         
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
@@ -2664,6 +2670,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         data = load_data()
         user_data = data["users"].get(user_id)
         text = update.message.text
+
+        # ⭐ НОВОЕ: Обновляем данные игрока, если они изменились ⭐
+        if user_data:
+            if update_user_info(user_id, update.effective_user, data):
+                save_data(data)
+                logger.debug(f"Обновлены данные игрока {user_id}: @{update.effective_user.username}")
 
         # ⭐ ПРОВЕРКА ИСТЕЧЕНИЯ БЭТ-ПАССА ⭐
         if user_data and user_data.get("has_batpass", False):
@@ -11135,6 +11147,38 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Ошибка finish_interrogation: {e}")
         await update.message.reply_text("❌ Ошибка при завершении допроса")
+
+def update_user_info(user_id: str, telegram_user, data: Dict) -> bool:
+    """
+    Обновляет username, first_name и last_name игрока в базе данных,
+    если они изменились в Telegram.
+    Возвращает True, если были изменения, иначе False.
+    """
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return False
+    
+    # ⭐ Получаем актуальные данные из Telegram ⭐
+    new_username = telegram_user.username or ""
+    new_first_name = telegram_user.first_name or ""
+    new_last_name = telegram_user.last_name or ""
+    
+    # ⭐ Проверяем, есть ли изменения ⭐
+    changed = False
+    
+    if user_data.get("username", "") != new_username:
+        user_data["username"] = new_username
+        changed = True
+    
+    if user_data.get("first_name", "") != new_first_name:
+        user_data["first_name"] = new_first_name
+        changed = True
+    
+    if user_data.get("last_name", "") != new_last_name:
+        user_data["last_name"] = new_last_name
+        changed = True
+    
+    return changed
 
 # ===== ЗАПУСК БОТА =====
 
