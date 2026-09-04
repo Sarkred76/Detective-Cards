@@ -28,6 +28,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
+    ChatMemberHandler,
 )
 from trade_functions import (
     trade_menu,
@@ -833,6 +834,10 @@ async def edit_card_message(query, card: Dict, caption: str, reply_markup: Inlin
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start с поддержкой реферальной системы."""
     try:
+        if update.effective_chat.type in ["group", "supergroup"]:
+            await send_chat_keyboard(update.effective_chat.id, context)
+            return
+            
         user_id = str(update.effective_user.id)
         data = load_data()
         
@@ -950,6 +955,58 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
+
+async def send_chat_keyboard(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отправляет клавиатуру для группового чата."""
+    try:
+        # ⭐ Клавиатура для группового чата — только одна кнопка ⭐
+        chat_keyboard = [
+            [KeyboardButton("🔍 Получить досье")]
+        ]
+        
+        welcome_text = (
+            "👋 <b>Привет!</b>\n\n"
+            "Я добавил панель с кнопками для нашего чата.\n"
+            "Нажмите кнопку ниже, чтобы получить досье!\n\n"
+            "💡 <i>Для полного функционала пишите мне в личные сообщения!</i>"
+        )
+        
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=welcome_text,
+            reply_markup=ReplyKeyboardMarkup(chat_keyboard, resize_keyboard=True),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка отправки групповой клавиатуры: {e}")
+
+async def on_bot_added_to_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отправляет групповую клавиатуру при добавлении бота в чат."""
+    try:
+        chat_member_update = update.my_chat_member
+        
+        # ⭐ Проверяем, что изменения касаются именно бота ⭐
+        if chat_member_update.new_chat_member.user.id != context.bot.id:
+            return
+        
+        # ⭐ Проверяем, что бота добавили (а не удалили) ⭐
+        new_status = chat_member_update.new_chat_member.status
+        if new_status not in ["member", "administrator"]:
+            return
+        
+        chat = chat_member_update.chat
+        
+        # ⭐ Работаем только с группами и супергруппами ⭐
+        if chat.type not in ["group", "supergroup"]:
+            return
+        
+        logger.info(f"Бот добавлен в групповой чат {chat.id} ({chat.title})")
+        
+        # ⭐ Отправляем клавиатуру ⭐
+        await send_chat_keyboard(chat.id, context)
+        
+    except Exception as e:
+        logger.error(f"Ошибка on_bot_added_to_chat: {e}")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
@@ -11279,6 +11336,7 @@ def main() -> None:
         for handler in handlers:
             application.add_handler(handler)
             application.add_handler(CallbackQueryHandler(referral_menu, pattern="^referral_menu$"))
+            application.add_handler(ChatMemberHandler(on_bot_added_to_chat, ChatMemberHandler.MY_CHAT_MEMBER))
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
