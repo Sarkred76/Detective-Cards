@@ -28,7 +28,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
-    ChatMemberHandler,
 )
 from trade_functions import (
     trade_menu,
@@ -46,6 +45,7 @@ from trade_functions import (
 from telegram.error import NetworkError, TimedOut
 from dotenv import load_dotenv
 load_dotenv()
+
 # ===== КОНФИГУРАЦИЯ =====
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -73,13 +73,6 @@ ADD_CARD_WAITING_RARITY = "add_card_waiting_rarity"
 ADD_CARD_WAITING_CATCHPHRASE = "add_card_waiting_catchphrase"
 ADD_CARD_WAITING_CLASSIC = "add_card_waiting_classic" 
 
-# ===== SUPERMAN BOXES =====
-SUPERMAN_HEROES_IMAGE = "https://ibb.co/pBRQHRNC"  # ⭐ ЗАМЕНИТЕ НА URL/FILE_ID КАРТИНКИ БОКСА
-SUPERMAN_VILLAIN_IMAGE = "https://ibb.co/zWbrbPBP"  # ⭐ ЗАМЕНИТЕ НА URL/FILE_ID КАРТИНКИ БОКСА
-
-SUPERMAN_HEROES_CARDS = [164, 165, 166, 167, 168, 169, 171]  # ⭐ ЗАПОЛНИТЕ ID КАРТ ГЕРОЕВ
-SUPERMAN_VILLAIN_CARDS = [170, 172, 173, 174, 175]  # ⭐ ЗАПОЛНИТЕ ID КАРТ ЗЛОДЕЕВ
-
 # ===== АВАТАРКИ =====
 DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
 SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
@@ -91,143 +84,144 @@ DEFAULT_CLAN_AVATAR = None  # None означает отсутствие ава�
 MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
 QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
 
-# ===== ИВЕНТ: ДОПРОС ПУГАЛО =====
-EVENT_REWARD_CARD_ID = 203  # ⭐ ЗАМЕНИТЕ НА ID КАРТЫ-НАГРАДЫ
+# ===== ИВЕНТ: ДОПРОС ЗАГАДОЧНИКА =====
+EVENT_REWARD_CARD_ID = 214  # ⭐ ВАШ ID КАРТЫ-НАГРАДЫ
 
-# Минимальное количество правильных ответов для получения награды
-EVENT_MIN_CORRECT = 6
+EVENT_MIN_CORRECT = 8
 
-# Сценарий допроса Пугало (12 реплик)
 INTERROGATION_SCRIPT = [
     {
-        "hatter": "А, детектив... Я ждал вас. После визита к Шляпнику вы, конечно, пришли ко мне. Логично. Но что вы надеетесь узнать от учёного?",
+        "hatter": "А, детектив... Я ждал вашего визета. *поправляет зелёный галстук* После допроса Пугало вы, конечно, пришли ко мне. Логично — как в хорошей шахматной партии. Но прежде чем говорить... у меня для вас загадка.",
         "options": [
-            "Хватит играть в учёного. Ты помогал Джокеру.",
-            "Я знаю про токсин страха. Расскажи, как ты его модифицировал?",
-            "Просто зашёл поговорить."
+            "Мне не до твоих загадок. Говори о Джокере.",
+            "Я слушаю. Но учти — я найду ответ.",
+            "Ты арестован. Никаких загадок."
         ],
-        "correct": "Я знаю про токсин страха. Расскажи, как ты его модифицировал?"
+        "correct": "Я слушаю. Но учти — я найду ответ."
     },
     {
-        "hatter": "Модифицировал? Хорошая догадка, но это не совсем так. Я усовершенствовал формулу. Токсин страха — это прорыв в науке! А Джокер... Джокер попросил меня о кое-чём особенном.",
+        "hatter": "Хорошо, хорошо... Тогда вот вам загадка:\n\n«Я — не друг и не враг, но с Джокером в связях,\nПередаю ему то, что в моих руках.\nПугало дал ему страх, а я — нечто большее.\nЧто же я передал? Ответь, детектив, без спешки.»",
         "options": [
-            "Что именно он попросил? Говори прямо.",
-            "Ты арестован за соучастие в побеге.",
-            "Что за кое-что особенное?"
+            "Ты передал Джокеру бомбу.",
+            "Ты передал ему деньги.",
+            "Ты передал ему план."
         ],
-        "correct": "Что именно он попросил? Говори прямо."
+        "correct": "Ты передал Джокеру бомбу."
     },
     {
-        "hatter": "Джокер пришёл ко мне с... ингредиентом. Необычным. Зелёным. Светящимся изнутри. Кварц, но не простой — с аномальной кристаллической структурой. Он сказал, что это ключ к новой формуле. Я не стал расспрашивать. Учёные не задают лишних вопросов — они экспериментируют.",
+        "hatter": "*медленно хлопает в ладоши* Браво! Проницательно. Да-да, я передал ему бомбу. Но прежде чем я расскажу детали — ещё одна загадка, детектив. Вы ведь любите загадки, не так ли?",
         "options": [
-            "Ты переоцениваешь свою работу.",
-            "Ты не знал, что это за камень? Просто использовал его?",
-            "Кварц не может быть ключом к токсину."
+            "Хватит игр. Что именно ты передал?",
+            "Я не люблю твои игры.",
+            "Что за бомба?"
         ],
-        "correct": "Ты не знал, что это за камень? Просто использовал его?"
+        "correct": "Хватит игр. Что именно ты передал?"
     },
     {
-        "hatter": "Знал? О нет. Я не спрашивал. Моя работа — создавать формулы, а не задавать вопросы. Я просто использовал этот камень как катализатор. И результат... *улыбается*... превзошёл все ожидания. Новый токсин — это шедевр.",
+        "hatter": "Терпение, детектив, терпение... Вот вам загадка:\n\n«Что громче грома, но меньше горошины,\nСтирает города, но рождается в тишине?\nДжокер ждёт меня, как ребёнок — игрушку,\nА я везу ему... угадай-ка, что!»",
         "options": [
-            "То есть ты создал новую версию токсина страха.",
-            "Как именно кварц усилил эффект?",
-            "Это незаконно и опасно."
+            "Ядерная бомба.",
+            "Бомба с газом страха.",
+            "Водяная бомба"
         ],
-        "correct": "То есть ты создал новую версию токсина страха."
+        "correct": "Ядерная бомба."
     },
     {
-        "hatter": "Создал? О да. Новая версия моего газа — это... новое слово в токсикологии! Я назвал его 'Страх-Плюс'. Одна капля — и жертва будет видеть свои кошмары часами. Но самое главное... *заминается*. Самое главное — он сработает даже на сильнейшем человеке в мире.",
+        "hatter": "*улыбается* Бинго! Именно так. Настоящая, действующая ядерная бомба. Не та жалкая петарда, что продают на чёрном рынке. Настоящий конец света в умелых руках. И знаете, что самое интересное? Я сам доставил её Джокеру. Лично. В руках.",
         "options": [
-            "Ты гордишься своей работой?",
-            "На сильнейшем человеке? Кого ты имеешь в виду?",
-            "Это безумие."
+            "Ты безумен.",
+            "Откуда у тебя ядерная бомба?!",
+            "Зачем ты это сделал?"
         ],
-        "correct": "На сильнейшем человеке? Кого ты имеешь в виду?"
+        "correct": "Откуда у тебя ядерная бомба?!"
     },
     {
-        "hatter": "Я не называю имён.*поправляет очки* Но... да. Этот токсин пробьёт любую защиту. Любую волю. Даже ту, что... *замолкает*. Даже ту, что нечеловеческая. Джокер был... в восторге, когда я это сказал.",
+        "hatter": "Откуда? О, это был... очень сложный путь. Скажем так — у меня есть контакты. Очень, очень высокопоставленные. Они задали мне загадку, я её разгадал, и в награду получил... подарок. А Джокер заплатил за него... всем, что у него было. Кроме своего смеха, конечно.",
         "options": [
-            "Зачем Джокеру такой мощный токсин? На кого он направлен?",
-            "Масштабная операция? Что ты имеешь в виду?",
-            "В чем твоя выгода?"
-            
+            "Кто ещё замешан в этом плане?",
+            "Ты предал город.",
+            "Сколько тебе заплатил Джокер?"
         ],
-        "correct": "Зачем Джокеру такой мощный токсин? На кого он направлен?"
+        "correct": "Кто ещё замешан в этом плане?"
     },
     {
-        "hatter": "На кого направлен? О, это интересный вопрос. Джокер говорил о... масштабной операции. Ему нужны были не просто страх — ему нужен был хаос. И для этого ему понадобился... помощник. Кто-то очень умный. Кто-то, кто любит... загадки.",
+        "hatter": "Замешаны? О, детектив, вы даже не представляете... Но сначала — загадка:\n\n«Она носит красно-чёрное, как кровь на закате,\nС ней Джокер никогда не скучает.\nПсихиатр по образованию, безумная по призванию,\nКто она, эта верная спутница?»",
         "options": [
-            "Ты предал город ради эксперимента.",
-            "Какой помощник? Кто ещё замешан?",
-            "Загадки? Что за загадки?"
+            "Харли Квинн.",
+            "Талия аль Гул.",
+            "Ядовитый Плющ."
         ],
-        "correct": "Какой помощник? Кто ещё замешан?"
+        "correct": "Харли Квинн."
     },
     {
-        "hatter": "Помощник? О, это был не просто помощник. Это был... стратег. Джокер сказал, что заручился поддержкой кое-кого очень умного. Кого-то, кто любит загадки.",
-        "options": [
-            "Кто этот 'стратег'?",
-            "Загадочник... Джокер связывался с ним.",
-            "Почему Джокер выбрал именно его?"
+        "hatter": "*смеётся* О, конечно! Дорогая Харли! Она — правая рука Джокера. Пока я доставлял бомбу, пока Пугало варил свой токсин — Харли уже готовила сцену. Она знает каждый шаг плана. Каждую деталь. Каждую... загадку.",
+        "options": [   
+            "Она такая же безумная, как он.",
+            "Почему ты выдаёшь её?", 
+            "Какова её роль в плане?"
         ],
-        "correct": "Загадочник... Джокер связывался с ним."
+        "correct": "Какова её роль в плане?"
     },
     {
-        "hatter": "А вы не обделены умом. Да. Эдвард Нигма. Загадочник. Джокер говорил, что Нигма согласился помочь. За... определённую плату, конечно. Нигма не работает бесплатно.",
+        "hatter": "Её роль? О, она — душа этого представления. Харли координирует всё. Она знает, где будет бомба. Она знает, когда. Она знает, кто будет рядом. Без неё план Джокера — просто хаос. А с ней... это симфония.",
         "options": [
-            "Зря ты это мне рассказал.",
-            "Почему Джокер выбрал именно его?",
-            "Чем именно Загадочник должен был помочь?"
-        ],
-        "correct": "Чем именно Загадочник должен был помочь?"
-    },
-    {
-        "hatter": "Чем помочь? О, это... Это не моя часть плана. Я только предоставил токсин. Но Джокер говорил, что Нигма поможет ему... достать кое-что очень большое. Что-то, что изменит весь мир.",
-        "options": [
-            "Что большое? Говори!",
-            "Ты что-то скрываешь.",
-            "Мне не интересны детали."
-        ],
-        "correct": "Что большое? Говори!"
-    },
-    {
-        "hatter": "Большое? *нервно поправляет очки*. Ладно... Джокер сказал, что Нигма поможет ему добыть... бомбу. Но не обычную бомбу. Он сказал: действительно большую бомбу.",
-        "options": [
-            "Это безумие. Ты понимаешь, что говоришь?",
-            "Откуда у них бомба",
-            "Бомбу? Какую именно бомбу?"
-        ],
-        "correct": "Бомбу? Какую именно бомбу?"
-    },
-    {
-        "hatter": "Какую? *шёпотом*. Он сказал... огромную бомбу. Я не спрашивал деталей. Я только предоставил токсин. Но когда Джокер сказал это... я понял, что зашёл слишком далеко. Больше я ничего не знаю. Честно.",
-        "options": [
-            "Спасибо за сотрудничество. Допрос окончен.",
+            "Когда план реализуется?",
             "Ты пожалеешь, что рассказал.",
-            "Я найду и Джокера, и Загадочника."
+            "Где находится бомба?"
+        ],
+        "correct": "Когда план реализуется?"
+    },
+    {
+        "hatter": "Когда? О, детектив, вы так торопитесь... Но прежде — последняя загадка:\n\n«Когда часы пробьют двенадцать,\nИ город погрузится во тьму,\nТогда свершится то, что задумал Джокер.\nКогда, детектив? Ответь — и я скажу всё.»",
+        "options": [
+            "Сегодня ночью.",
+            "Завтра.",
+            "Через две недели."
         ],
         "correct": [
-            "Спасибо за сотрудничество. Допрос окончен.",
-            "Ты пожалеешь, что рассказал.",
-            "Я найду и Джокера, и Загадочника."
+            "Сегодня ночью.",
+            "Завтра.",
+            "Через две недели."
+        ]
+    },
+    {
+        "hatter": "*кивает* Близко, детектив. Очень близко. Может, сегодня ночью. Может, завтра на рассвете. А может и через две недели. Точного времени я не знаю, но так загадка получилась даже интереснее, не правдал ли? Одно я могу сказать наверняка: план скоро реализуется. И когда это произойдёт... Хах... Мир больше не будет таким, как прежде.",
+        "options": [
+            "Кто знает план полностью?",
+            "Я остановлю его.",
+            "Ты можешь помочь мне его остановить?"
+        ],
+        "correct": "Кто знает план полностью?"
+    },
+    {
+        "hatter": "Кто знает план полностью? О, детектив... только один Джокер и Харли. Но до Джокера Вам не добраться. Никто не знает, где он спрятался и готовится к финалу, а вот Харли... Она не такая осторожная. Найдите её. Пока не поздно. Она — ключ ко всему.",
+        "options": [
+            "Спасибо. Допрос окончен.",
+            "Я найду Харли.",
+            "Ты пожалеешь, что рассказал."
+        ],
+        "correct": [
+            "Спасибо. Допрос окончен.",
+            "Я найду Харли.",
+            "Ты пожалеешь, что рассказал."
         ]
     },
 ]
 
-# ===== ФРАЗЫ ПУГАЛО НА НЕПРАВИЛЬНЫЕ ОТВЕТЫ =====
+# ===== ФРАЗЫ ЗАГАДОЧНИКА НА НЕПРАВИЛЬНЫЕ ОТВЕТЫ =====
 WRONG_ANSWER_RESPONSES = [
-    "Нет, так дело не пойдёт! Спроси что-то поинтереснее!",
-    "Интересная гипотеза, но неверная. Попробуй ещё раз.",
-    "Скучно... У тебя есть вопрос получше?",
-    "О, какая банальность! Я ожидал от тебя большего, детектив.",
-    "Нет-нет-нет, это не то, что я хочу услышать.",
-    "Ты ходишь вокруг да около. Мой научный ум не впечатлён.",
-    "Мои уши вянут от таких вопросов. Давай что-нибудь поострее!",
+    "Нет, так дело не пойдёт! Попробуй разгадать мою загадку иначе.",
+    "Ха-ха! Неверно, детектив. Подумай ещё раз.",
+    "Скучно... У тебя есть ответ поинтереснее?",
+    "О, какая банальность! Я ожидал от тебя большей проницательности.",
+    "Нет-нет-нет, это не тот ответ, который я хочу услышать.",
+    "Ты ходишь вокруг да около. Разгадай загадку прямо!",
+    "Мой интеллект не впечатлён твоими ответами. Давай что-нибудь поострее!",
     "Пфф... Это всё, на что ты способен? Разочарован.",
     "Ты что, серьёзно? Задай нормальный вопрос!",
-    "Снова мимо! Подумай ещё раз, у тебя получится лучше.",
+    "Снова мимо! Подумай ещё раз — у тебя получится лучше.",
     "Нет, это не мой стиль. Попробуй зайти с другой стороны.",
-    "Ой, как предсказуемо... Мне нужны вопросы поинтереснее!",
+    "Ой, как предсказуемо... Мне нужны ответы поинтереснее!",
 ]
 
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
@@ -240,7 +234,42 @@ BURN_REWARDS = {
     "Legendary": {"cents": 0, "free_rolls": 5},
     "Legendary Team-up": {"cents": 0, "free_rolls": 7},
     "Highlight": {"cents": 0, "free_rolls": 10},
-    "Limited": {"cents": 0, "free_rolls": 15},
+    "Limited": {"cents": 0, "free_rolls": 15},  # бонус для редкой
+}
+
+# ===== СУПЕР-КОИНЫ (клановая валюта) =====
+SUPER_COIN_REWARDS = {
+    "Common": 1,
+    "Rare": 2,
+    "Rare Team-up": 3,
+    "Epic": 3,
+    "Epic Team-up": 5,
+    "Legendary": 7,
+    "Legendary Team-up": 10,
+    "Highlight": 15,
+    # Limited — 0 (не начисляются)
+}
+
+# ===== МАГАЗИН КЛАНА =====
+CLAN_SHOP_ITEMS = {
+    "epic": {
+        "name": "🎴 Рандомный Epic",
+        "description": "Случайному участнику клана выдаётся случайная Epic-карта",
+        "price": 50,
+        "emoji": "🎴",
+    },
+    "rolls": {
+        "name": "🎲 2 попытки каждому",
+        "description": "Каждому участнику клана выдаётся 2 бесплатные попытки",
+        "price": 70,
+        "emoji": "🎲",
+    },
+    "cents": {
+        "name": "💰 5000 бэт-коинов",
+        "description": "Случайному участнику клана выдаётся 5000 бэт-коинов",
+        "price": 30,
+        "emoji": "💰",
+    },
 }
 
 def get_card_media_value(card: Dict) -> str:
@@ -421,126 +450,158 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+def migrate_data(data: Dict) -> Dict:
+    """Применяет миграции к данным. Вызывается только при загрузке с диска."""
+    # Инициализируем активные трейды если нет
+    if "active_trades" not in data:
+        data["active_trades"] = {}
+
+    if "promo_codes" not in data:
+        data["promo_codes"] = {}
+
+    if "seasonal_cards" not in data:
+        data["seasonal_cards"] = {}
+
+    if "clans" not in data:
+        data["clans"] = {}
+
+    for clan in data.get("clans", {}).values():
+        if "max_members" not in clan:
+            clan["max_members"] = MAX_CLAN_MEMBERS
+
+    # ⭐ Миграция супер-коинов для кланов ⭐
+    for clan_id, clan_data in data.get("clans", {}).items():
+        if "super_coins" not in clan_data:
+            clan_data["super_coins"] = 0
+
+    if "user_clan" not in data:
+        data["user_clan"] = {}
+
+    # ⭐ Миграция пользователей ⭐
+    for user_id, user_data in data.get("users", {}).items():
+        if "clan_invite_pending" not in user_data:
+            user_data["clan_invite_pending"] = None
+        if "weekly_quests" not in user_data:
+            user_data["weekly_quests"] = []
+        if "weekly_quests_last_reset_year" not in user_data:
+            user_data["weekly_quests_last_reset_year"] = 0
+        if "weekly_quests_last_reset_week" not in user_data:
+            user_data["weekly_quests_last_reset_week"] = 0
+        if "daily_quests_streak" not in user_data:
+            user_data["daily_quests_streak"] = 0
+        if "last_streak_date" not in user_data:
+            user_data["last_streak_date"] = ""
+        if "last_card_time" not in user_data:
+            user_data["last_card_time"] = 0
+        if "free_rolls" not in user_data:
+            user_data["free_rolls"] = 0
+        if "last_dice_time" not in user_data:
+            user_data["last_dice_time"] = 0
+        if "casino_attempts" not in user_data:
+            user_data["casino_attempts"] = 5
+        if "basket_plays" not in user_data:
+            user_data["basket_plays"] = 0
+        if "darts_plays" not in user_data:
+            user_data["darts_plays"] = 0
+        if "darts_last_reset" not in user_data:
+            user_data["darts_last_reset"] = 0
+        if "basket_last_reset" not in user_data:
+            user_data["basket_last_reset"] = 0
+        if "last_casino_reset" not in user_data:
+            user_data["last_casino_reset"] = 0
+        if "used_promo_codes" not in user_data:
+            user_data["used_promo_codes"] = []
+        if "referral_invites" not in user_data:
+            user_data["referral_invites"] = []
+        if "referral_rewards_claimed" not in user_data:
+            user_data["referral_rewards_claimed"] = []
+        if "daily_quests" not in user_data:
+            user_data["daily_quests"] = []
+        if "daily_quests_last_reset" not in user_data:
+            user_data["daily_quests_last_reset"] = 0
+        if "rolls_box_price" not in user_data:
+            user_data["rolls_box_price"] = 25000
+        if "pending_season_boxes" not in user_data:
+            user_data["pending_season_boxes"] = 0
+        
+        # ⭐ Удаление устаревших полей ⭐
+        if "pending_superman_heroes_boxes" in user_data:
+            del user_data["pending_superman_heroes_boxes"]
+        if "pending_superman_villain_boxes" in user_data:
+            del user_data["pending_superman_villain_boxes"]
+        
+        if "has_batpass" not in user_data:
+            user_data["has_batpass"] = False
+        if "batpass_expires_at" not in user_data:
+            user_data["batpass_expires_at"] = 0
+        if "batpass_privileges" not in user_data:
+            user_data["batpass_privileges"] = {
+                "reduced_cooldown": True,
+                "extra_dice_rolls": True,
+                "free_clan_creation": True,
+                "extra_casino_attempts": True,
+            }
+        if "weekly_dice_rolls" not in user_data:
+            user_data["weekly_dice_rolls"] = 1
+        if "last_dice_week_reset" not in user_data:
+            user_data["last_dice_week_reset"] = 0
+        if "last_daily_activity" not in user_data:
+            user_data["last_daily_activity"] = None
+        if "registered_at" not in user_data:
+            user_data["registered_at"] = None
+        if "seasonal_quests" not in user_data:
+            user_data["seasonal_quests"] = {"completed": [], "progress": {}}
+        if "avatar_url" not in user_data:
+            user_data["avatar_url"] = DEFAULT_AVATAR_URL
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+        if "event_completed" not in user_data:
+            user_data["event_completed"] = False
+        if "event_completed_at" not in user_data:
+            user_data["event_completed_at"] = 0
+
+    # ⭐ Миграция карт (ВЫНЕСЕНА ИЗ ЦИКЛА ПОЛЬЗОВАТЕЛЕЙ!) ⭐
+    for card in data.get("cards", []):
+        if "is_classic" not in card:
+            card["is_classic"] = False
+    
+    return data
+
+# ⭐ ГЛОБАЛЬНЫЙ КЭШ ⭐
+import time
+_data_cache = {
+    "data": None,
+    "last_load": 0,
+}
+CACHE_TTL = 5  # секунд
+
 def load_data() -> Dict[str, Any]:
-    """Загружает данные из файла или создает новую структуру."""
+    """Загружает данные с кэшированием и миграцией."""
+    current_time = time.time()
+    
+    # ⭐ Если кэш актуален — возвращаем его ⭐
+    if _data_cache["data"] is not None and (current_time - _data_cache["last_load"]) < CACHE_TTL:
+        return _data_cache["data"]
+    
+    # ⭐ Иначе читаем с диска ⭐
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            # Инициализируем активные трейды если нет
-            if "active_trades" not in data:
-                data["active_trades"] = {}
-
-            if "promo_codes" not in data:
-                data["promo_codes"] = {}
-
-            if "seasonal_cards" not in data:
-                data["seasonal_cards"] = {}  # {card_id: price}
-
-            if "clans" not in data:
-                data["clans"] = {}
-
-            for clan in data.get("clans", {}).values():
-                if "max_members" not in clan:
-                    clan["max_members"] = MAX_CLAN_MEMBERS
-
-            if "user_clan" not in data:
-                data["user_clan"] = {}  # {user_id: clan_name}
-
-            for user_id, user_data in data.get("users", {}).items():
-                if "clan_invite_pending" not in user_data:
-                    user_data["clan_invite_pending"] = None  # Для хранения ожидающего приглашения
-                if "weekly_quests" not in user_data:
-                    user_data["weekly_quests"] = []
-                if "weekly_quests_last_reset_year" not in user_data:
-                    user_data["weekly_quests_last_reset_year"] = 0
-                if "weekly_quests_last_reset_week" not in user_data:
-                    user_data["weekly_quests_last_reset_week"] = 0
-                if "daily_quests_streak" not in user_data:
-                    user_data["daily_quests_streak"] = 0
-                if "last_streak_date" not in user_data:
-                    user_data["last_streak_date"] = ""
+            # ⭐ ПРИМЕНЯЕМ МИГРАЦИЮ (только при чтении с диска!) ⭐
+            data = migrate_data(data)
             
-            for user_id, user_data in data.get("users", {}).items():
-                if "last_card_time" not in user_data:
-                    user_data["last_card_time"] = 0
-                if "free_rolls" not in user_data:
-                    user_data["free_rolls"] = 0
-                if "last_dice_time" not in user_data:
-                    user_data["last_dice_time"] = 0
-                if "casino_attempts" not in user_data:
-                    user_data["casino_attempts"] = 5
-                if "basket_plays" not in user_data:
-                    user_data["basket_plays"] = 0
-                if "darts_plays" not in user_data:
-                    user_data["darts_plays"] = 0
-                if "darts_last_reset" not in user_data:
-                    user_data["darts_last_reset"] = 0
-                if "basket_last_reset" not in user_data:
-                    user_data["basket_last_reset"] = 0
-                if "last_casino_reset" not in user_data:
-                    user_data["last_casino_reset"] = 0
-                if "used_promo_codes" not in user_data:
-                    user_data["used_promo_codes"] = []
-                if "referral_invites" not in user_data:
-                    user_data["referral_invites"] = []
-                if "referral_rewards_claimed" not in user_data:
-                    user_data["referral_rewards_claimed"] = []
-                if "daily_quests" not in user_data:
-                    user_data["daily_quests"] = []
-                if "daily_quests_last_reset" not in user_data:
-                    user_data["daily_quests_last_reset"] = 0
-                if "rolls_box_price" not in user_data:
-                    user_data["rolls_box_price"] = 25000
-                if "pending_season_boxes" not in user_data:
-                    user_data["pending_season_boxes"] = 0
-                if "pending_superman_heroes_boxes" not in user_data:
-                    user_data["pending_superman_heroes_boxes"] = 0
-                if "pending_superman_villain_boxes" not in user_data:
-                    user_data["pending_superman_villain_boxes"] = 0
-                # ⭐ УДАЛИТЬ СТАРОЕ ПОЛЕ У ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ⭐
-                if "pending_supergirl_boxes" in user_data:
-                    del user_data["pending_supergirl_boxes"]
-                if "has_batpass" not in user_data:
-                    user_data["has_batpass"] = False
-                if "batpass_expires_at" not in user_data:
-                    user_data["batpass_expires_at"] = 0
-                if "batpass_privileges" not in user_data:
-                    user_data["batpass_privileges"] = {
-                        "reduced_cooldown": True,      # 2.5 часа вместо 3 часов
-                        "extra_dice_rolls": True,      # 2 броска кубика в неделю
-                        "free_clan_creation": True,    # Бесплатное создание клана
-                        "extra_casino_attempts": True, # 7 попыток в казино вместо 5
-                    }
-                # ⭐ НОВОЕ: Счётчик бросков кубика за неделю ⭐
-                if "weekly_dice_rolls" not in user_data:
-                    user_data["weekly_dice_rolls"] = 1  # 1 бросок по умолчанию
-                if "last_dice_week_reset" not in user_data:
-                    user_data["last_dice_week_reset"] = 0
-                if "last_daily_activity" not in user_data:
-                    user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
-                if "registered_at" not in user_data:
-                    user_data["registered_at"] = None  # Дата регистрации в формате "YYYY-MM-DD"
-                if "seasonal_quests" not in user_data:
-                    user_data["seasonal_quests"] = {"completed": [], "progress": {}}
-                # ⭐ НОВОЕ: Миграция аватарок ⭐
-                if "avatar_url" not in user_data:
-                    user_data["avatar_url"] = DEFAULT_AVATAR_URL
-                if "avatars" not in user_data:
-                    user_data["avatars"] = [DEFAULT_AVATAR_URL]
-                if "event_completed" not in user_data:
-                    user_data["event_completed"] = False
-                if "event_completed_at" not in user_data:
-                    user_data["event_completed_at"] = 0
-
-                for card in data.get("cards", []):
-                    if "is_classic" not in card:
-                        card["is_classic"] = False
+            # ⭐ Сохраняем в кэш ⭐
+            _data_cache["data"] = data
+            _data_cache["last_load"] = current_time
             return data
             
         except Exception as e:
             logger.error(f"Ошибка загрузки данных: {e}")
+            # ⭐ При ошибке возвращаем кэш или пустую структуру ⭐
+            if _data_cache["data"] is not None:
+                return _data_cache["data"]
             return {
                 "users": {},
                 "cards": [],
@@ -549,6 +610,7 @@ def load_data() -> Dict[str, Any]:
                 "active_trades": {},
             }
     
+    # ⭐ Файла нет — возвращаем пустую структуру ⭐
     return {
         "users": {},
         "cards": [],
@@ -577,12 +639,15 @@ def check_casino_reset(user_data: Dict) -> None:
         user_data["last_casino_reset"] = current_day_start_ts
 
 def save_data(data: Dict[str, Any]) -> None:
-    """Сохраняет данные в файл, компактно оформляя списки."""
+    """Сохраняет данные в файл, компактно оформляя списки, и обновляет кэш."""
     try:
-        # 1. Сначала превращаем данные в JSON строку с отступами
+        # ⭐ 1. Применяем миграцию перед сохранением ⭐
+        data = migrate_data(data)
+        
+        # 2. Превращаем данные в JSON строку с отступами
         json_str = json.dumps(data, ensure_ascii=False, indent=4)
         
-        # 2. Используем регулярное выражение, чтобы найти все списки [...] 
+        # 3. Используем регулярное выражение, чтобы найти все списки [...] 
         # и удалить внутри них переносы строк, оставив только пробелы
         # Это сделает вид: "cards": [1, 2, 3, 4, 5] вместо многострочного списка
         
@@ -594,15 +659,18 @@ def save_data(data: Dict[str, Any]) -> None:
             cleaned = re.sub(r'\s+', ' ', cleaned)
             return cleaned
 
-        # Ищем паттерны списков. Внимание: это упрощенный регекс, он работает для простых списков чисел/строк
-        # Для вложенных структур может потребоваться более сложный парсер, но для ID карт подойдет
+        # Ищем паттерны списков
         json_str_compact = re.sub(r'\[.*?\]', replace_newlines_in_lists, json_str, flags=re.DOTALL)
 
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             f.write(json_str_compact)
             f.flush()
             os.fsync(f.fileno())
-            
+        
+        # ⭐ 4. Обновляем кэш после успешного сохранения ⭐
+        _data_cache["data"] = data
+        _data_cache["last_load"] = time.time()
+        
     except Exception as e:
         logger.error(f"Ошибка сохранения данных: {e}")
 
@@ -663,26 +731,44 @@ def generate_card_caption(
     user_data: Optional[Dict] = None,
     count: int = 1,
     show_bonus: bool = False,
+    super_coins_earned: int = 0, 
 ) -> str:
     """Генерирует описание карточки с количеством дубликатов и цитатой."""
     # ⭐ БАЗОВЫЙ CAPTION ⭐
     if user_data is None:
         caption = f"{card['title']}"
     else:
-        caption = f"🔍 У Вас новый\n подозреваемый!\n\n{html.escape(card['title'])}"
+        caption = f"🔍 У Вас новый подозреваемый!\n\n{html.escape(card['title'])}"
 
     caption += f"\nРедкость: {card['rarity']}"
     
     # ⭐ НОВОЕ: ЦИТАТА ЧЕРЕЗ BLOCKQUOTE (HTML-тег) ⭐
     if card.get("catchphrase"):
-        # ⭐ Telegram HTML поддерживает обычные \n для переноса строк ⭐
         escaped_phrase = html.escape(card['catchphrase'])
         caption += f"\n<blockquote><i>{escaped_phrase}</i></blockquote>"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} очков репутации"
+        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов"
+        
+        # ⭐ НОВОЕ: Правильное склонение слова "супер-коин" ⭐
+        if super_coins_earned > 0:
+            n = super_coins_earned % 100
+            n1 = n % 10
+            
+            if n > 10 and n < 20:
+                coin_word = "супер-коинов"
+            elif n1 > 1 and n1 < 5:
+                coin_word = "супер-коина"
+            elif n1 == 1:
+                coin_word = "супер-коин"
+            else:
+                coin_word = "супер-коинов"
+                
+            caption += f"\n🪙 +{super_coins_earned} {coin_word}"
+            
+        caption += f"\n💥 +{bonus['points']} очков репутации"
         
     # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО, ЕСЛИ ЕСТЬ ДУБЛИКАТЫ ⭐
     if count > 1:
@@ -839,10 +925,6 @@ async def edit_card_message(query, card: Dict, caption: str, reply_markup: Inlin
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start с поддержкой реферальной системы."""
     try:
-        if update.effective_chat.type in ["group", "supergroup"]:
-            await send_chat_keyboard(update.effective_chat.id, context)
-            return
-           
         user_id = str(update.effective_user.id)
         data = load_data()
         
@@ -961,59 +1043,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
 
-async def send_chat_keyboard(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет клавиатуру для группового чата."""
-    try:
-        # ⭐ Клавиатура для группового чата — только одна кнопка ⭐
-        chat_keyboard = [
-            [KeyboardButton("🔍 Получить досье")]
-        ]
-        
-        welcome_text = (
-            "👋 <b>Привет!</b>\n\n"
-            "Я добавил панель с кнопками для нашего чата.\n"
-            "Нажмите кнопку ниже, чтобы получить досье!\n\n"
-            "💡 <i>Для полного функционала пишите мне в личные сообщения!</i>"
-        )
-        
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=welcome_text,
-            reply_markup=ReplyKeyboardMarkup(chat_keyboard, resize_keyboard=True),
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        logger.error(f"Ошибка отправки групповой клавиатуры: {e}")
-
-async def on_bot_added_to_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет групповую клавиатуру при добавлении бота в чат."""
-    try:
-        chat_member_update = update.my_chat_member
-        
-        # ⭐ Проверяем, что изменения касаются именно бота ⭐
-        if chat_member_update.new_chat_member.user.id != context.bot.id:
-            return
-        
-        # ⭐ Проверяем, что бота добавили (а не удалили) ⭐
-        new_status = chat_member_update.new_chat_member.status
-        if new_status not in ["member", "administrator"]:
-            return
-        
-        chat = chat_member_update.chat
-        
-        # ⭐ Работаем только с группами и супергруппами ⭐
-        if chat.type not in ["group", "supergroup"]:
-            return
-        
-        logger.info(f"Бот добавлен в групповой чат {chat.id} ({chat.title})")
-        
-        # ⭐ Отправляем клавиатуру ⭐
-        await send_chat_keyboard(chat.id, context)
-        
-    except Exception as e:
-        logger.error(f"Ошибка on_bot_added_to_chat: {e}")
-
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
     try:
@@ -1060,9 +1089,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/give_batpass [@никнейм] [дней] - выдать Бэт-пасс\n"
             response += "/remove_batpass [@никнейм] - отозвать Бэт-пасс\n"
             response += "/give_card_to_batpass [ID_карты] [количество] - выдать карту всем с Бэт-пассом\n"
-            response += "/give_superman_box heroes @username\n"
-            response += "/give_superman_box villain @username\n"
-            response += "/reset\\_event\\_all confirm - сбросить прохождение ивента у всех\n"
+            response += "/add_supercoins [@никнейм] [количество] - начислить супер-коины в бюджет клана\n"
+            response += "/reset_event_all confirm - сбросить прохождение ивента у всех\n"
             
             
         response += "💡 Нужна помощь?\n"
@@ -3023,6 +3051,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await edit_clan_description_start(update, context)
             return
 
+        if text == "🚫 Выгнать участника":
+            await kick_clan_member_start(update, context)
+            return
+
+        if text == "👑 Передать лидерство":
+            await transfer_leadership_start(update, context)
+            return
+
+        if text == "🛒 Магазин клана":
+            await clan_shop_open(update, context)
+            return
+
         if text == "🖼 Установить аватарку клана":  # ⭐ НОВОЕ
             await set_clan_avatar_start(update, context)
             return
@@ -3045,6 +3085,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
             if user_step == "clan_invite_enter_username":
                 await process_clan_invite(update, context)
+                return
+
+            if user_step == "clan_kick_enter_username":
+                await process_kick_clan_member(update, context)
+                return
+
+            if user_step == "clan_transfer_enter_username":
+                await process_transfer_leadership(update, context)
                 return
 
             if user_step == "clan_edit_description":
@@ -3092,7 +3140,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await submenu(update, context)
             return
 
-        elif text == "🧪 Ивент":
+        elif text == "🧩 Ивент":
             await event_menu(update, context)
             return
 
@@ -3222,6 +3270,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["season_points"] += bonus["points"]
             user_data["cents"] += bonus["cents"]
             user_data["cards"].append(card["id"])
+            super_coins_earned = 0
+            
+            # ⭐ НОВОЕ: Начисление супер-коинов в клан ⭐
+            user_clan_id = get_user_clan(user_id, data)
+            if user_clan_id:
+                clan_data = data["clans"].get(user_clan_id)
+                if clan_data:
+                    # ⭐ Получаем количество супер-коинов по редкости ⭐
+                    super_coins_amount = SUPER_COIN_REWARDS.get(card["rarity"], 0)
+                    if super_coins_amount > 0:
+                        clan_data["super_coins"] = clan_data.get("super_coins", 0) + super_coins_amount
+                        super_coins_earned = super_coins_amount
+                        logger.info(f"Клан {clan_data.get('name')} получил {super_coins_amount} супер-коинов за карту #{card['id']}")
 
             # ⭐ ОБНОВЛЕНИЕ ВРЕМЕНИ И БЕСПЛАТНЫХ ПОПЫТОК ⭐
             if use_free_roll:
@@ -3267,7 +3328,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await update_weekly_quest_progress(context, user_id, "weekly_rare_6", 1)
             if card["rarity"] == "Epic Team-up":
                 await update_weekly_quest_progress(context, user_id, "weekly_epic_tu_1", 1)
-            caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
+            caption = generate_card_caption(card, user_data, count=1, show_bonus=True, super_coins_earned=super_coins_earned)
             await send_card(update, card, context, caption=caption)
 
         elif text == "🍺 Бар":
@@ -4515,8 +4576,6 @@ async def add_rolls_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE
                     "avatars": [DEFAULT_AVATAR_URL],
                     "pending_season_boxes": 0,
                     "pending_rolls_box": 0,
-                    "pending_superman_heroes_boxes": 0,
-                    "pending_superman_villain_boxes": 0,
                     "last_daily_activity": None,
                     "registered_at": None,
                 }
@@ -5549,8 +5608,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
-    """Возвращает название клана пользователя или None."""
-    return data.get("user_clan", {}).get(user_id)
+    """Возвращает ID клана, в котором состоит пользователь, или None."""
+    # Ищем пользователя в списках участников всех реальных кланов
+    for clan_id, clan_data in data.get("clans", {}).items():
+        if user_id in clan_data.get("members", {}):
+            return clan_id  # Возвращаем именно ID клана (строку)
+    return None
 
 def get_clan_data(clan_identifier: str, data: Dict) -> Optional[Dict]:
     """Возвращает данные клана по ID или по названию."""
@@ -5737,23 +5800,166 @@ async def invite_player_to_clan(
         "invited_at": int(time.time())
     }
     data["users"][target_user_id] = target_user_data
-    
-    # Уведомляем целевого пользователя
+
+    # ⭐ ИСПРАВЛЕНИЕ: Сохраняем данные ПЕРЕД отправкой сообщения ⭐
+    # Это гарантирует, что когда игрок нажмёт кнопку, приглашение уже будет в файле
+    save_data(data)
+
+    # ⭐ Уведомляем целевого пользователя с inline-кнопками ⭐
     try:
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Принять", callback_data="accept_clan_invite"),
+                InlineKeyboardButton("❌ Отказаться", callback_data="decline_clan_invite"),
+            ]
+        ]
+    
+        inviter_data = data["users"].get(inviter_id, {})
+    
         await context.bot.send_message(
             chat_id=target_user_id,
             text=(
-                f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\n"
-                f"Для принятия приглашения используйте команду:\n"
-                f"`/accept_clan_invite`"
-                f"⏳ *Приглашение действительно в течение 1 часа.*"
+                f"🏰 <b>Вас пригласили в клан {html.escape(inviter_clan_name)}!</b>\n\n"
+                f"👑 Приглашение от: {html.escape(inviter_data.get('first_name', 'Глава клана'))}\n\n"
+                f"⏳ <i>Приглашение действительно в течение 1 часа.</i>"
             ),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
         )
     except Exception as notify_error:
         logger.warning(f"Не удалось отправить уведомление о приглашении: {notify_error}")
-    
-    return True, f"Приглашение отправлено пользователю @{target_username}!"
+        return True, f"Приглашение отправлено пользователю @{target_username}!"
+
+async def accept_clan_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик inline-кнопки 'Принять' для приглашения в клан."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        invite = user_data.get("clan_invite_pending")
+        if not invite:
+            await query.answer("❌ У вас нет ожидающих приглашений!", show_alert=True)
+            return
+        
+        # ⭐ Проверка срока действия (1 час) ⭐
+        invited_at = invite.get("invited_at", 0)
+        current_time = int(time.time())
+        if current_time - invited_at > 3600:
+            user_data["clan_invite_pending"] = None
+            save_data(data)
+            await query.answer("⏳ Приглашение истекло!", show_alert=True)
+            try:
+                await query.edit_message_text(
+                    "⏳ <b>Приглашение истекло!</b>\n\n"
+                    "Срок действия приглашения — 1 час.\n"
+                    "Попросите главу клана отправить новое приглашение.",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+            return
+        
+        clan_name = invite.get("clan_name")
+        inviter_id = invite.get("inviter_id")
+        
+        # ⭐ Проверка: уже в клане? ⭐
+        if get_user_clan(user_id, data):
+            await query.answer("❌ Вы уже состоите в клане!", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_name, data)
+        if not clan:
+            await query.answer("❌ Клан больше не существует!", show_alert=True)
+            user_data["clan_invite_pending"] = None
+            save_data(data)
+            return
+        
+        # ⭐ Добавляем пользователя в клан ⭐
+        clan["members"][user_id] = {
+            "joined_at": int(time.time()),
+            "role": "member"
+        }
+        data["user_clan"][user_id] = clan_name
+        user_data["clan_invite_pending"] = None
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока ⭐
+        try:
+            await query.edit_message_text(
+                f"🎉 <b>Вы успешно вступили в клан {html.escape(clan['name'])}!</b>\n\n"
+                f"Используйте кнопку «📋 Мой клан» для просмотра участников.",
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        # ⭐ Уведомляем лидера ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=inviter_id,
+                text=f"✅ Игрок {user_data.get('first_name', 'Новый участник')} принял приглашение в клан **{clan['name']}**!",
+                    parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        await query.answer("✅ Приглашение принято!", show_alert=False)
+        logger.info(f"Игрок {user_id} принял приглашение в клан {clan['name']}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка accept_clan_invite_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def decline_clan_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик inline-кнопки 'Отказаться' для приглашения в клан."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        invite = user_data.get("clan_invite_pending")
+        if not invite:
+            await query.answer("❌ У вас нет ожидающих приглашений!", show_alert=True)
+            return
+        
+        clan_name = invite.get("clan_name")
+        inviter_id = invite.get("inviter_id")
+        
+        # ⭐ Очищаем приглашение ⭐
+        user_data["clan_invite_pending"] = None
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока ⭐
+        try:
+            await query.edit_message_text(
+                f"❌ <b>Вы отказались от приглашения в клан {html.escape(clan['name'])}.</b>",
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        # ⭐ Уведомляем лидера ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=inviter_id,
+                text=(
+                    f"❌ Игрок {html.escape(user_data.get('first_name', 'Игрок'))} "
+                    f"отклонил приглашение в клан <b>{html.escape(clan['name'])}</b>.",
+                ),
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        await query.answer("❌ Приглашение отклонено", show_alert=False)
+        logger.info(f"Игрок {user_id} отказался от приглашения в клан {clan['name']}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка decline_clan_invite_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
         
 async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Присоединение к клану по ID."""
@@ -6023,6 +6229,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"🏰 <b>Ваш клан: {clan_name_escaped}</b>\n"
             f"{description_text}"
             f"{members_list}\n"
+            f"🪙 Бюджет клана: {clan.get('super_coins', 0)} супер-коинов\n\n"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
         )
@@ -6033,6 +6240,9 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 [KeyboardButton("📨 Пригласить игрока")],
                 [KeyboardButton("✏️ Описание клана")],
                 [KeyboardButton("🖼 Установить аватарку клана")],  # ⭐ НОВОЕ
+                [KeyboardButton("🚫 Выгнать участника")],
+                [KeyboardButton("👑 Передать лидерство")],
+                [KeyboardButton("🛒 Магазин клана")],
                 [KeyboardButton("🚪 Покинуть клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
@@ -6044,17 +6254,33 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        # ⭐ ОТПРАВКА С АВАТАРКОЙ КЛАНА ⭐
+        # ⭐ ОТПРАВКА С АВАТАРКОЙ КЛАНА (с fallback) ⭐
         clan_avatar = clan.get("clan_avatar")
-        
         if clan_avatar:
-            # Если есть аватарка клана, отправляем фото
-            await update.message.reply_photo(
-                photo=clan_avatar,
-                caption=message_text,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
+            try:
+                # Если есть аватарка клана, отправляем фото
+                await update.message.reply_photo(
+                    photo=clan_avatar,
+                    caption=message_text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+            except Exception as photo_error:
+                # ⭐ FALLBACK: Если фото не удалось отправить — отправляем текст ⭐
+                error_str = str(photo_error)
+                if "Wrong file identifier" in error_str or "http url" in error_str.lower():
+                    logger.warning(
+                        f"Аватарка клана {clan.get('name')} невалидна ({clan_avatar}). "
+                        f"Отправляю текстовое сообщение."
+                    )
+                    await update.message.reply_text(
+                        message_text,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
+                else:
+                    # Другая ошибка — пробрасываем дальше
+                    raise photo_error
         else:
             # Если аватарки нет, отправляем текст
             await update.message.reply_text(
@@ -6062,9 +6288,23 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-    except Exception as e:
-        logger.error(f"Ошибка в my_clan_view: {e}")
-        await update.message.reply_text("❌ Ошибка при показе информации о клане")
+    except Exception as photo_error:
+        error_str = str(photo_error)
+        if "Wrong file identifier" in error_str or "http url" in error_str.lower():
+            logger.warning(
+                f"Аватарка клана {clan.get('name')} невалидна. Сбрасываю."
+            )
+            # ⭐ НОВОЕ: Сбрасываем невалидную аватарку ⭐
+            clan["clan_avatar"] = None
+            save_data(data)
+        
+            await update.message.reply_text(
+                message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        else:
+            raise photo_error
 
 async def set_clan_avatar_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Начинает процесс установки аватарки клана."""
@@ -6341,12 +6581,15 @@ async def accept_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE)
         user_data["clan_invite_pending"] = None
         save_data(data)
 
-        # Уведомляем лидера
+        # ⭐ Уведомляем лидера (с экранированием) ⭐
         try:
             await context.bot.send_message(
                 chat_id=inviter_id,
-                text=f"✅ Игрок {user_data.get('first_name', 'Новый участник')} принял приглашение в клан **{clan_name}**!",
-                parse_mode="Markdown"
+                text=(
+                    f"✅ Игрок {html.escape(user_data.get('first_name', 'Новый участник'))} "
+                    f"принял приглашение в клан <b>{html.escape(clan_name)}</b>!"
+                ),
+                parse_mode="HTML"
             )
         except:
             pass
@@ -6415,6 +6658,7 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
         "leader_id": user_id,  # ← Добавьте это поле!
         "members": {user_id: {"joined_at": int(time.time()), "role": "leader"}},  # ← dict, не list!
         "max_members": MAX_CLAN_MEMBERS,
+        "super_coins": 0,  # ⭐ НОВОЕ
         "created_at": int(time.time()),
         "description": "",
         "clan_avatar": None,
@@ -6563,17 +6807,13 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
 SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное меню
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
-CLASSIC_BOX_IMAGE = "https://files.catbox.moe/pezd3a.jpg"
 SEASON_BOX_IMAGE = "https://files.catbox.moe/l3hxku.jpg"
 ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 
 # Список боксов для навигации
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
-    {"name": "Classic-Box", "price": 30000, "image": CLASSIC_BOX_IMAGE, "is_classic_box": True},
     {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
-    {"name": "Superman Heroes Box", "price": 0, "image": SUPERMAN_HEROES_IMAGE, "is_superman_heroes": True},
-    {"name": "Superman Villain Box", "price": 0, "image": SUPERMAN_VILLAIN_IMAGE, "is_superman_villain": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -6665,14 +6905,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
             f"⚠️ Цена растёт на 5000 с каждой покупкой!"
         )
-    elif current_box.get("is_classic_box"):
-        text = (
-            f"🏛 **{current_box['name']}**\n"
-            f"💰 Цена: {display_price} бэт-коинов\n"
-            f"🎁 Содержимое:\n"
-            f"• 10 случайных Classic-карт\n"
-            f"• Гарантированно 1 карта Epic\n"
-        )
     elif current_box.get("is_season_box"):
         pending = user_data.get("pending_season_boxes", 0)
         text = (
@@ -6685,24 +6917,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
-    # ⭐ НОВОЕ: Superman Heroes Box ⭐
-    elif current_box.get("is_superman_heroes"):
-        pending = user_data.get("pending_superman_heroes_boxes", 0)
-        text = (
-            f"🦸‍♂️ **{current_box['name']}**\n"
-            f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор карт героев по Мои приключения с Суперменом\n\n"
-            f"💳 Для покупки напишите: @Be9onder"
-        )
-    # ⭐ НОВОЕ: Superman Villain Box ⭐
-    elif current_box.get("is_superman_villain"):
-        pending = user_data.get("pending_superman_villain_boxes", 0)
-        text = (
-            f"🦹‍♂️ **{current_box['name']}**\n"
-            f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор карт злодеев по Мои приключения с Суперменом\n\n"
-            f"💳 Для покупки напишите: @Be9onder"
-        )
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
@@ -6713,18 +6927,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         if pending > 0:
             keyboard.append([InlineKeyboardButton(f"🎁 Открыть Season-Box ({pending} шт.)", callback_data="shop_open_season_box")])
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
-        
-    # ⭐ НОВОЕ: Логика кнопок для Superman боксов ⭐
-    elif current_box.get("is_superman_heroes") or current_box.get("is_superman_villain"):
-        box_type = "heroes" if current_box.get("is_superman_heroes") else "villain"
-        pending_key = f"pending_superman_{box_type}_boxes"
-        pending = user_data.get(pending_key, 0)
-        
-        if pending > 0:
-            emoji = "🦸‍♂️" if box_type == "heroes" else "🦹‍♂️"
-            keyboard.append([InlineKeyboardButton(f"{emoji} Открыть ({pending} шт.)", callback_data=f"shop_open_superman_{box_type}")])
-        keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
-        
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
@@ -6770,157 +6972,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
-
-async def open_classic_box(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    price_paid: int
-) -> None:
-    """Открывает Classic-Box: 10 Classic-карт + 1 гарантированная Epic."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        # ⭐ Собираем все доступные Classic-карты ⭐
-        classic_cards = [
-            c for c in data["cards"]
-            if c.get("is_classic") and c.get("available", True)
-        ]
-        
-        # ⭐ Classic-карты редкости Epic (для гарантии) ⭐
-        classic_epic_cards = [
-            c for c in classic_cards
-            if c.get("rarity") == "Epic"
-        ]
-        
-        # Проверка: достаточно ли карт в системе
-        if not classic_cards:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ **Ошибка!**\nВ системе нет доступных Classic-карт.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]]),
-                parse_mode="Markdown"
-            )
-            return
-        
-        if not classic_epic_cards:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ **Ошибка!**\nВ системе нет Classic-карт редкости Epic.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]]),
-                parse_mode="Markdown"
-            )
-            return
-        
-        # ⭐ ВЫБИРАЕМ КАРТЫ ⭐
-        # 1 гарантированная Epic
-        guaranteed_epic = random.choice(classic_epic_cards)
-        
-        # 9 случайных Classic-карт (могут повторяться, включая Epic)
-        other_9 = random.choices(classic_cards, k=9)
-        
-        # Итоговый набор из 10 карт
-        result_cards = [guaranteed_epic] + other_9
-        
-        # ⭐ ДОБАВЛЯЕМ КАРТЫ В КОЛЛЕКЦИЮ ИГРОКА (дубликаты как обычно) ⭐
-        for card in result_cards:
-            user_data["cards"].append(card["id"])
-        
-        save_data(data)
-        
-        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
-        media_group = []
-        for i, card in enumerate(result_cards):
-            # Caption только у первого элемента (ограничение Telegram)
-            caption = None
-            if i == 0:
-                caption = (
-                    f"🏛 <b>Classic-Box открыт!</b>\n"
-                    f"🎁 Получено 10 Classic-карт\n"
-                    f"💰 Списано: {price_paid} бэт-коинов\n"
-                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
-                )
-            
-            # Определяем тип медиа
-            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
-                media_group.append(
-                    InputMediaAnimation(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML" if caption else None
-                    )
-                )
-            else:
-                media_group.append(
-                    InputMediaPhoto(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML" if caption else None
-                    )
-                )
-        
-        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
-        try:
-            await context.bot.send_media_group(
-                chat_id=query.message.chat_id,
-                media=media_group
-            )
-        except Exception as media_error:
-            # ⭐ FALLBACK: если альбом не получился (например, смешанные типы) — шлём по одному ⭐
-            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
-            for i, card in enumerate(result_cards):
-                cap = None
-                if i == 0:
-                    cap = (
-                        f"🏛 <b>Classic-Box открыт!</b>\n"
-                        f"🎁 Получено 10 Classic-карт\n"
-                        f"⭐ Гарантированная Epic: <b>{html.escape(guaranteed_epic['title'])}</b>\n"
-                        f"💰 Списано: {price_paid} бэт-коинов"
-                    )
-                
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=cap,
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                        ]]),
-                        parse_mode="HTML" if cap else None,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=cap,
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                        ]]),
-                        parse_mode="HTML" if cap else None
-                    )
-                await asyncio.sleep(0.3)
-        
-        logger.info(f"Игрок {user_id} открыл Classic-Box за {price_paid} бэт-коинов")
-        
-    except Exception as e:
-        logger.error(f"Ошибка открытия Classic-Box: {e}")
-        try:
-            await context.bot.send_message(
-                chat_id=update.callback_query.message.chat_id,
-                text="❌ Произошла ошибка при открытии Classic-Box",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]])
-            )
-        except Exception:
-            pass
 
 async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Открывает 1 Season-Box: все сезонные карты + ID 67 + аватарка + 10 попыток."""
@@ -7072,251 +7123,6 @@ async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         except Exception:
             pass
-
-async def open_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE, box_type: str) -> None:
-    """Универсальная функция открытия Superman боксов."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден", show_alert=True)
-            return
-        
-        # Определяем параметры бокса
-        if box_type == "heroes":
-            box_name = "Superman Heroes Box"
-            emoji = "🦸‍♂️"
-            pending_key = "pending_superman_heroes_boxes"
-            cards_list = SUPERMAN_HEROES_CARDS
-        else:
-            box_name = "Superman Villain Box"
-            emoji = "🦹‍♂️"
-            pending_key = "pending_superman_villain_boxes"
-            cards_list = SUPERMAN_VILLAIN_CARDS
-        
-        pending = user_data.get(pending_key, 0)
-        if pending <= 0:
-            await query.answer(f"❌ У вас нет накопленных {box_name}", show_alert=True)
-            return
-        
-        # Собираем карты
-        box_cards = []
-        for card_id in cards_list:
-            card = find_card_by_id(card_id, data["cards"])
-            if card:
-                box_cards.append(card)
-        
-        if not box_cards:
-            await query.answer("❌ В боксе нет доступных карт (проверьте константы)", show_alert=True)
-            return
-        
-        # Выдаём карты
-        for card in box_cards:
-            user_data["cards"].append(card["id"])
-        
-        # Уменьшаем счётчик
-        user_data[pending_key] = pending - 1
-        save_data(data)
-        
-        await query.answer(f"{emoji} {box_name} открыт!", show_alert=True)
-        
-        # ФОРМИРУЕМ АЛЬБОМ
-        media_group = []
-        for i, card in enumerate(box_cards):
-            caption = None
-            if i == 0:
-                caption = (
-                    f"{emoji} <b>{box_name} открыт!</b>\n"
-                    f"🎴 Получено {len(box_cards)} карт\n"
-                    f"📦 Осталось открытых боксов: {user_data[pending_key]}"
-                )
-            
-            # Универсальная логика: file_id или URL
-            media_source = card.get("media_source", "url")
-            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-            
-            if not media_value:
-                logger.warning(f"У карты #{card['id']} отсутствует медиа! Пропускаем.")
-                continue
-            
-            if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
-                media_group.append(
-                    InputMediaVideo(media=media_value, caption=caption, parse_mode="HTML" if caption else None, supports_streaming=True)
-                )
-            else:
-                media_group.append(
-                    InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML" if caption else None)
-                )
-        
-        # ОТПРАВЛЯЕМ АЛЬБОМ
-        try:
-            await context.bot.send_media_group(chat_id=query.message.chat_id, media=media_group)
-        except Exception as media_error:
-            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
-            for i, card in enumerate(box_cards):
-                cap = f"{emoji} <b>{box_name} открыт!</b>\n🎴 Получено {len(box_cards)} карт" if i == 0 else None
-                
-                media_source = card.get("media_source", "url")
-                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-                if not media_value: continue
-                
-                try:
-                    if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
-                        await context.bot.send_video(chat_id=query.message.chat_id, video=media_value, caption=cap, parse_mode="HTML" if cap else None, supports_streaming=True)
-                    else:
-                        await context.bot.send_photo(chat_id=query.message.chat_id, photo=media_value, caption=cap, parse_mode="HTML" if cap else None)
-                except Exception:
-                    continue
-                await asyncio.sleep(0.3)
-        
-        # Финальное сообщение
-        kb = []
-        if user_data[pending_key] > 0:
-            kb.append([InlineKeyboardButton(f"{emoji} Открыть ещё ({user_data[pending_key]} шт.)", callback_data=f"shop_open_superman_{box_type}")])
-        kb.append([InlineKeyboardButton("🔙 Назад к бокosм", callback_data="shop_boxes_0")])
-        
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=f"✅ <b>{box_name} успешно открыт!</b>",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка открытия Superman box: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
-
-# Обёртки для callback-обработчиков
-async def open_superman_heroes_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await open_superman_box(update, context, "heroes")
-
-async def open_superman_villain_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await open_superman_box(update, context, "villain")
-
-async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выдаёт Superman-бокс игроку."""
-    try:
-        data = load_data()
-        if not is_admin(str(update.effective_user.id), data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n"
-                "/give\\_superman\\_box \\[heroes\\|villain\\] \\[@никнейм\\] \\[количество\\]\n\n"
-                "**Примеры:**\n"
-                "/give\\_superman\\_box heroes @username\n"
-                "/give\\_superman\\_box villain @username 3",
-                parse_mode="Markdown"
-            )
-            return
-        
-        box_type = context.args[0].lower()
-        target_input = context.args[1]
-        count = int(context.args[2]) if len(context.args) > 2 else 1
-        
-        if box_type not in ["heroes", "villain"]:
-            await update.message.reply_text("⚠️ Неверный тип! Используйте `heroes` или `villain`")
-            return
-        if count <= 0:
-            await update.message.reply_text("⚠️ Количество должно быть положительным!")
-            return
-        
-        # Определяем ID игрока
-        target_user_id = None
-        if target_input.startswith("@"):
-            username_to_find = target_input[1:].strip().lower()
-            for uid, udata in data["users"].items():
-                if udata.get("username", "").lower() == username_to_find:
-                    target_user_id = uid
-                    break
-            if not target_user_id:
-                await update.message.reply_text(f"⚠️ Игрок @{username_to_find} не найден!")
-                return
-        else:
-            target_user_id = target_input
-            if target_user_id not in data["users"]:
-                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
-                return
-        
-        user_data = data["users"][target_user_id]
-        pending_key = f"pending_superman_{box_type}_boxes"
-        
-        # Миграция
-        if pending_key not in user_data:
-            user_data[pending_key] = 0
-        
-        user_data[pending_key] += count
-        save_data(data)
-        
-        # ⭐ Уведомление игроку с кнопкой "Открыть" ⭐
-        try:
-            box_name = "Superman Heroes Box" if box_type == "heroes" else "Superman Villain Box"
-            emoji = "🦸‍♂️" if box_type == "heroes" else "🦹‍♂️"
-            
-            # Склонение
-            if count % 10 == 1 and count % 100 != 11: 
-                box_word = "бокс"
-            elif count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]: 
-                box_word = "бокса"
-            else: 
-                box_word = "боксов"
-            
-            image_url = SUPERMAN_HEROES_IMAGE if box_type == "heroes" else SUPERMAN_VILLAIN_IMAGE
-            
-            # ⭐ ФОРМИРУЕМ КНОПКУ ОТКРЫТИЯ ⭐
-            keyboard = [[
-                InlineKeyboardButton(
-                    f"{emoji} Открыть {box_name}", 
-                    callback_data=f"shop_open_superman_{box_type}"
-                )
-            ]]
-            
-            try:
-                await context.bot.send_photo(
-                    chat_id=int(target_user_id),
-                    photo=image_url,
-                    caption=(
-                        f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
-                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
-                    ),
-                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
-                    parse_mode="HTML"
-                )
-            except Exception:
-                # Fallback, если картинка не загрузилась
-                await context.bot.send_message(
-                    chat_id=int(target_user_id),
-                    text=(
-                        f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
-                        f"📦 <b>Количество:</b> {count} {box_word}\n\n"
-                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
-                    ),
-                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
-                    parse_mode="HTML"
-                )
-        except Exception as notify_error:
-            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
-        
-        await update.message.reply_text(
-            f"✅ **{box_name} выдан!**\n"
-            f"👤 Игрок: {target_user_id}\n"
-            f"📦 Количество: {count} шт.\n"
-            f"📊 Всего накоплено: {user_data[pending_key]}",
-            parse_mode="Markdown"
-        )
-        
-    except ValueError:
-        await update.message.reply_text("⚠️ Количество должно быть числом!")
-    except Exception as e:
-        logger.error(f"Ошибка give_superman_box: {e}")
-        await update.message.reply_text("❌ Ошибка при выдаче бокса")
         
 async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выдаёт Season-Box игроку по ID или @никнейму."""
@@ -7680,12 +7486,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 # ⭐ НОВОЕ: Обновляем сезонные квесты при покупке бокса ⭐
                 if box.get("is_rolls_box"):
                     update_seasonal_on_box_buy(user_data, "rolls")
-                elif box.get("is_classic_box"):
-                    update_seasonal_on_box_buy(user_data, "classic")  # ⭐ ДОБАВЛЕНО: Обновляем квест!
-                    await query.answer("🏛 Открываем Classic-Box...", show_alert=False)
-                    save_data(data)  # ⭐ ВАЖНО: Сохраняем обновление сезонного квеста!
-                    await open_classic_box(update, context, current_price)
-                    return
             
                 # ⭐ Логика для Rolls-Box ⭐
                 if box.get("is_rolls_box"):
@@ -8737,7 +8537,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧪 Ивент")],
+            [KeyboardButton("🧩 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -8846,7 +8646,7 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # ===== ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
 DAILY_QUESTS_POOL = [
-    {"id": "common_4", "desc": "Получить 4 карты редкости Common через «Получить досье»", "reward_type": "cents", "reward_amount": 500, "target": 4},
+    {"id": "common_4", "desc": "Получить 4 карты редкости Common через «Получить досье»", "reward_type": "super-coins", "reward_amount": 3, "target": 4},
     {"id": "darts_win_2", "desc": "Победить в дартсе 2 раза", "reward_type": "free_rolls", "reward_amount": 1, "target": 2},
     {"id": "burn_common_3", "desc": "Сжечь 3 карты редкости Common", "reward_type": "free_rolls", "reward_amount": 1, "target": 3},
     {"id": "trade_2", "desc": "Совершить 2 трейда", "reward_type": "cents", "reward_amount": 250, "target": 2},
@@ -8880,19 +8680,39 @@ def check_daily_quests_reset(user_data: Dict) -> None:
         user_data["daily_quests_last_reset"] = int(now_msk.timestamp())
 
 
-async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: int, quest: Dict) -> None:
+async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: int, quest: Dict, data: Dict = None) -> None:
     """Отправляет отдельное уведомление о выполнении квеста."""
     reward_text = ""
+    
     if quest["reward_type"] == "cents":
         reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
     elif quest["reward_type"] == "free_rolls":
         reward_text = f"{quest['reward_amount']} бесплатная попытка 🔍"
+    elif quest["reward_type"] == "rep_points":
+        reward_text = f"{quest['reward_amount']} очков репутации 💥"
+    # ⭐ НОВОЕ: Супер-коины ⭐
+    elif quest["reward_type"] == "super_coins":
+        amount = quest["reward_amount"]
+        # Склонение слова "супер-коин"
+        n = amount % 100
+        n1 = n % 10
+        if n > 10 and n < 20:
+            word = "супер-коинов"
+        elif n1 > 1 and n1 < 5:
+            word = "супер-коина"
+        elif n1 == 1:
+            word = "супер-коин"
+        else:
+            word = "супер-коинов"
+            
+        reward_text = f"{amount} {word} в бюджет клана 🪙"
     
     text = (
-        f"✅ <b>Выполнен квест!</b>\n\n"
+        f"✅ <b>Выполнен квест!</b>\n"
         f"📋 {quest['desc']}\n"
         f"🎁 Ваша награда: {reward_text}"
     )
+    
     try:
         await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
     except Exception as e:
@@ -8905,15 +8725,7 @@ async def update_quest_progress(
     quest_id: str,
     amount: int = 1
 ) -> None:
-    """
-    Обновляет прогресс квеста. Вызывается из игровых функций.
-    ⚡ ВАЖНО: Добавляйте вызов этой функции в соответствующие места:
-    - handle_message() при получении карты Common → update_quest_progress(..., "common_4", 1)
-    - darts_play() при победе → update_quest_progress(..., "darts_win_2", 1)
-    - burn_execute() при сжигании карты Common → update_quest_progress(..., "burn_common_3", 1)
-    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_2", 1)
-    - basket_play() при любой игре → update_quest_progress(..., "basket_3", 1)
-    """
+    """Обновляет прогресс квеста. Вызывается из игровых функций."""
     data = load_data()
     user_data = data["users"].get(user_id)
     if not user_data:
@@ -8929,17 +8741,30 @@ async def update_quest_progress(
             quest["progress"] = min(quest["progress"] + amount, quest["target"])
             if quest["progress"] >= quest["target"]:
                 quest["completed"] = True
-                # Выдаём награду
+                
+                # ⭐ ВЫДАЁМ НАГРАДУ ⭐
                 if quest["reward_type"] == "cents":
                     user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
                 elif quest["reward_type"] == "free_rolls":
                     user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                # ⭐ НОВОЕ: Начисление супер-коинов в бюджет клана ⭐
+                elif quest["reward_type"] == "super_coins":
+                    clan_id = get_user_clan(user_id, data)
+                    if clan_id:
+                        clan = data["clans"].get(clan_id)
+                        if clan:
+                            clan["super_coins"] = clan.get("super_coins", 0) + quest["reward_amount"]
+                            logger.info(f"Клан {clan.get('name')} получил {quest['reward_amount']} супер-коинов за квест {quest_id}")
+                        else:
+                            logger.warning(f"Клан {clan_id} не найден при начислении супер-коинов")
+                    else:
+                        logger.info(f"Игрок {user_id} выполнил квест на супер-коины, но не состоит в клане. Награда пропущена.")
                 
                 changed = True
                 save_data(data)
                 
                 # Отправляем уведомление
-                await notify_quest_completed(context, int(user_id), quest)
+                await notify_quest_completed(context, int(user_id), quest, data) # ⭐ Передаём data для названия клана
                 logger.info(f"Игрок {user_id} выполнил квест {quest_id}")
             else:
                 changed = True
@@ -9382,6 +9207,8 @@ async def quests_daily_view(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             reward_text = f"{quest['reward_amount']} 💰"
         elif quest["reward_type"] == "free_rolls":
             reward_text = f"{quest['reward_amount']} 🔍"
+        elif quest["reward_type"] == "super_coins":
+            reward_text = f"{quest['reward_amount']} 🪙"
         
         text += (
             f"{status_icon} {quest['desc']}\n"
@@ -9467,8 +9294,8 @@ WEEKLY_QUESTS_POOL = [
     {
         "id": "weekly_epic_tu_1",
         "desc": "Получить карту редкости Epic Team-up через «Получить досье»",
-        "reward_type": "cents",
-        "reward_amount": 1000,
+        "reward_type": "super-coins",
+        "reward_amount": 5,
         "target": 1
     },
 ]
@@ -9615,6 +9442,8 @@ async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reward_text = f"{quest['reward_amount']} 🔍"
         elif quest["reward_type"] == "rep_points":
             reward_text = f"{quest['reward_amount']} 💥"
+        elif quest["reward_type"] == "super_coins":
+            reward_text = f"{quest['reward_amount']} 🪙"
         
         text += (
             f"{status_icon} {quest['desc']}\n"
@@ -10874,11 +10703,11 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧪 Ивент")],
+            [KeyboardButton("🧩 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
             await update.message.reply_text(
-                "🧪 <b>Ивент</b>\n\n"
+                "🧩 <b>Ивент</b>\n\n"
                 "🔒 <b>Следующего подозреваемого приведут через неделю!</b>\n\n"
                 "Ожидайте новых расследований...",
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
@@ -10888,11 +10717,11 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         
         # ⭐ Ивент доступен ⭐
         intro_text = (
-            "🧪 <b>Ивент: Допрос Пугало</b>\n\n"
-            "🃏 Джокер сбежал из Аркхэма! Снова...\n\n"
-            "После допроса Безумного Шляпника вы узнали, что тот использовал токсин страха Пугало для побега, "
-            "а также, что Пугало приготовил для Джокера новый особый газ.\n\n"
-            "🧪 Пора вызвать Пугало на допрос и узнать, что это за газ и какие планы у Джокера!\n\n"
+            "🧩 <b>Ивент: Допрос Загадочника</b>\n\n"
+            "🃏 После допроса Пугало вы узнали страшную правду: "
+            "Джокер готовится к чему-то огромному, а Загадочник помогает ему достать «действительно большую бомбу».\n\n"
+            "🧩 Пора вызвать Загадочника на допрос! Но будьте осторожны — "
+            "он будет загадывать вам загадки. Разгадайте их, чтобы узнать правду!\n\n"
             "💡 <b>Вы готовы?</b>"
         )
         
@@ -10911,7 +10740,7 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("❌ Ошибка при открытии ивента")
 
 async def start_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Начинает допрос Пугала."""
+    """Начинает допрос Безумного Шляпника."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
@@ -10963,7 +10792,7 @@ async def show_interrogation_step(update: Update, context: ContextTypes.DEFAULT_
         
         # ⭐ Формируем текст ⭐
         text = (
-            f"🧪 <b>Пугало:</b>\n"
+            f"🧩 <b>Загадочник:</b>\n"
             f"<i>{hatter_text}</i>\n\n"
             f"💬 <b>Выберите вариант ответа:</b>"
         )
@@ -10988,12 +10817,12 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
         # ⭐ Игнорируем основные кнопки меню ⭐
         main_buttons = [
             "🔍 Получить досье", "📁 Мой архив", "🍺 Бар", "🎰 Казино",
-            "🏰 Клан", "🛒 Магазин", "🧪 Ивент", "📋 Меню",
+            "🏰 Клан", "🛒 Магазин", "🧩 Ивент", "📋 Меню",
             "👤 Личное дело", "📜 Квесты", "🏰 Кланы", "🛍️ Магазин"
         ]
         if text in main_buttons:
             await update.message.reply_text(
-                "🧪 <b>Вы находитесь в режиме допроса!</b>\n\n"
+                "🧩 <b>Вы находитесь в режиме допроса!</b>\n\n"
                 "Пожалуйста, выберите один из вариантов ответа, чтобы продолжить расследование.",
                 parse_mode="HTML"
             )
@@ -11027,7 +10856,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                 response_text = (
                     f"👤 <b>Вы:</b>\n"
                     f"<i>{text}</i>\n\n"
-                    f"🧪 <b>Пугало:</b>\n"
+                    f"🧩 <b>Загадочник:</b>\n"
                     f"<i>{next_hatter}</i>\n\n"
                     f"💬 <b>Выберите вариант ответа:</b>"
                 )
@@ -11036,11 +10865,11 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                 response_text = (
                     f"👤 <b>Вы:</b>\n"
                     f"<i>{text}</i>\n\n"
-                    f"🧪 <b>Пугало:</b>\n"
-                    f"<i>*медленно кивает*\n"
-                    f"Что ж, детектив... Вы оказались достойным собеседником. "
-                    f"Но запомните — Джокер не прощает предательства. "
-                    f"И я... Я уже жалею, что открыл вам так много.</i>\n\n"
+                    f"🧩 <b>Загадочник:</b>\n"
+                    f"<i>*улыбается и медленно хлопает в ладоши*\n"
+                    f"Что ж, детектив... Вы разгадали все мои загадки. "
+                    f"Впечатляюще. Но помните — Харли уже знает, что вы в курсе. "
+                    f"И Джокер... Джокер не любит, когда его планы раскрывают.</i>\n\n"
                     f"✅ <b>Допрос завершён!</b>"
                 )
             
@@ -11059,7 +10888,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                     [KeyboardButton("👤 Личное дело")],
                     [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
                     [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🧪 Ивент")],
+                    [KeyboardButton("🧩 Ивент")],
                 ]
             
             await update.message.reply_text(
@@ -11081,7 +10910,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
             response_text = (
                 f"👤 <b>Вы:</b>\n"
                 f"<i>{text}</i>\n\n"
-                f"🧪 <b>Пугало:</b>\n"
+                f"🧩 <b>Загадочник:</b>\n"
                 f"<i>{wrong_response}</i>\n\n"
                 f"💬 <b>Выберите вариант ответа:</b>"
             )
@@ -11145,9 +10974,9 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
                     f"🏆 <b>Ранг:</b> Великий детектив\n\n"
                     f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 🧪 Джокер попросил Пугало создать новую версию токсина страха, используя зелёный кварц\n"
-                    f"• 🎭 Джокер связывался с Загадочником для помощи\n"
-                    f"• 💣 Загадочник помогает добыть действительно большую бомбу\n\n"
+                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
+                    f"• ⏰ План скоро реализуется\n"
+                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
                 )
                 
                 # ⭐ Отправляем результат ⭐
@@ -11167,10 +10996,9 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
                     f"🏆 <b>Ранг:</b> Великий детектив\n\n"
                     f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 🧪 Джокер попросил Пугало создать новую версию токсина страха, используя зелёный кварц\n"
-                    f"• 🎭 Джокер связывался с Загадочником для помощи\n"
-                    f"• 💣 Загадочник помогает добыть действительно большую бомбу\n\n"
-                    f"⚠️ <b>Награда:</b> карта не найдена (проверьте EVENT_REWARD_CARD_ID)"
+                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
+                    f"• ⏰ План скоро реализуется\n"
+                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
                 )
                 
                 await update.message.reply_text(
@@ -11181,16 +11009,16 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             # ⭐ Недостаточно правильных ответов ⭐
             result_text = (
-                f"✅ <b>Допрос завершён!</b>\n\n"
-                f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
-                f"🥉 <b>Ранг:</b> Начинающий детектив\n\n"
-                f"📋 <b>Что вы узнали:</b>\n"
-                f"• 🧪 Джокер попросил Пугало создать новую версию токсина страха, используя зелёный кварц\n"
-                f"• 🎭 Джокер связывался с Загадочником для помощи\n"
-                f"• 💣 Загадочник помогает добыть действительно большую бомбу\n\n"
-                f"💡 Для получения награды нужно минимум {EVENT_MIN_CORRECT} правильных ответов.\n"
-                f"В следующий раз будьте внимательнее!"
-            )
+                    f"✅ <b>Допрос завершён!</b>\n\n"
+                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
+                    f"🥉 <b>Ранг:</b> Начинающий детектив\n\n"
+                    f"📋 <b>Что вы узнали:</b>\n"
+                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
+                    f"• ⏰ План скоро реализуется\n"
+                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
+                    f"💡 Для получения награды нужно минимум {EVENT_MIN_CORRECT} правильных ответов.\n"
+                    f"В следующий раз будьте внимательнее!"
+                )
             
             await update.message.reply_text(
                 result_text,
@@ -11204,7 +11032,7 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧪 Ивент")],
+            [KeyboardButton("🧩 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         
@@ -11248,6 +11076,975 @@ def update_user_info(user_id: str, telegram_user, data: Dict) -> bool:
         changed = True
     
     return changed
+
+async def kick_clan_member_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает @никнейм игрока для выгона из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может выгонять участников!")
+            return
+        
+        # ⭐ Проверяем, есть ли другие участники ⭐
+        members_count = len(clan.get("members", {}))
+        if members_count <= 1:
+            await update.message.reply_text(
+                "⚠️ В клане нет участников, которых можно выгнать.\n\n"
+                "💡 Вы единственный участник клана."
+            )
+            return
+        
+        context.user_data[user_id] = {"step": "clan_kick_enter_username"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await update.message.reply_text(
+            "✏️ Введите @никнейм игрока для выгона из клана:\n"
+            "Пример: `@username`\n\n",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в kick_clan_member_start: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню выгона")
+
+async def process_kick_clan_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма для выгона игрока из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        # ⭐ Отмена ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Выгон участника отменён.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверяем формат ⭐
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        target_username = text[1:].strip().lower()
+        
+        # ⭐ Ищем игрока по username ⭐
+        target_user_id = None
+        for uid, udata in data["users"].items():
+            if udata.get("username", "").lower() == target_username:
+                target_user_id = uid
+                break
+        
+        if not target_user_id:
+            await update.message.reply_text(
+                f"❌ Игрок с никнеймом @{target_username} не найден!\n"
+                f"Повторите ввод или нажмите ❌ Отмена"
+            )
+            return
+        
+        # ⭐ Нельзя выгнать самого себя ⭐
+        if target_user_id == user_id:
+            await update.message.reply_text(
+                "❌ Вы не можете выгнать самого себя!\n"
+                "Если хотите покинуть клан, используйте кнопку «🚪 Покинуть клан»."
+            )
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            return
+        
+        # ⭐ Выполняем выгон ⭐
+        success, message = kick_clan_member(user_id, target_user_id, data)
+        
+        if success:
+            save_data(data)
+            
+            # ⭐ Уведомляем выгнанного игрока ⭐
+            try:
+                clan_id = get_user_clan(user_id, data)
+                clan = get_clan_data(clan_id, data) if clan_id else None
+                clan_name = clan.get("name", "неизвестный клан") if clan else "удалённый клан"
+                
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        f"🚫 <b>Вас выгнали из клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"👑 Решение главы клана — окончательное.\n\n"
+                        f"💡 Вы можете вступить в другой клан по приглашению главы."
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить выгнанного игрока {target_user_id}: {notify_error}")
+        else:
+            # ⭐ Даже при ошибке сохраняем (на случай изменений) ⭐
+            save_data(data)
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"{'✅' if success else '❌'} {message}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в process_kick_clan_member: {e}")
+        await update.message.reply_text("❌ Ошибка при выгоне участника")
+
+def kick_clan_member(leader_id: str, target_user_id: str, data: Dict) -> tuple[bool, str]:
+    """Выгоняет участника из клана (только для главы клана)."""
+    # ⭐ Проверяем, что глава в клане ⭐
+    clan_identifier = get_user_clan(leader_id, data)
+    if not clan_identifier:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(clan_identifier, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    # ⭐ Проверяем, что вызывающий — глава ⭐
+    if leader_id != clan.get("leader_id"):
+        return False, "Только глава клана может выгонять участников!"
+    
+    # ⭐ Проверяем, что цель — в этом же клане ⭐
+    target_clan_id = get_user_clan(target_user_id, data)
+    if target_clan_id != clan_identifier:
+        target_user_data = data["users"].get(target_user_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        return False, f"Игрок {target_name} не состоит в вашем клане!"
+    
+    # ⭐ Нельзя выгнать самого себя ⭐
+    if target_user_id == leader_id:
+        return False, "Вы не можете выгнать самого себя!"
+    
+    # ⭐ Получаем имя цели ⭐
+    target_user_data = data["users"].get(target_user_id, {})
+    target_name = target_user_data.get("first_name", "Игрок")
+    if target_user_data.get("last_name"):
+        target_name += f" {target_user_data['last_name']}"
+    
+    clan_name = clan.get("name", "Клан")
+    
+    # ⭐ Удаляем участника из клана ⭐
+    if target_user_id in clan["members"]:
+        del clan["members"][target_user_id]
+    
+    # ⭐ Удаляем привязку пользователя к клану ⭐
+    if target_user_id in data.get("user_clan", {}):
+        del data["user_clan"][target_user_id]
+    
+    logger.info(f"Глава {leader_id} выгнал игрока {target_user_id} из клана {clan_name}")
+    
+    return True, f"Игрок **{target_name}** выгнан из клана **{clan_name}**."
+
+async def transfer_leadership_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает @никнейм игрока для передачи ему лидерства."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может передавать лидерство!")
+            return
+        
+        # ⭐ Проверяем, есть ли другие участники ⭐
+        members_count = len(clan.get("members", {}))
+        if members_count <= 1:
+            await update.message.reply_text(
+                "⚠️ В клане нет участников, которым можно передать лидерство.\n\n"
+                "💡 Вы единственный участник клана."
+            )
+            return
+        
+        context.user_data[user_id] = {"step": "clan_transfer_enter_username"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await update.message.reply_text(
+            "👑 <b>Передача лидерства</b>\n\n"
+            "✏️ Введите @никнейм игрока, которому вы хотите передать лидерство:\n"
+            "Пример: `@username`\n\n"
+            "⚠️ <b>Внимание:</b>\n"
+            "• Передача лидерства — окончательное действие\n"
+            "• Новый глава получит все права управления кланом\n"
+            "• Вы станете обычным участником клана\n"
+            "• Вы не сможете передать лидерство самому себе",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в transfer_leadership_start: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню передачи лидерства")
+
+async def process_transfer_leadership(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма для передачи лидерства."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        # ⭐ Отмена ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Передача лидерства отменена.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверяем формат ⭐
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        target_username = text[1:].strip().lower()
+        
+        # ⭐ Ищем игрока по username ⭐
+        target_user_id = None
+        for uid, udata in data["users"].items():
+            if udata.get("username", "").lower() == target_username:
+                target_user_id = uid
+                break
+        
+        if not target_user_id:
+            await update.message.reply_text(
+                f"❌ Игрок с никнеймом @{target_username} не найден!\n"
+                f"Повторите ввод или нажмите ❌ Отмена"
+            )
+            return
+        
+        # ⭐ Нельзя передать лидерство самому себе ⭐
+        if target_user_id == user_id:
+            await update.message.reply_text(
+                "❌ Вы не можете передать лидерство самому себе!\n"
+                "Укажите другого участника клана."
+            )
+            return
+        
+        # ⭐ Выполняем передачу лидерства ⭐
+        success, message = transfer_leadership(user_id, target_user_id, data)
+        
+        if success:
+            save_data(data)
+            
+            # ⭐ Уведомляем нового главу ⭐
+            try:
+                clan_id = get_user_clan(user_id, data)
+                clan = get_clan_data(clan_id, data) if clan_id else None
+                clan_name = clan.get("name", "неизвестный клан") if clan else "удалённый клан"
+                
+                target_user_data = data["users"].get(target_user_id, {})
+                
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        f"👑 <b>Вам передали лидерство в клане!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🎉 Теперь вы — глава клана!\n\n"
+                        f"💡 Используйте кнопку «📋 Мой клан» для управления."
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить нового главу {target_user_id}: {notify_error}")
+        else:
+            save_data(data)
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"{'✅' if success else '❌'} {message}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в process_transfer_leadership: {e}")
+        await update.message.reply_text("❌ Ошибка при передаче лидерства")
+
+def transfer_leadership(current_leader_id: str, new_leader_id: str, data: Dict) -> tuple[bool, str]:
+    """Передаёт лидерство в клане другому участнику (только для текущего главы)."""
+    # ⭐ Проверяем, что текущий лидер в клане ⭐
+    clan_identifier = get_user_clan(current_leader_id, data)
+    if not clan_identifier:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(clan_identifier, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    # ⭐ Проверяем, что вызывающий — текущий глава ⭐
+    if current_leader_id != clan.get("leader_id"):
+        return False, "Только текущий глава клана может передавать лидерство!"
+    
+    # ⭐ Проверяем, что цель — в этом же клане ⭐
+    target_clan_id = get_user_clan(new_leader_id, data)
+    if target_clan_id != clan_identifier:
+        target_user_data = data["users"].get(new_leader_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        return False, f"Игрок {target_name} не состоит в вашем клане!"
+    
+    # ⭐ Нельзя передать лидерство самому себе ⭐
+    if new_leader_id == current_leader_id:
+        return False, "Вы не можете передать лидерство самому себе!"
+    
+    # ⭐ Получаем имена ⭐
+    new_leader_data = data["users"].get(new_leader_id, {})
+    new_leader_name = new_leader_data.get("first_name", "Игрок")
+    if new_leader_data.get("last_name"):
+        new_leader_name += f" {new_leader_data['last_name']}"
+    
+    clan_name = clan.get("name", "Клан")
+    
+    # ⭐ Обновляем роли участников ⭐
+    # Старый лидер становится обычным участником
+    if current_leader_id in clan["members"]:
+        clan["members"][current_leader_id]["role"] = "member"
+    
+    # Новый участник становится лидером
+    if new_leader_id in clan["members"]:
+        clan["members"][new_leader_id]["role"] = "leader"
+    
+    # ⭐ Обновляем ID лидера в клане ⭐
+    clan["leader_id"] = new_leader_id
+    
+    logger.info(
+        f"Игрок {current_leader_id} передал лидерство в клане {clan_name} "
+        f"игроку {new_leader_id} ({new_leader_name})"
+    )
+    
+    return True, (
+        f"👑 Лидерство в клане **{clan_name}** передано!\n\n"
+        f"🆕 Новый глава: **{new_leader_name}**\n"
+        f"👤 Вы теперь обычный участник клана."
+    )
+
+async def clan_shop_open(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает магазин клана (только для главы)."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может пользоваться магазином!")
+            return
+        
+        super_coins = clan.get("super_coins", 0)
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            f"🛒 <b>Магазин клана «{clan_name}»</b>\n\n"
+            f"🪙 <b>Бюджет клана:</b> {super_coins} супер-коинов\n\n"
+            f"📦 <b>Доступные товары:</b>\n\n"
+        )
+        
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            status = "✅" if can_afford else "❌"
+            text += (
+                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
+                f"<i>{item['description']}</i>\n\n"
+            )
+        
+        # ⭐ Формируем клавиатуру ⭐
+        keyboard = []
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            if can_afford:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
+                        callback_data=f"clan_shop_confirm_{item_id}"
+                    )
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
+                        callback_data="clan_shop_no_coins"
+                    )
+                ])
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_open: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии магазина")
+
+async def clan_shop_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает подтверждение покупки товара."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        item_id = query.data.replace("clan_shop_confirm_", "")
+        
+        if item_id not in CLAN_SHOP_ITEMS:
+            await query.answer("❌ Неизвестный товар", show_alert=True)
+            return
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может покупать", show_alert=True)
+            return
+        
+        item = CLAN_SHOP_ITEMS[item_id]
+        super_coins = clan.get("super_coins", 0)
+        
+        if super_coins < item["price"]:
+            await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
+            return
+        
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        text = (
+            f"⚠️ <b>Подтверждение покупки</b>\n\n"
+            f"🛒 Товар: <b>{item['name']}</b>\n"
+            f"💰 Цена: {item['price']} 🪙\n"
+            f"🏰 Клан: {clan_name}\n\n"
+            f"📦 <b>Текущий бюджет:</b> {super_coins} 🪙\n"
+            f"📉 <b>После покупки:</b> {super_coins - item['price']} 🪙\n\n"
+            f"<i>{item['description']}</i>\n\n"
+            f"✅ Подтвердить покупку?"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Да, купить", callback_data=f"clan_shop_buy_{item_id}"),
+                InlineKeyboardButton("❌ Отмена", callback_data="clan_shop_cancel")
+            ]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_confirm: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_confirm: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выполняет покупку товара из магазина клана."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        item_id = query.data.replace("clan_shop_buy_", "")
+        
+        if item_id not in CLAN_SHOP_ITEMS:
+            await query.answer("❌ Неизвестный товар", show_alert=True)
+            return
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может покупать", show_alert=True)
+            return
+        
+        item = CLAN_SHOP_ITEMS[item_id]
+        super_coins = clan.get("super_coins", 0)
+        
+        if super_coins < item["price"]:
+            await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        members = list(clan.get("members", {}).keys())
+        
+        if not members:
+            await query.answer("❌ В клане нет участников!", show_alert=True)
+            return
+        
+        # ⭐ Выполняем покупку в зависимости от товара ⭐
+        result_text = ""
+        
+        if item_id == "epic":
+            # 🎴 Рандомный Epic
+            # Собираем все Epic-карты
+            epic_cards = [
+                c for c in data["cards"]
+                if c.get("available", True) and c.get("rarity") == "Epic"
+            ]
+            
+            if not epic_cards:
+                await query.answer("❌ Нет доступных Epic-карт!", show_alert=True)
+                return
+            
+            # Выбираем случайную карту и случайного участника
+            chosen_card = random.choice(epic_cards)
+            chosen_member_id = random.choice(members)
+            
+            # Выдаём карту
+            member_data = data["users"].get(chosen_member_id, {})
+            member_data.setdefault("cards", []).append(chosen_card["id"])
+            
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+            
+            result_text = (
+                f"🎴 <b>Случайный Epic выдан!</b>\n\n"
+                f"🃏 Карта: <b>{html.escape(chosen_card['title'])}</b>\n"
+                f"🌟 Редкость: Epic\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
+            )
+            
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                caption = generate_card_caption(
+                    chosen_card, member_data, count=1, show_bonus=False
+                )
+                caption += "\n\n🏰 <i>Награда из магазина клана</i>"
+                
+                await context.bot.send_message(
+                    chat_id=int(chosen_member_id),
+                    text=(
+                        f"🎁 <b>Вам выдана карта из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🃏 Карта: <b>{html.escape(chosen_card['title'])}</b>\n"
+                        f"🌟 Редкость: Epic"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить получателя {chosen_member_id}: {notify_error}")
+        
+        elif item_id == "rolls":
+            # 🎲 2 бесплатные попытки каждому
+            for member_id in members:
+                member_data = data["users"].get(member_id, {})
+                member_data["free_rolls"] = member_data.get("free_rolls", 0) + 2
+            
+            result_text = (
+                f"🎲 <b>Бесплатные попытки выданы!</b>\n\n"
+                f"👥 Получателей: {len(members)}\n"
+                f"🎯 Каждый получил: +2 попытки\n"
+            )
+            
+            # ⭐ Уведомляем всех участников ⭐
+            for member_id in members:
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(member_id),
+                        text=(
+                            f"🎁 <b>Бонус из магазина клана!</b>\n\n"
+                            f"🏰 Клан: {html.escape(clan_name)}\n"
+                            f"🎲 Вам выдано: <b>+2 бесплатные попытки</b>\n\n"
+                            f"💡 Используйте их для получения досье."
+                        ),
+                        parse_mode="HTML"
+                    )
+                except Exception as notify_error:
+                    logger.warning(f"Не удалось уведомить {member_id}: {notify_error}")
+        
+        elif item_id == "cents":
+            # 💰 5000 бэт-коинов рандомному
+            chosen_member_id = random.choice(members)
+            
+            member_data = data["users"].get(chosen_member_id, {})
+            member_data["cents"] = member_data.get("cents", 0) + 5000
+            
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+            
+            result_text = (
+                f"💰 <b>Бэт-коины выданы!</b>\n\n"
+                f"💵 Сумма: <b>5000</b> бэт-коинов\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
+            )
+            
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                await context.bot.send_message(
+                    chat_id=int(chosen_member_id),
+                    text=(
+                        f"🎁 <b>Бонус из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"💰 Вам выдано: <b>+5000 бэт-коинов</b>"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
+        
+        # ⭐ Списываем супер-коины ⭐
+        clan["super_coins"] = super_coins - item["price"]
+        save_data(data)
+        
+        # ⭐ Формируем итоговое сообщение ⭐
+        final_text = (
+            f"✅ <b>Покупка успешна!</b>\n\n"
+            f"{result_text}\n"
+            f"💰 Списано: {item['price']} 🪙\n"
+            f"📉 Новый бюджет клана: {clan['super_coins']} 🪙"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("🛒 Вернуться в магазин", callback_data="clan_shop_back_to_menu")]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                final_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_buy: {e}")
+        
+        await query.answer("✅ Покупка совершена!", show_alert=False)
+        logger.info(f"Глава {user_id} купил товар {item_id} за {item['price']} супер-коинов для клана {clan_name}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_buy: {e}")
+        await query.answer("❌ Ошибка при покупке", show_alert=True)
+
+
+async def clan_shop_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Возвращает в меню магазина клана."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        super_coins = clan.get("super_coins", 0)
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        text = (
+            f"🛒 <b>Магазин клана «{clan_name}»</b>\n\n"
+            f"🪙 <b>Бюджет клана:</b> {super_coins} супер-коинов\n\n"
+            f"📦 <b>Доступные товары:</b>\n\n"
+        )
+        
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            status = "✅" if can_afford else "❌"
+            text += (
+                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
+                f"<i>{item['description']}</i>\n\n"
+            )
+        
+        keyboard = []
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            if can_afford:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
+                        callback_data=f"clan_shop_confirm_{item_id}"
+                    )
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
+                        callback_data="clan_shop_no_coins"
+                    )
+                ])
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_back: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_back: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def clan_shop_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Алиас для возврата в магазин после покупки."""
+    await clan_shop_back(update, context)
+
+
+async def clan_shop_no_coins(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопки 'Недостаточно супер-коинов'."""
+    try:
+        query = update.callback_query
+        await query.answer("❌ Недостаточно супер-коинов в бюджете клана!", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_no_coins: {e}")
+
+
+async def clan_shop_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отмена покупки — возврат в магазин."""
+    await clan_shop_back(update, context)
+
+async def add_supercoins_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начисляет супер-коины в бюджет клана по @username участника."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # ⭐ Проверяем аргументы ⭐
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/add\\_supercoins \\[@никнейм\\] \\[количество\\]\n\n"
+                "**Примеры:**\n"
+                "/add\\_supercoins @username 100 — начислить 100 супер-коинов в клан игрока\n"
+                "/add\\_supercoins @player 50 — начислить 50 супер-коинов в клан игрока",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        supercoins_amount = int(context.args[1])
+        
+        # ⭐ Определяем ID игрока ⭐
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        target_user_data = data["users"].get(target_user_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        if target_user_data.get("last_name"):
+            target_name += f" {target_user_data['last_name']}"
+        
+        # ⭐ Находим клан игрока ⭐
+        clan_id = get_user_clan(target_user_id, data)
+        if not clan_id:
+            await update.message.reply_text(
+                f"⚠️ Игрок {html.escape(target_name)} не состоит ни в одном клане!\n\n"
+                f"💡 Супер-коины можно начислять только в бюджет существующего клана."
+            )
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден или повреждён!")
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        
+        # ⭐ Миграция на случай отсутствия поля ⭐
+        if "super_coins" not in clan:
+            clan["super_coins"] = 0
+        
+        # ⭐ Начисляем супер-коины ⭐
+        old_balance = clan["super_coins"]
+        new_balance = old_balance + supercoins_amount
+        
+        # ⭐ Защита от ухода в минус ⭐
+        if new_balance < 0:
+            await update.message.reply_text(
+                f"⚠️ Нельзя списать больше, чем есть в бюджете клана!\n\n"
+                f"🏰 Клан: {html.escape(clan_name)}\n"
+                f"🪙 В бюджете: {old_balance} супер-коинов\n"
+                f"❌ Вы пытаетесь списать: {-supercoins_amount} супер-коинов"
+            )
+            return
+        
+        clan["super_coins"] = new_balance
+        save_data(data)
+        
+        # ⭐ Формируем текст ответа ⭐
+        if supercoins_amount > 0:
+            action_text = f"💎 Начислено: +{supercoins_amount} супер-коинов"
+        elif supercoins_amount < 0:
+            action_text = f"💸 Списано: {supercoins_amount} супер-коинов"
+        else:
+            action_text = "ℹ️ Количество равно 0 — бюджет не изменился"
+        
+        await update.message.reply_text(
+            f"✅ **Бюджет клана изменён!**\n\n"
+            f"🏰 Клан: {html.escape(clan_name)}\n"
+            f"👤 Через игрока: {html.escape(target_name)} (@{target_user_data.get('username', '—')})\n\n"
+            f"{action_text}\n"
+            f"📊 Было: {old_balance} 🪙\n"
+            f"📈 Стало: {new_balance} 🪙",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(
+            f"Админ {update.effective_user.id} изменил бюджет клана {clan_name}: "
+            f"{old_balance} → {new_balance} ({'+' if supercoins_amount >= 0 else ''}{supercoins_amount}) "
+            f"через игрока {target_user_id}"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка добавления супер-коинов: {e}")
+        await update.message.reply_text("❌ Ошибка при изменении бюджета клана")
+
+async def start_new_season(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Сбрасывает сезонные очки репутации и счётчик Rolls-Box у ВСЕХ игроков."""
+    try:
+        data = load_data()
+        user_id = str(update.effective_user.id)
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        users = data.get("users", {})
+        if not users:
+            await update.message.reply_text("⚠️ Нет зарегистрированных игроков!")
+            return
+        
+        # ⭐ Подтверждение ⭐
+        if not context.args or context.args[0].lower() != "confirm":
+            await update.message.reply_text(
+                "⚠️ <b>ВНИМАНИЕ! Это действие затронет ВСЕХ игроков!</b>\n\n"
+                "📋 Будет сброшено:\n"
+                "• 💥 Сезонные очки репутации (season_points) → 0\n"
+                "• 📦 Счётчик купленных Rolls-Box (rolls_box_price) → 25000\n\n"
+                "⚠️ <b>НЕ будут затронуты:</b>\n"
+                "• 💎 Общие очки репутации (total_points)\n"
+                "• 💰 Бэт-коины\n"
+                "• 🃏 Карты\n"
+                "• 🪙 Супер-коины кланов\n\n"
+                "Для подтверждения выполните:\n"
+                "<code>/start_new_season confirm</code>",
+                parse_mode="HTML"
+            )
+            return
+        
+        # ⭐ Выполняем сброс ⭐
+        reset_count = 0
+        total_season_points = 0
+        
+        for uid, udata in users.items():
+            # Сбрасываем сезонные очки
+            old_season = udata.get("season_points", 0)
+            total_season_points += old_season
+            udata["season_points"] = 0
+            
+            # Сбрасываем счётчик Rolls-Box к начальной цене
+            udata["rolls_box_price"] = 25000
+            
+            reset_count += 1
+        
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ <b>Новый сезон начат!</b>\n\n"
+            f"👥 Игроков обработано: {reset_count}\n"
+            f"💥 Суммарно сброшено сезонных очков: {total_season_points}\n"
+            f"📦 Счётчик Rolls-Box сброшен до 25000 у всех\n\n"
+            f"🎉 Удачи в новом сезоне!",
+            parse_mode="HTML"
+        )
+        
+        logger.info(
+            f"Админ {user_id} начал новый сезон: "
+            f"сброшены season_points и rolls_box_price у {reset_count} игроков"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка start_new_season: {e}")
+        await update.message.reply_text("❌ Ошибка при начале нового сезона")
 
 async def reset_event_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Сбрасывает прохождение ивента у ВСЕХ игроков."""
@@ -11372,7 +12169,8 @@ def main() -> None:
             CommandHandler("give_batpass", give_batpass),
             CommandHandler("remove_batpass", remove_batpass),
             CommandHandler("give_card_to_batpass", give_card_to_batpass),
-            CommandHandler("give_superman_box", give_superman_box),
+            CommandHandler("add_supercoins", add_supercoins_to_clan),
+            CommandHandler("start_new_season", start_new_season),
             CommandHandler("reset_event_all", reset_event_all),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
@@ -11398,14 +12196,19 @@ def main() -> None:
             CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
             CallbackQueryHandler(archive_search_start, pattern=r"^archive_search_(all|Common|Rare|Epic|Legendary|Highlight|Limited|Rare Team-up|Epic Team-up|Legendary Team-up)$"),
             CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
-            CallbackQueryHandler(open_superman_heroes_box, pattern=r"^shop_open_superman_heroes$"),
-            CallbackQueryHandler(open_superman_villain_box, pattern=r"^shop_open_superman_villain$"),
+            CallbackQueryHandler(accept_clan_invite_callback, pattern=r"^accept_clan_invite$"),
+            CallbackQueryHandler(decline_clan_invite_callback, pattern=r"^decline_clan_invite$"),
+            CallbackQueryHandler(clan_shop_confirm, pattern=r"^clan_shop_confirm_"),
+            CallbackQueryHandler(clan_shop_buy, pattern=r"^clan_shop_buy_"),
+            CallbackQueryHandler(clan_shop_back, pattern=r"^clan_shop_back$"),
+            CallbackQueryHandler(clan_shop_back_to_menu, pattern=r"^clan_shop_back_to_menu$"),
+            CallbackQueryHandler(clan_shop_no_coins, pattern=r"^clan_shop_no_coins$"),
+            CallbackQueryHandler(clan_shop_cancel, pattern=r"^clan_shop_cancel$"),
         ]
 
         for handler in handlers:
             application.add_handler(handler)
             application.add_handler(CallbackQueryHandler(referral_menu, pattern="^referral_menu$"))
-            application.add_handler(ChatMemberHandler(on_bot_added_to_chat, ChatMemberHandler.MY_CHAT_MEMBER))
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
