@@ -506,6 +506,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["event_completed"] = False
                 if "event_completed_at" not in user_data:
                     user_data["event_completed_at"] = 0
+                if "injustice_exchanged" not in user_data:
+                    user_data["injustice_exchanged"] = False
 
                 for card in data.get("cards", []):
                     if "is_classic" not in card:
@@ -11818,6 +11820,11 @@ def main() -> None:
             CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
             CallbackQueryHandler(open_superman_heroes_box, pattern=r"^shop_open_superman_heroes$"),
             CallbackQueryHandler(open_superman_villain_box, pattern=r"^shop_open_superman_villain$"),
+            CallbackQueryHandler(injustice_exchange_confirm, pattern=r"^injustice_exchange_start$"),
+            CallbackQueryHandler(injustice_exchange_execute, pattern=r"^injustice_exchange_execute$"),
+            CallbackQueryHandler(injustice_exchange_cancel, pattern=r"^injustice_exchange_cancel$"),
+            CallbackQueryHandler(injustice_exchange_no_cards, pattern=r"^injustice_exchange_no_cards$"),
+            CallbackQueryHandler(injustice_exchange_close, pattern=r"^injustice_exchange_close$"),
         ]
 
         for handler in handlers:
