@@ -101,7 +101,7 @@ INJUSTICE_EXCHANGE_CARDS = [
 ]
 
 # ID новой Limited карты, которую получает игрок
-INJUSTICE_REWARD_CARD_ID = 105  # ⭐ ЗАМЕНИТЕ НА ID новой Limited карты
+INJUSTICE_REWARD_CARD_ID = 227  # ⭐ ЗАМЕНИТЕ НА ID новой Limited карты
 
 # ===== ИВЕНТ: ДОПРОС Харли =====
 EVENT_REWARD_CARD_ID = 226  # ⭐ ВАШ ID КАРТЫ-НАГРАДЫ
@@ -3065,7 +3065,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await submenu(update, context)
             return
 
-        elif text == "🧩 Ивент":
+        elif text == "🃏 Ивент":
             await event_menu(update, context)
             return
 
@@ -8710,7 +8710,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧩 Ивент")],
+            [KeyboardButton("🃏 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -10843,29 +10843,35 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         
         # ⭐ Проверяем, завершён ли ивент ⭐
         if user_data.get("event_completed", False):
-            keyboard = [
-            [KeyboardButton("👤 Личное дело")],
-            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
-            [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧩 Ивент")],
-            [KeyboardButton("🔙 Назад в главное меню")],
-        ]
-            await update.message.reply_text(
-                "🧩 <b>Ивент</b>\n\n"
-                "🔒 <b>Следующего подозреваемого приведут через неделю!</b>\n\n"
-                "Ожидайте новых расследований...",
-                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-                parse_mode="HTML"
-            )
-            return
+            if user_data.get("injustice_exchanged", False):
+                keyboard = [
+                    [KeyboardButton("👤 Личное дело")],
+                    [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
+                    [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
+                    [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
+                    [KeyboardButton("🔙 Назад в главное меню")],
+                ]
+                await update.message.reply_text(
+                    "🃏 <b>Ивент</b>\n\n"
+                    "🔒 <b>Ивент завершён!</b>\n\n"
+                    "Вы уже прошли допрос и обменяли карты Injustice.\n",
+                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                    parse_mode="HTML"
+                )
+                return
+            else:
+                # ⭐ Ивент пройден, но обмен ещё не был — показываем окно обмена ⭐
+                await show_injustice_exchange(update, context)
+                return
         
         # ⭐ Ивент доступен ⭐
         intro_text = (
-            "🧩 <b>Ивент: Допрос Загадочника</b>\n\n"
-            "🃏 После допроса Пугало вы узнали страшную правду: "
-            "Джокер готовится к чему-то огромному, а Загадочник помогает ему достать «действительно большую бомбу».\n\n"
-            "🧩 Пора вызвать Загадочника на допрос! Но будьте осторожны — "
-            "он будет загадывать вам загадки. Разгадайте их, чтобы узнать правду!\n\n"
+            "🃏 <b>Ивент: Допрос Харли Квинн</b>\n\n"
+            "После допроса Загадочника вы узнали страшную правду: "
+            "только Харли Квинн знает весь план Джокера полностью.\n\n"
+            "🎭 Пора вызвать её на допрос! Но будьте осторожны — "
+            "Харли безумна, болтлива и непредсказуема. Она может рассказать всё... "
+            "а может увести вас в сторону своими безумием и хохотом.\n\n"
             "💡 <b>Вы готовы?</b>"
         )
         
@@ -10883,8 +10889,373 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         logger.error(f"Ошибка в event_menu: {e}")
         await update.message.reply_text("❌ Ошибка при открытии ивента")
 
+async def show_injustice_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает окно обмена карт Injustice."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await update.message.reply_text("❌ Профиль не найден!")
+            return
+        
+        # ⭐ Проверяем наличие карт ⭐
+        user_cards = user_data.get("cards", [])
+        card_status = []
+        all_cards_present = True
+        
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                card_status.append({
+                    "name": f"Карта #{card_id} (не найдена)",
+                    "present": False,
+                    "count": 0
+                })
+                all_cards_present = False
+                continue
+            
+            count = user_cards.count(card_id)
+            present = count > 0
+            if not present:
+                all_cards_present = False
+            
+            card_status.append({
+                "name": card.get("title", "Без названия"),
+                "present": present,
+                "count": count
+            })
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            "🎁 <b>Обмен картами Injustice</b>\n\n"
+            "Вы можете обменять следующие карты:\n\n"
+        )
+        
+        for status in card_status:
+            emoji = "✅" if status["present"] else "❌"
+            count_text = f" (у вас: {status['count']})" if status["count"] > 1 else ""
+            text += f"{emoji} {status['name']}{count_text}\n"
+        
+        text += "\nНа новую <b>Limited</b> карту!\n\n"
+        
+        if not all_cards_present:
+            # ⭐ Не хватает каких-то карт ⭐
+            missing_cards = [s["name"] for s in card_status if not s["present"]]
+            text += "⚠️ <b>Вам не хватает карт:</b>\n"
+            for missing in missing_cards:
+                text += f"• {missing}\n"
+        
+        # ⭐ Формируем клавиатуру ⭐
+        keyboard = []
+        if all_cards_present:
+            keyboard.append([
+                InlineKeyboardButton("🔄 Обмен", callback_data="injustice_exchange_start")
+            ])
+        else:
+            keyboard.append([
+                InlineKeyboardButton(
+                    "❌ Недостаточно карт для обмена",
+                    callback_data="injustice_exchange_no_cards"
+                )
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("❌ Закрыть", callback_data="injustice_exchange_close")
+        ])
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_injustice_exchange: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии окна обмена")
+
+async def injustice_exchange_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает подтверждение обмена."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден!", show_alert=True)
+            return
+        
+        # ⭐ Проверяем, что все карты всё ещё есть ⭐
+        user_cards = user_data.get("cards", [])
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            if user_cards.count(card_id) < 1:
+                await query.answer("❌ У вас больше нет всех необходимых карт!", show_alert=True)
+                return
+        
+        text = (
+            "⚠️ <b>Подтверждение обмена</b>\n\n"
+            "Вы собираетесь обменять <b>4 карты</b> на новую <b>Limited</b> карту.\n\n"
+            "⚠️ <b>Это действие нельзя отменить!</b>\n\n"
+            "Будут удалены:\n"
+        )
+        
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                text += f"• {card.get('title', 'Без названия')}\n"
+        
+        text += "\n✅ Подтвердить обмен?"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Подтвердить", callback_data="injustice_exchange_execute"),
+                InlineKeyboardButton("❌ Отказаться", callback_data="injustice_exchange_cancel")
+            ]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_exchange_confirm: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_exchange_confirm: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+async def injustice_exchange_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выполняет обмен карт."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден!", show_alert=True)
+            return
+        
+        # ⭐ Проверяем, что обмен ещё не был ⭐
+        if user_data.get("injustice_exchanged", False):
+            await query.answer("❌ Вы уже обменяли карты!", show_alert=True)
+            return
+        
+        # ⭐ Проверяем, что все карты есть ⭐
+        user_cards = user_data.get("cards", [])
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            if user_cards.count(card_id) < 1:
+                await query.answer("❌ У вас больше нет всех необходимых карт!", show_alert=True)
+                return
+        
+        # ⭐ Удаляем по 1 копии каждой карты ⭐
+        removed_cards = []
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            user_data["cards"].remove(card_id)
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                removed_cards.append(card.get("title", "Без названия"))
+        
+        # ⭐ Добавляем новую Limited карту ⭐
+        new_card = find_card_by_id(INJUSTICE_REWARD_CARD_ID, data["cards"])
+        if not new_card:
+            await query.answer("❌ Новая карта не найдена!", show_alert=True)
+            return
+        
+        user_data["cards"].append(INJUSTICE_REWARD_CARD_ID)
+        
+        # ⭐ Помечаем обмен как выполненный ⭐
+        user_data["injustice_exchanged"] = True
+        save_data(data)
+        
+        # ⭐ Формируем caption для новой карты ⭐
+        caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
+        caption += "\n\n🎁 <i>Получена в обмен на карты Injustice</i>"
+        
+        # ⭐ Отправляем сообщение об успехе ⭐
+        success_text = (
+            "✅ <b>Обмен выполнен!</b>\n\n"
+            "🗑️ <b>Удалены карты:</b>\n"
+        )
+        for card_name in removed_cards:
+            success_text += f"• {card_name}\n"
+        
+        success_text += f"\n🎁 <b>Получена карта:</b> {new_card.get('title', 'Без названия')}\n"
+        success_text += f"🌟 <b>Редкость:</b> {new_card.get('rarity', 'Unknown')}"
+        
+        try:
+            await query.edit_message_text(
+                success_text,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка отправки сообщения: {e}")
+        
+        # ⭐ ИСПРАВЛЕНИЕ: Отправляем карту напрямую с полным caption ⭐
+        chat_id = query.message.chat_id
+        media_source = new_card.get("media_source", "url")
+        media_value = new_card.get("file_id") if media_source == "file_id" else new_card.get("image_url", "")
+
+        if not media_value:
+            await query.answer("❌ У карты нет медиа-файла!", show_alert=True)
+            return
+
+        try:
+            if new_card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
+                await context.bot.send_video(
+                    chat_id=chat_id,
+                    video=media_value,
+                    caption=caption,
+                    parse_mode="HTML",
+                    supports_streaming=True
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=media_value,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+        except Exception as send_error:
+            logger.error(f"Ошибка отправки карты при обмене: {send_error}")
+            await query.answer("❌ Не удалось отправить карту", show_alert=True)
+        
+        await query.answer("✅ Обмен выполнен!", show_alert=False)
+        logger.info(f"Игрок {user_id} обменял карты Injustice на карту #{INJUSTICE_REWARD_CARD_ID}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_exchange_execute: {e}")
+        await query.answer("❌ Ошибка при обмене", show_alert=True)
+
+async def injustice_exchange_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отмена обмена — возврат в окно обмена."""
+    try:
+        query = update.callback_query
+        await query.answer("❌ Обмен отменён", show_alert=False)
+        
+        # ⭐ Возвращаемся в окно обмена ⭐
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            return
+        
+        # ⭐ Проверяем наличие карт ⭐
+        user_cards = user_data.get("cards", [])
+        card_status = []
+        all_cards_present = True
+        
+        for card_id in INJUSTICE_EXCHANGE_CARDS:
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                card_status.append({
+                    "name": f"Карта #{card_id} (не найдена)",
+                    "present": False,
+                    "count": 0
+                })
+                all_cards_present = False
+                continue
+            
+            count = user_cards.count(card_id)
+            present = count > 0
+            if not present:
+                all_cards_present = False
+            
+            card_status.append({
+                "name": card.get("title", "Без названия"),
+                "present": present,
+                "count": count
+            })
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            "🎁 <b>Обмен картами Injustice</b>\n\n"
+            "Вы можете обменять следующие карты:\n\n"
+        )
+        
+        for status in card_status:
+            emoji = "✅" if status["present"] else "❌"
+            count_text = f" (у вас: {status['count']})" if status["count"] > 1 else ""
+            text += f"{emoji} {status['name']}{count_text}\n"
+        
+        text += "\nНа новую <b>Limited</b> карту!\n\n"
+        
+        if not all_cards_present:
+            missing_cards = [s["name"] for s in card_status if not s["present"]]
+            text += "⚠️ <b>Вам не хватает карт:</b>\n"
+            for missing in missing_cards:
+                text += f"• {missing}\n"
+        
+        # ⭐ Формируем клавиатуру ⭐
+        keyboard = []
+        if all_cards_present:
+            keyboard.append([
+                InlineKeyboardButton("🔄 Обмен", callback_data="injustice_exchange_start")
+            ])
+        else:
+            keyboard.append([
+                InlineKeyboardButton(
+                    "❌ Недостаточно карт для обмена",
+                    callback_data="injustice_exchange_no_cards"
+                )
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("❌ Закрыть", callback_data="injustice_exchange_close")
+        ])
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_exchange_cancel: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_exchange_cancel: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def injustice_exchange_no_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик неактивной кнопки 'Недостаточно карт'."""
+    try:
+        query = update.callback_query
+        await query.answer("❌ У вас нет всех необходимых карт для обмена!", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка injustice_exchange_no_cards: {e}")
+
+
+async def injustice_exchange_close(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Закрывает окно обмена."""
+    try:
+        query = update.callback_query
+        await query.answer("✅ Окно закрыто", show_alert=False)
+        
+        try:
+            await query.edit_message_text(
+                "✅ <b>Окно обмена закрыто.</b>\n\n"
+                "Вы можете вернуться к нему через кнопку «🎩 Ивент».",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_exchange_close: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_exchange_close: {e}")
+
 async def start_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Начинает допрос Пугала."""
+    """Начинает допрос Безумного Шляпника."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
@@ -10936,7 +11307,7 @@ async def show_interrogation_step(update: Update, context: ContextTypes.DEFAULT_
         
         # ⭐ Формируем текст ⭐
         text = (
-            f"🧩 <b>Загадочник:</b>\n"
+            f"🃏 <b>Харли Квинн:</b>\n"
             f"<i>{hatter_text}</i>\n\n"
             f"💬 <b>Выберите вариант ответа:</b>"
         )
@@ -10961,12 +11332,12 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
         # ⭐ Игнорируем основные кнопки меню ⭐
         main_buttons = [
             "🔍 Получить досье", "📁 Мой архив", "🍺 Бар", "🎰 Казино",
-            "🏰 Клан", "🛒 Магазин", "🧩 Ивент", "📋 Меню",
+            "🏰 Клан", "🛒 Магазин", "🃏 Ивент", "📋 Меню",
             "👤 Личное дело", "📜 Квесты", "🏰 Кланы", "🛍️ Магазин"
         ]
         if text in main_buttons:
             await update.message.reply_text(
-                "🧩 <b>Вы находитесь в режиме допроса!</b>\n\n"
+                "🃏 <b>Вы находитесь в режиме допроса!</b>\n\n"
                 "Пожалуйста, выберите один из вариантов ответа, чтобы продолжить расследование.",
                 parse_mode="HTML"
             )
@@ -11000,7 +11371,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                 response_text = (
                     f"👤 <b>Вы:</b>\n"
                     f"<i>{text}</i>\n\n"
-                    f"🧩 <b>Загадочник:</b>\n"
+                    f"🃏 <b>Харли Квинн:</b>\n"
                     f"<i>{next_hatter}</i>\n\n"
                     f"💬 <b>Выберите вариант ответа:</b>"
                 )
@@ -11009,12 +11380,69 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                 response_text = (
                     f"👤 <b>Вы:</b>\n"
                     f"<i>{text}</i>\n\n"
-                    f"🧩 <b>Загадочник:</b>\n"
-                    f"<i>*улыбается и медленно хлопает в ладоши*\n"
-                    f"Что ж, детектив... Вы разгадали все мои загадки. "
-                    f"Впечатляюще. Но помните — Харли уже знает, что вы в курсе. "
-                    f"И Джокер... Джокер не любит, когда его планы раскрывают.</i>\n\n"
-                    f"✅ <b>Допрос завершён!</b>"
+                    f"🃏 <b>Харли Квинн:</b>\n"
+                    f"<i>*вскакивает, подбегает к окну и прижимается к нему лицом*\n"
+                    f"Смотри, детектив! СМОТРИ! *машет рукой, приглашая подойти*\n"
+                    f"Это будет ТАК красиво! *хохочет*</i>\n\n"
+                    f"💥 <b>Что-то происходит...</b>"
+                )
+
+                explosion_text = (
+                    "💥 <i>Вы медленно подходите к окну...</i>\n\n"
+                    "Сначала — <b>тишина</b>. Абсолютная, оглушающая тишина, словно весь мир затаил дыхание. "
+                    "Харли прижалась к стеклу, её глаза горят безумным огнём. Она шепчет что-то невпопад: "
+                    "«Пудинг... Пудинг... Пудинг...»\n\n"
+                    "Затем — <b>ВСПЫШКА</b>.\n\n"
+                    "Ослепительно-белая, как если бы тысяча солнц вспыхнула одновременно на горизонте. "
+                    "Вы инстинктивно закрываете глаза рукой, но даже сквозь веки и ладонь этот неестественный, "
+                    "мёртвый свет пронзает насквозь. Кожа на лице становится горячей.\n\n"
+                    "🌫 Потом — <b>ГРИБ</b>.\n\n"
+                    "Огромный, клубящийся столб огня и дыма поднимается в небо на горизонте, "
+                    "там, где ещё минуту назад стоял Метрополис. Ядерный гриб разрастается "
+                    "с неестественной, тошнотворной скоростью — его верхушка достигает стратосферы, "
+                    "окрашиваясь в зловещие оттенки багрового, оранжевого и чёрного. "
+                    "Казалось, само небо кровоточит.\n\n"
+                    "🌊 <b>ЗВУК</b> доходит с опозданием — сначала низкий, утробный гул, "
+                    "от которого вибрируют зубы в челюсти. Затем — рёв, который сотрясает стены комнаты. "
+                    "Стёкла в окнах дрожат, трескаются, осыпаются градом осколков. "
+                    "Пол ходит ходуном под ногами. Вас швыряет в сторону. "
+                    "Воздух становится горячим, даже через закрытое окно — "
+                    "будто вы стоите у открытой печи гигантских размеров.\n\n"
+                    "🔥 Вдалеке видны вспышки — это рушатся здания, одно за другим, "
+                    "словно карточные домики. Волна разрушения расходится от эпицентра "
+                    "концентрическими кругами, стирая всё на своём пути. "
+                    "Пыль, обломки, искры, перевёрнутые машины — всё это поднимается в небо, "
+                    "образуя чудовищное облако, которое заслоняет солнце. "
+                    "Где-то далеко воют сирены, но их уже почти не слышно за рёвом разрушения.\n\n"
+                    "📱 Ваш телефон вибрирует в кармане — сотни уведомлений. "
+                    "Новостные каналы, сообщения от близких, экстренные оповещения. "
+                    "Экран треснул от ударной волны, но вы не можете оторвать взгляд от окна.\n\n"
+                    "💔 <b>Метрополиса больше нет.</b>\n\n"
+                    "Миллионы жизней... уничтожены в одно мгновение. "
+                    "Врачи, учителя, дети, влюблённые, старики — все они стали пылью в ядерном пламени. "
+                    "И всё это — ради чьей-то безумной шутки.\n\n"
+                    "Вы стоите в шоке, не в силах пошевелиться. "
+                    "Сердце колотится так сильно, что кажется, оно вот-вот выскочит из груди. "
+                    "Во рту — металлический вкус. В глазах — всё ещё та ослепительная, мёртвая вспышка. "
+                    "В ушах — звон.\n\n"
+                    "🌀 <i>Вы медленно оборачиваетесь назад, к Харли...</i>\n\n"
+                    "...но стул пуст.\n\n"
+                    "Дверь в камеру приоткрыта. Сквозняк шевелит бумаги на столе. "
+                    "На полу лежит её бейсбольная бита, а рядом — записка, "
+                    "написанная красной помадой на клочке бумаги:\n\n"
+                    "<blockquote><i>«Было так весело, детектив! 🃏\n"
+                    "Пудинг будет гордиться — ты такой умничка.\n"
+                    "P.S. Не ищи меня — я уже далеко.\n"
+                    "Увидимся в аду, милый! 💋\n"
+                    "— Твоя Харли»</i></blockquote>\n\n"
+                    "Она сбежала. Пока вы смотрели в окно на гибнущий город, "
+                    "она выскользнула из комнаты. Как призрак. Как безумие, которое невозможно поймать.\n\n"
+                    "А где-то далеко, в руинах Метрополиса, посреди дымящегося кратера, "
+                    "Супермен на коленях держит тело Лоис Лейн. "
+                    "Его глаза горят красным огнём тепловидения. "
+                    "Он только что убил её своими руками, видя в ней Думсдея. "
+                    "Его рот открыт в беззвучном крике.\n\n"
+                    "<b>План Джокера реализован.</b>\n\n"
                 )
             
             user_state["current_step"] = next_step
@@ -11032,7 +11460,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                     [KeyboardButton("👤 Личное дело")],
                     [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
                     [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🧩 Ивент")],
+                    [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
                 ]
             
             await update.message.reply_text(
@@ -11042,6 +11470,12 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
             )
             
             if next_step >= len(INTERROGATION_SCRIPT):
+                
+                await update.message.reply_text(
+                    explosion_text,
+                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+                    parse_mode="HTML"
+                )
                 await finish_interrogation(update, context, user_id)
             
         else:
@@ -11054,7 +11488,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
             response_text = (
                 f"👤 <b>Вы:</b>\n"
                 f"<i>{text}</i>\n\n"
-                f"🧩 <b>Загадочник:</b>\n"
+                f"🃏 <b>Харли Квинн:</b>\n"
                 f"<i>{wrong_response}</i>\n\n"
                 f"💬 <b>Выберите вариант ответа:</b>"
             )
@@ -11092,6 +11526,18 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
         from datetime import datetime, timezone, timedelta
         msk_tz = timezone(timedelta(hours=3))
         user_data["event_completed_at"] = int(datetime.now(msk_tz).timestamp())
+
+        EVENT_REWARD_AVATAR_URL="https://ibb.co/gLbnH0jp"
+
+        # ⭐ НОВОЕ: Выдаём аватарку ВСЕМ игрокам, прошедшим ивент ⭐
+        if EVENT_REWARD_AVATAR_URL:
+            if "avatars" not in user_data:
+                user_data["avatars"] = []
+            if EVENT_REWARD_AVATAR_URL not in user_data["avatars"]:
+                user_data["avatars"].append(EVENT_REWARD_AVATAR_URL)
+                # ⭐ Устанавливаем как текущую аватарку ⭐
+                logger.info(f"Игроку {user_id} выдана новая аватарка за прохождение ивента")
+
         save_data(data)
         
         # ⭐ Очищаем состояние ⭐
@@ -11118,9 +11564,10 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
                     f"🏆 <b>Ранг:</b> Великий детектив\n\n"
                     f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
-                    f"• ⏰ План скоро реализуется\n"
-                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
+                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
+                    f"🎁 <b>Награда:</b>\n"
+                    f"• 🃏 Harley Queen (Nurse) «Injustice»\n"
+                    f"• 🖼 Новая аватарка"
                 )
                 
                 # ⭐ Отправляем результат ⭐
@@ -11140,9 +11587,10 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
                     f"🏆 <b>Ранг:</b> Великий детектив\n\n"
                     f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
-                    f"• ⏰ План скоро реализуется\n"
-                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
+                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
+                    f"🎁 <b>Награда:</b>\n"
+                    f"• ⚠️ Карта не найдена (проверьте EVENT_REWARD_CARD_ID)\n"
+                    f"• 🖼 Новая аватарка"
                 )
                 
                 await update.message.reply_text(
@@ -11155,13 +11603,11 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
             result_text = (
                     f"✅ <b>Допрос завершён!</b>\n\n"
                     f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
-                    f"🥉 <b>Ранг:</b> Начинающий детектив\n\n"
+                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
                     f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💣 Загадочник лично доставил Джокеру ядерную бомбу\n"
-                    f"• ⏰ План скоро реализуется\n"
-                    f"• 🔑 Харли Квинн знает весь план полностью\n\n"
-                    f"💡 Для получения награды нужно минимум {EVENT_MIN_CORRECT} правильных ответов.\n"
-                    f"В следующий раз будьте внимательнее!"
+                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
+                    f"🎁 <b>Награда:</b>\n"
+                    f"• 🖼 Новая аватарка"
                 )
             
             await update.message.reply_text(
@@ -11176,7 +11622,7 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🧩 Ивент")],
+            [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         
