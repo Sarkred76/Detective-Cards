@@ -10850,7 +10850,7 @@ async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                     [KeyboardButton("👤 Личное дело")],
                     [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
                     [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
+                    [KeyboardButton("🃏 Ивент")],
                     [KeyboardButton("🔙 Назад в главное меню")],
                 ]
                 await update.message.reply_text(
@@ -11462,7 +11462,7 @@ async def process_interrogation_answer(update: Update, context: ContextTypes.DEF
                     [KeyboardButton("👤 Личное дело")],
                     [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
                     [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
+                    [KeyboardButton("🃏 Ивент")],
                 ]
             
             await update.message.reply_text(
@@ -11624,7 +11624,7 @@ async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYP
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🃏 Ивент"), KeyboardButton("⚔️ Противостояние")],
+            [KeyboardButton("🃏 Ивент")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         
