@@ -1001,7 +1001,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/give_card_to_batpass [ID_карты] [количество] - выдать карту всем с Бэт-пассом\n"
             response += "/add_supercoins [@никнейм] [количество] - начислить супер-коины в бюджет клана\n"
             response += "/add_injustice_points [@никнейм] [сторона] [очки]- выдать очки противостояния стороне\n"
-            response += "/maintenance - включить режим тех работ\n"    
+            response += "/maintenance - включить режим тех работ\n"
+            response += "/clans\\_list - список всех кланов и их участников с @никнеймами\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -12393,6 +12394,71 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка maintenance_command: {e}")
         await update.message.reply_text("❌ Ошибка при переключении режима")
 
+async def clans_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Админская команда для просмотра списка всех кланов и их участников."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        clans = data.get("clans", {})
+        if not clans:
+            await update.message.reply_text("⚠️ В базе данных нет ни одного клана.")
+            return
+        
+        # ⭐ Формируем блоки текста для каждого клана ⭐
+        clan_blocks = []
+        for clan_id, clan_data in clans.items():
+            clan_name = html.escape(clan_data.get("name", "Без названия"))
+            members = clan_data.get("members", {})
+            
+            block_text = f"🏰 <b>{clan_name}</b> ({len(members)} участн.)\n"
+            
+            for member_id, member_info in members.items():
+                member_data = data["users"].get(member_id, {})
+                username = member_data.get("username")
+                first_name = member_data.get("first_name", "Неизвестно")
+                last_name = member_data.get("last_name", "")
+                
+                display_name = html.escape(first_name)
+                if last_name:
+                    display_name += f" {html.escape(last_name)}"
+                    
+                role_emoji = "👑" if member_info.get("role") == "leader" else "•"
+                
+                if username:
+                    block_text += f"{role_emoji} {display_name} — @{html.escape(username)}\n"
+                else:
+                    block_text += f"{role_emoji} {display_name} — <i>(нет @никнейма, ID: {member_id})</i>\n"
+            
+            block_text += "\n"
+            clan_blocks.append(block_text)
+        
+        # ⭐ Группируем блоки в сообщения (лимит Telegram ~4096 символов) ⭐
+        messages = []
+        current_msg = "🏰 <b>Список всех кланов и их участников:</b>\n\n"
+        
+        for block in clan_blocks:
+            if len(current_msg) + len(block) > 3800:
+                messages.append(current_msg)
+                current_msg = block
+            else:
+                current_msg += block
+                
+        if current_msg.strip() != "🏰 <b>Список всех кланов и их участников:</b>":
+            messages.append(current_msg)
+        
+        # ⭐ Отправляем сообщения ⭐
+        for msg in messages:
+            await update.message.reply_text(msg, parse_mode="HTML")
+            
+    except Exception as e:
+        logger.error(f"Ошибка в clans_list_command: {e}")
+        await update.message.reply_text("❌ Ошибка при формировании списка кланов.")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -12465,6 +12531,7 @@ def main() -> None:
             CommandHandler("injustice", injustice_command),
             CommandHandler("add_injustice_points", add_injustice_points_command),
             CommandHandler("maintenance", maintenance_command),
+            CommandHandler("clans_list", clans_list_command),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
