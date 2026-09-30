@@ -6778,7 +6778,7 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
 SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное меню
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
-SEASON_BOX_IMAGE = "https://files.catbox.moe/l3hxku.jpg"
+SEASON_BOX_IMAGE = "https://files.catbox.moe/615em5.png"
 ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 
 # Список боксов для навигации
@@ -6883,8 +6883,9 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"💰 Цена: **799₽**\n"
             f"🎁 Содержимое:\n"
             f"• Все карты из сезонного магазина\n"
-            f"• Эксклюзивная Epic Team-Up\n"
+            f"• Эксклюзивный Epic Team-Up\n"
             f"• Сезонная аватарка 🖼\n"
+            f"• 1 месяц бэт-пасса\n"
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
