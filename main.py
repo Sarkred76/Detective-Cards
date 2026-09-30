@@ -128,7 +128,7 @@ SUPER_COIN_REWARDS = {
 }
 
 # ===== МАГАЗИН КЛАНА =====
-EXCLUSIVE_EPIC_TU_CARD_ID = 105  # ⭐ ЗАМЕНИТЕ НА ID карты
+EXCLUSIVE_EPIC_TU_CARD_ID = 245  # ⭐ ЗАМЕНИТЕ НА ID карты
 CLAN_SHOP_ITEMS = {
     "epic": {
         "name": "🎴 Рандомный Epic",
