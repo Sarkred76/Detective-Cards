@@ -28,7 +28,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
-    ChatMemberHandler,
 )
 from trade_functions import (
     trade_menu,
@@ -46,6 +45,7 @@ from trade_functions import (
 from telegram.error import NetworkError, TimedOut
 from dotenv import load_dotenv
 load_dotenv()
+
 # ===== КОНФИГУРАЦИЯ =====
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -62,7 +62,7 @@ SUPER_ADMIN_ID = "881692999"
 CLAN_CREATION_COST = 30000
 MAX_CLAN_MEMBERS = 7
 
-BASKET_GAME_COST = 800
+BASKET_GAME_COST = 700
 MAX_BASKET_DAILY_PLAYS = 5
 BASKET_HIT_THRESHOLD = 4 
 
@@ -71,137 +71,35 @@ ADD_CARD_WAITING_MEDIA = "add_card_waiting_media"
 ADD_CARD_WAITING_TITLE = "add_card_waiting_title"
 ADD_CARD_WAITING_RARITY = "add_card_waiting_rarity"
 ADD_CARD_WAITING_CATCHPHRASE = "add_card_waiting_catchphrase"
-ADD_CARD_WAITING_CLASSIC = "add_card_waiting_classic" 
-
-# ===== SUPERMAN BOXES =====
-SUPERMAN_HEROES_IMAGE = "https://ibb.co/pBRQHRNC"  # ⭐ ЗАМЕНИТЕ НА URL/FILE_ID КАРТИНКИ БОКСА
-SUPERMAN_VILLAIN_IMAGE = "https://ibb.co/zWbrbPBP"  # ⭐ ЗАМЕНИТЕ НА URL/FILE_ID КАРТИНКИ БОКСА
-
-SUPERMAN_HEROES_CARDS = [164, 165, 166, 167, 168, 169, 171]  # ⭐ ЗАПОЛНИТЕ ID КАРТ ГЕРОЕВ
-SUPERMAN_VILLAIN_CARDS = [170, 172, 173, 174, 175]  # ⭐ ЗАПОЛНИТЕ ID КАРТ ЗЛОДЕЕВ
+ADD_CARD_WAITING_UNIVERSE = "add_card_waiting_universe"
 
 # ===== АВАТАРКИ =====
-DEFAULT_AVATAR_URL = "https://files.catbox.moe/xtviqr.jpg" 
-SEASONAL_AVATAR_URL = "https://files.catbox.moe/502g93.jpg"
-SEASON_BOX_AVATAR_URL = "https://files.catbox.moe/24sc2b.jpg"
+DEFAULT_AVATAR_URL = "https://ibb.co/w9xrjbt" 
+SEASONAL_2_AVATAR_URL = "https://ibb.co/TM2P2Cy4"
+SEASON_BOX_AVATAR_URL = "https://ibb.co/R4NpS63v"
+FRIENDS_AVATAR_1_URL = "https://ibb.co/GQN89Nzn"
+FRIENDS_AVATAR_2_URL = "https://ibb.co/bx2cr1h"
+FRIENDS_AVATARS = [FRIENDS_AVATAR_1_URL, FRIENDS_AVATAR_2_URL]
 
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
+# ===== ПРОТИВОСТОЯНИЕ (INJUSTICE) =====
+INJUSTICE_SIDES = {
+    "regime": {
+        "name": "Режим",
+        "emoji": "👑",
+        "description": "Деспотический режим, в котором больше нет войн и страданий, есть только Супермен - правитель этого мира."
+    },
+    "resistance": {
+        "name": "Сопротивление",
+        "emoji": "✊",
+        "description": "Сопротивление, сражающееся за свободу от тирании, где боги и суперлюди не выше законов."
+    }
+}
+
 MENU_IMAGE = "https://files.catbox.moe/zj1vl8.jpg"
 QUESTS_IMAGE = "https://files.catbox.moe/0k82du.jpg"
-
-# ===== ОБМЕН КАРТ INJUSTICE =====
-# ID карт, которые нужно обменять (по 1 копии каждой)
-INJUSTICE_EXCHANGE_CARDS = [
-    194,  # ⭐ ЗАМЕНИТЕ НА ID Harley Queen (Nurse) "Injustice"
-    203,  # ⭐ ЗАМЕНИТЕ НА ID Scarecrow "Injustice"
-    214,  # ⭐ ЗАМЕНИТЕ НА ID Mad Hatter "Injustice"
-    226,  # ⭐ ЗАМЕНИТЕ НА ID Riddler "Injustice"
-]
-
-# ID новой Limited карты, которую получает игрок
-INJUSTICE_REWARD_CARD_ID = 227  # ⭐ ЗАМЕНИТЕ НА ID новой Limited карты
-
-# ===== ИВЕНТ: ДОПРОС Харли =====
-EVENT_REWARD_CARD_ID = 226  # ⭐ ВАШ ID КАРТЫ-НАГРАДЫ
-
-EVENT_MIN_CORRECT = 6
-
-INTERROGATION_SCRIPT = [
-    {
-        "hatter": "*прыгает на стул, болтая ногами, и крутит прядь волос* Ой, приветик, детектив! *машет рукой, как ребёнок* Пудинг сказал, что ты такой настойчивый! Такой серьёзный, такой... *наклоняется близко* СКУЧНЫЙ! *хохочет* Ну ничего, я расскажу тебе ВСЁ! У меня язычок не застрял — я же бывший психиатр, я люблю поболтать! *достаёт из кармана леденец на палочке*",
-        "options": [
-            "Хватит валять дурака. Где Джокер?",
-            "Ты что, совсем рехнулась? Говори по делу!",
-            "Ты арестована. И тебе не помогут ни леденцы, ни Пудинг."
-        ],
-        "correct": "Ты что, совсем рехнулась? Говори по делу!"
-    },
-    {
-        "hatter": "*облизывает леденец* Рехнулась? Ой, какой ты смешной! *кружится на стуле* Я В ПОЛНОМ ПОРЯДКЕ! А вот Пудинг — гений! Знаешь, что он попросил у Доктора Страха? Ой, не угадаете! *подмигивает* Зелёный камушек! Такой красивый, такой... *шёпотом* СМЕРТЕЛЬНЫЙ! Из него сварили газ. Специальный газ. Для большого парня в красном плаще! *показывает на себе символ S пальцами*",
-        "options": [
-            "Зелёный камень... Криптонит. Для Супермена.",
-            "Какой большой парень? О ком ты?",
-            "Ты несёшь какую-то чушь."
-        ],
-        "correct": "Зелёный камень... Криптонит. Для Супермена."
-    },
-    {
-        "hatter": "*визжит от восторга и хлопает в ладоши* ДА-ДА-ДА! Крип-то-нит! Ты умничка! *прыгает со стула* Пудинг сказал: 'Харли, этот газ заставит его видеть свои самые-самые страшные сны!' А самый страшный сон для Супермена — это... *делает паузу, широко улыбаясь* ...увидеть своего злейшего врага в том, кого он любит больше всего на свете! *прикладывает палец к губам*",
-        "options": [
-            "В ком он увидит врага? О ком ты говоришь?",
-            "Какие сны? Он же неуязвим!",
-            "Ты пугаешь меня."
-        ],
-        "correct": "В ком он увидит врага? О ком ты говоришь?"
-    },
-    {
-        "hatter": "*хохочет и кружится* Ой, детектив, ты такой медлительный! *подскакивает к тебе* Конечно, в ЛОИС! В Лоис Лейн! Его любимая журналисточка! *рисует сердечко в воздухе* Пудинг похитил её вчера. И знаешь, что самое гениальное? *наклоняется близко* Мы подключили её сердечко... *прикладывает руку к груди* ...к детонатору той самой ядерной бомбы, про которую ты уже знаешь! *хохочет* Стук-стук — и город живёт. Стоп-стук... *разводит руками* ...и БА-БАХ!",
-        "options": [
-            "Вы подключили её сердце к бомбе?! Это же безумие!",
-            "Как именно? Как это технически возможно?",
-            "Ты монстр. Как ты можешь так спокойно об этом говорить?"
-        ],
-        "correct": "Вы подключили её сердце к бомбе?! Это же безумие!"
-    },
-    {
-        "hatter": "*подпрыгивает* Безумие? Ой, нет-нет-нет! Это ГЕНИАЛЬНО! *вскакивает на стол и размахивает руками* Вот слушай, слушай! Большой парень найдёт свою любимую. Газ Пугало ударит ему в нос — и он увидит в ней... *широко раскрывает глаза* ...ПУДИНГ! Своего злейшего врага! И что он сделает? *делает жест удара* БУМ! Убьёт её своими руками! Её сердечко остановится... *разводит руками* ...и Метрополис превратится в пепел! *хохочет, падает со стола*",
-        "options": [
-            "Супермен убьёт Лоис, думая что это Думсдей... Вы заставите его стать убийцей!",
-            "Это слишком сложно. Супермен не такой.",
-            "А если он не найдёт Лоис?"
-        ],
-        "correct": "Супермен убьёт Лоис, думая что это Думсдей... Вы заставите его стать убийцей!"
-    },
-    {
-        "hatter": "*поднимается с пола, отряхивается* Вот именно! *крутит пальцем у виска* Он будет так переживать из-за своей любимой! Она его слабость! Его крип-то-нит, ха-ха! *внезапно становится серьёзной* А знаешь, когда всё это случится? *смотрит на часы на стене, потом на тебя* Скоро. Очень-очень скоро. Пудинг уже ждёт сигнала. *улыбается*",
-        "options": [
-            "Скоро — это когда? Назови точное время!",
-            "Я успею его остановить.",
-            "Ты пытаешься меня напугать."
-        ],
-        "correct": "Скоро — это когда? Назови точное время!"
-    },
-    {
-        "hatter": "*хохочет и подпрыгивает* Точное время? Ой, какой ты педант! *смотрит на часы, потом вдруг замирает* Ой... *широко открывает глаза* А ведь уже... *поворачивается к часам на стене* ...**ПРЯМО СЕЙЧАС!** *вскрикивает и начинает кружиться*",
-        "options": [
-            "Что значит 'прямо сейчас'?! Что происходит?!",
-            "Ты блефуешь!",
-            "Я не верю тебе ни слова."
-        ],
-        "correct": "Что значит 'прямо сейчас'?! Что происходит?!"
-    },
-    {
-        "hatter": "*вскакивает, подбегает к окну и прижимается к нему лицом* Смотри, детектив! СМОТРИ! *машет рукой, приглашая подойти* Это будет ТАК красиво! *хохочет*",
-        "options": [
-            "*медленно подхожу к окну*",
-            "*подхожу к окну, не отрывая взгляда от Харли*",
-            "*нерешительно подхожу к окну*"
-        ],
-        "correct": [
-            "*медленно подхожу к окну*",
-            "*оборачиваюсь к окну*",
-            "*нерешительно подхожу к окну*"
-        ]
-    },
-]
-
-# ===== ФРАЗЫ ХАРЛИ НА НЕПРАВИЛЬНЫЕ ОТВЕТЫ =====
-WRONG_ANSWER_RESPONSES = [
-    "Нет-нет-нет! *крутит пальцем у виска* Так дело не пойдёт, детектив! Попробуй ещё раз!",
-    "Ха-ха! Неверно! *хохочет* Пудинг будет смеяться над тобой!",
-    "Скучно-скучно-скучно! *зевает преувеличенно* У тебя есть ответ поинтереснее?",
-    "Ой, какая банальность! *катает глаза* Я ожидала от тебя большего, милый!",
-    "Нет-нет-нет! *грозит пальцем* Это не тот ответ, который я хочу услышать!",
-    "Ты ходишь вокруг да около! *кружится* Давай прямую наводку, детектив!",
-    "Мои ушки вянут! *хватается за уши* Давай что-нибудь поострее!",
-    "Пфф... *надувает губы* Это всё, на что ты способен? Разочарована!",
-    "Ты что, серьёзно? *прищуривается* Задай нормальный вопрос, дорогой!",
-    "Снова мимо! *топает ногой* Подумай ещё раз — у тебя получится лучше!",
-    "Нет, это не мой стиль! *мотает головой* Попробуй зайти с другой стороны!",
-    "Ой, как предсказуемо! *зевает* Мне нужны ответы поинтереснее, милый!",
-]
 
 # ===== НАГРАДЫ ЗА СЖИГАНИЕ =====
 BURN_REWARDS = {
@@ -213,7 +111,55 @@ BURN_REWARDS = {
     "Legendary": {"cents": 0, "free_rolls": 5},
     "Legendary Team-up": {"cents": 0, "free_rolls": 7},
     "Highlight": {"cents": 0, "free_rolls": 10},
-    "Limited": {"cents": 0, "free_rolls": 15},
+    "Limited": {"cents": 0, "free_rolls": 15},  # бонус для редкой
+}
+
+# ===== СУПЕР-КОИНЫ (клановая валюта) =====
+SUPER_COIN_REWARDS = {
+    "Common": 1,
+    "Rare": 2,
+    "Rare Team-up": 3,
+    "Epic": 3,
+    "Epic Team-up": 5,
+    "Legendary": 7,
+    "Legendary Team-up": 10,
+    "Highlight": 15,
+    # Limited — 0 (не начисляются)
+}
+
+# ===== МАГАЗИН КЛАНА =====
+EXCLUSIVE_EPIC_TU_CARD_ID = 105  # ⭐ ЗАМЕНИТЕ НА ID карты
+CLAN_SHOP_ITEMS = {
+    "epic": {
+        "name": "🎴 Рандомный Epic",
+        "description": "Случайному участнику клана выдаётся случайная Epic-карта",
+        "price": 50,
+        "emoji": "🎴",
+    },
+    "rolls": {
+        "name": "🎲 2 попытки каждому",
+        "description": "Каждому участнику клана выдаётся 2 бесплатные попытки",
+        "price": 70,
+        "emoji": "🎲",
+    },
+    "cents": {
+        "name": "💰 5000 бэт-коинов",
+        "description": "Случайному участнику клана выдаётся 5000 бэт-коинов",
+        "price": 30,
+        "emoji": "💰",
+    },
+    "exclusive_epic_tu": {
+        "name": "✨ Эксклюзивный Epic",
+        "description": "Случайному участнику клана выдаётся эксклюзивная Epic карта",
+        "price": 150,
+        "emoji": "✨",
+    },
+    "friends_avatar": {
+        "name": "🎭 Эксклюзивная аватарка Friends",
+        "description": "Случайному участнику выдаётся одна из двух эксклюзивных аватарок Friends",
+        "price": 180,
+        "emoji": "🎭",
+    },
 }
 
 def get_card_media_value(card: Dict) -> str:
@@ -241,38 +187,38 @@ CRAFT_RULES = {
     "Common_to_Rare": {
         "from_rarity": "Common",
         "to_rarity": "Rare",
-        "count_needed": 10,
-        "button_text": "10 Common → 1 Rare",
+        "count_needed": 5,
+        "button_text": "5 Common → 1 Rare",
     },
     "Rare_to_Epic": {
         "from_rarity": "Rare",
         "to_rarity": "Epic",
-        "count_needed": 15,
-        "button_text": "15 Rare → 1 Epic",
+        "count_needed": 10,
+        "button_text": "10 Rare → 1 Epic",
     },
     "Epic_to_Legendary": {
         "from_rarity": "Epic",
         "to_rarity": "Legendary",
-        "count_needed": 20,
-        "button_text": "20 Epic → 1 Legendary",
+        "count_needed": 15,
+        "button_text": "15 Epic → 1 Legendary",
     },
     "Legendary_to_Highlight": {
         "from_rarity": "Legendary",
         "to_rarity": "Highlight",
-        "count_needed": 30,
-        "button_text": "30 Legendary → 1 Highlight",
+        "count_needed": 20,
+        "button_text": "20 Legendary → 1 Highlight",
     },
     "RareTU_to_EpicTU": {
         "from_rarity": "Rare Team-up",
         "to_rarity": "Epic Team-up",
-        "count_needed": 15,
-        "button_text": "15 Rare Team-up → 1 Epic Team-up",
+        "count_needed": 10,
+        "button_text": "10 Rare Team-up → 1 Epic Team-up",
     },
     "EpicTU_to_LegendaryTU": {
         "from_rarity": "Epic Team-up",
         "to_rarity": "Legendary Team-up",
-        "count_needed": 20,
-        "button_text": "20 Epic Team-up → 1 Legendary Team-up",
+        "count_needed": 15,    
+        "button_text": "15 Epic Team-up → 1 Legendary Team-up",
     },
 }
 
@@ -285,96 +231,80 @@ SEASONAL_QUESTS = {
         "type": "get_cards",
         "rarity": "Epic",
         "target": 5,
-        "reward": {"cents": 2000},
-        "desc": "Получить 5 карт редкости Epic через «Получить досье»"
+        "reward": {"free_rolls": 3},
+        "desc": "Получить 5 карт редкости Epic через"
     },
     2: {
         "id": 2,
         "type": "burn_cards",
         "rarity": "Epic",
         "target": 5,
-        "reward": {"rep_points": 3000},
+        "reward": {"cents": 2000},
         "desc": "Сжечь 5 карт редкости Epic"
     },
     3: {
         "id": 3,
-        "type": "get_cards",
-        "rarity": "Epic Team-up",
-        "target": 2,
-        "reward": {"free_rolls": 5},
-        "desc": "Получить 2 карты редкости Epic Team-Up через «Получить досье»"
+        "type": "buy_box",
+        "box": "rolls",
+        "target": 1,
+        "reward": {"rep_points": 3000},
+        "desc": "Купить Rolls-Box"
     },
     4: {
         "id": 4,
+        "type": "get_cards",
+        "rarity": "Epic Team-up",
+        "target": 2,
+        "reward": {"free_rolls": 6},
+        "desc": "Получить 2 карты редкости Epic Team-Up"
+    },
+    5: {
+        "id": 5,
         "type": "burn_cards",
         "rarity": "Epic Team-up",
         "target": 2,
         "reward": {"cents": 3000},
         "desc": "Сжечь 2 карты редкости Epic Team-Up"
     },
-    5: {
-        "id": 5,
+    6: {
+        "id": 6,
         "type": "clan",
         "target": 1,
         "reward": {"rep_points": 4000},
         "desc": "Вступить в клан или создать свой клан",
         "check_button": True
     },
-    6: {
-        "id": 6,
-        "type": "get_cards",
-        "rarity": "Rare Team-up",
-        "target": 30,
-        "reward": {"free_rolls": 10},
-        "desc": "Получить 30 карт редкости Rare Team-Up через «Получить досье»"
-    },
     7: {
         "id": 7,
         "type": "get_cards",
         "rarity": "Legendary",
         "target": 1,
-        "reward": {"cents": 4000},
-        "desc": "Получить 1 карту редкости Legendary через «Получить досье»"
+        "reward": {"free_rolls": 10},
+        "desc": "Получить 1 карту редкости Legendary"
     },
     8: {
         "id": 8,
-        "type": "seasonal_cards",
-        "target": 1,
-        "reward": {"rep_points": 5000},
-        "desc": "Получить все карты из сезонного магазина",
-        "check_button": True
-    },
-    9: {
-        "id": 9,
-        "type": "burn_cards",
-        "rarity": "Legendary",
-        "target": 1,
-        "reward": {"free_rolls": 15},
-        "desc": "Сжечь 1 карту редкости Legendary"
-    },
-    10: {
-        "id": 10,
         "type": "get_cards",
         "rarity": "Highlight",
         "target": 1,
         "reward": {"cents": 5000},
-        "desc": "Получить 1 карту редкости Highlight через «Получить досье»"
+        "desc": "Получить 1 карту редкости Highlight"
     },
-    11: {
-        "id": 11,
-        "type": "buy_box",
-        "box": "rolls",
-        "target": 1,
+    9: {
+        "id": 9,
+        "type": "get_cards",
+        "rarity": "Rare Team-up",
+        "target": 35,
         "reward": {"rep_points": 6000},
-        "desc": "Купить Rolls-Box"
+        "desc": "Получить 35 карт редкости Rare Team-Up"
     },
-    12: {
-        "id": 12,
-        "type": "buy_box",
-        "box": "classic",
+    10: {
+        "id": 10,
+        "type": "seasonal_cards",
         "target": 1,
-        "reward": {"free_rolls": 30, "avatar": SEASONAL_AVATAR_URL},
-        "desc": "Купить Classic-Box"
+        "reward": {"free_rolls": 20, "avatar": SEASONAL_2_AVATAR_URL},
+        "desc": "Получить все карты из сезонного магазина",
+        "check_button": True
     },
 }
 
@@ -394,128 +324,180 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+def migrate_data(data: Dict) -> Dict:
+    """Применяет миграции к данным. Вызывается только при загрузке с диска."""
+    # Инициализируем активные трейды если нет
+    if "active_trades" not in data:
+        data["active_trades"] = {}
+
+    if "promo_codes" not in data:
+        data["promo_codes"] = {}
+
+    if "seasonal_cards" not in data:
+        data["seasonal_cards"] = {}
+
+    if "clans" not in data:
+        data["clans"] = {}
+
+    for clan in data.get("clans", {}).values():
+        if "max_members" not in clan:
+            clan["max_members"] = MAX_CLAN_MEMBERS
+
+    # ⭐ Миграция супер-коинов для кланов ⭐
+    for clan_id, clan_data in data.get("clans", {}).items():
+        if "super_coins" not in clan_data:
+            clan_data["super_coins"] = 0
+
+    if "user_clan" not in data:
+        data["user_clan"] = {}
+
+    # ⭐ НОВОЕ: Режим техработ ⭐
+    if "maintenance_mode" not in data:
+        data["maintenance_mode"] = False
+
+    # ⭐ Миграция пользователей ⭐
+    for user_id, user_data in data.get("users", {}).items():
+        if "clan_invite_pending" not in user_data:
+            user_data["clan_invite_pending"] = None
+        if "weekly_quests" not in user_data:
+            user_data["weekly_quests"] = []
+        if "weekly_quests_last_reset_year" not in user_data:
+            user_data["weekly_quests_last_reset_year"] = 0
+        if "weekly_quests_last_reset_week" not in user_data:
+            user_data["weekly_quests_last_reset_week"] = 0
+        if "daily_quests_streak" not in user_data:
+            user_data["daily_quests_streak"] = 0
+        if "last_streak_date" not in user_data:
+            user_data["last_streak_date"] = ""
+        if "last_card_time" not in user_data:
+            user_data["last_card_time"] = 0
+        if "free_rolls" not in user_data:
+            user_data["free_rolls"] = 0
+        if "last_dice_time" not in user_data:
+            user_data["last_dice_time"] = 0
+        if "casino_attempts" not in user_data:
+            user_data["casino_attempts"] = 5
+        if "basket_plays" not in user_data:
+            user_data["basket_plays"] = 0
+        if "darts_plays" not in user_data:
+            user_data["darts_plays"] = 0
+        if "darts_last_reset" not in user_data:
+            user_data["darts_last_reset"] = 0
+        if "basket_last_reset" not in user_data:
+            user_data["basket_last_reset"] = 0
+        if "last_casino_reset" not in user_data:
+            user_data["last_casino_reset"] = 0
+        if "used_promo_codes" not in user_data:
+            user_data["used_promo_codes"] = []
+        if "referral_invites" not in user_data:
+            user_data["referral_invites"] = []
+        if "referral_rewards_claimed" not in user_data:
+            user_data["referral_rewards_claimed"] = []
+        if "daily_quests" not in user_data:
+            user_data["daily_quests"] = []
+        if "daily_quests_last_reset" not in user_data:
+            user_data["daily_quests_last_reset"] = 0
+        if "rolls_box_price" not in user_data:
+            user_data["rolls_box_price"] = 25000
+        if "pending_season_boxes" not in user_data:
+            user_data["pending_season_boxes"] = 0
+        
+        # ⭐ Удаление устаревших полей ⭐
+        if "event_completed" in user_data:
+            del user_data["event_completed"]
+        if "event_completed_at" in user_data:
+            del user_data["event_completed_at"]
+        if "injustice_exchanged" in user_data:
+            del user_data["injustice_exchanged"]
+        
+        if "has_batpass" not in user_data:
+            user_data["has_batpass"] = False
+        if "batpass_expires_at" not in user_data:
+            user_data["batpass_expires_at"] = 0
+        if "batpass_privileges" not in user_data:
+            user_data["batpass_privileges"] = {
+                "reduced_cooldown": True,
+                "extra_dice_rolls": True,
+                "free_clan_creation": True,
+                "extra_casino_attempts": True,
+            }
+        if "weekly_dice_rolls" not in user_data:
+            user_data["weekly_dice_rolls"] = 1
+        if "last_dice_week_reset" not in user_data:
+            user_data["last_dice_week_reset"] = 0
+        if "last_daily_activity" not in user_data:
+            user_data["last_daily_activity"] = None
+        if "registered_at" not in user_data:
+            user_data["registered_at"] = None
+        if "seasonal_quests" not in user_data:
+            user_data["seasonal_quests"] = {"completed": [], "progress": {}}
+        if "avatar_url" not in user_data:
+            user_data["avatar_url"] = DEFAULT_AVATAR_URL
+        if "avatars" not in user_data:
+            user_data["avatars"] = [DEFAULT_AVATAR_URL]
+        if "injustice_exchanged" not in user_data:
+            user_data["injustice_exchanged"] = False
+
+    # ⭐ НОВОЕ: Миграция данных для Противостояния ⭐
+    if "injustice" not in data:
+        data["injustice"] = {
+            "regime": {"clans": [], "points": 0},
+            "resistance": {"clans": [], "points": 0}
+        }
+
+    # ⭐ Миграция поля injustice_side для кланов ⭐
+    for clan_id, clan_data in data.get("clans", {}).items():
+        if "injustice_side" not in clan_data:
+            clan_data["injustice_side"] = None
+
+    for card in data.get("cards", []):
+        # ⭐ Миграция: конвертируем is_classic в universe ⭐
+        if "universe" not in card:
+            if card.get("is_classic", False):
+                card["universe"] = "classic"
+            else:
+                card["universe"] = "none"
+            # Удаляем старое поле
+            if "is_classic" in card:
+                del card["is_classic"]
+    
+    return data
+
+# ⭐ ГЛОБАЛЬНЫЙ КЭШ ⭐
+import time
+_data_cache = {
+    "data": None,
+    "last_load": 0,
+}
+CACHE_TTL = 5  # секунд
+
 def load_data() -> Dict[str, Any]:
-    """Загружает данные из файла или создает новую структуру."""
+    """Загружает данные с кэшированием и миграцией."""
+    current_time = time.time()
+    
+    # ⭐ Если кэш актуален — возвращаем его ⭐
+    if _data_cache["data"] is not None and (current_time - _data_cache["last_load"]) < CACHE_TTL:
+        return _data_cache["data"]
+    
+    # ⭐ Иначе читаем с диска ⭐
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            # Инициализируем активные трейды если нет
-            if "active_trades" not in data:
-                data["active_trades"] = {}
-
-            if "promo_codes" not in data:
-                data["promo_codes"] = {}
-
-            if "seasonal_cards" not in data:
-                data["seasonal_cards"] = {}  # {card_id: price}
-
-            if "clans" not in data:
-                data["clans"] = {}
-
-            for clan in data.get("clans", {}).values():
-                if "max_members" not in clan:
-                    clan["max_members"] = MAX_CLAN_MEMBERS
-
-            if "user_clan" not in data:
-                data["user_clan"] = {}  # {user_id: clan_name}
-
-            for user_id, user_data in data.get("users", {}).items():
-                if "clan_invite_pending" not in user_data:
-                    user_data["clan_invite_pending"] = None  # Для хранения ожидающего приглашения
-                if "weekly_quests" not in user_data:
-                    user_data["weekly_quests"] = []
-                if "weekly_quests_last_reset_year" not in user_data:
-                    user_data["weekly_quests_last_reset_year"] = 0
-                if "weekly_quests_last_reset_week" not in user_data:
-                    user_data["weekly_quests_last_reset_week"] = 0
-                if "daily_quests_streak" not in user_data:
-                    user_data["daily_quests_streak"] = 0
-                if "last_streak_date" not in user_data:
-                    user_data["last_streak_date"] = ""
+            # ⭐ ПРИМЕНЯЕМ МИГРАЦИЮ (только при чтении с диска!) ⭐
+            data = migrate_data(data)
             
-            for user_id, user_data in data.get("users", {}).items():
-                if "last_card_time" not in user_data:
-                    user_data["last_card_time"] = 0
-                if "free_rolls" not in user_data:
-                    user_data["free_rolls"] = 0
-                if "last_dice_time" not in user_data:
-                    user_data["last_dice_time"] = 0
-                if "casino_attempts" not in user_data:
-                    user_data["casino_attempts"] = 5
-                if "basket_plays" not in user_data:
-                    user_data["basket_plays"] = 0
-                if "darts_plays" not in user_data:
-                    user_data["darts_plays"] = 0
-                if "darts_last_reset" not in user_data:
-                    user_data["darts_last_reset"] = 0
-                if "basket_last_reset" not in user_data:
-                    user_data["basket_last_reset"] = 0
-                if "last_casino_reset" not in user_data:
-                    user_data["last_casino_reset"] = 0
-                if "used_promo_codes" not in user_data:
-                    user_data["used_promo_codes"] = []
-                if "referral_invites" not in user_data:
-                    user_data["referral_invites"] = []
-                if "referral_rewards_claimed" not in user_data:
-                    user_data["referral_rewards_claimed"] = []
-                if "daily_quests" not in user_data:
-                    user_data["daily_quests"] = []
-                if "daily_quests_last_reset" not in user_data:
-                    user_data["daily_quests_last_reset"] = 0
-                if "rolls_box_price" not in user_data:
-                    user_data["rolls_box_price"] = 25000
-                if "pending_season_boxes" not in user_data:
-                    user_data["pending_season_boxes"] = 0
-                if "pending_superman_heroes_boxes" not in user_data:
-                    user_data["pending_superman_heroes_boxes"] = 0
-                if "pending_superman_villain_boxes" not in user_data:
-                    user_data["pending_superman_villain_boxes"] = 0
-                # ⭐ УДАЛИТЬ СТАРОЕ ПОЛЕ У ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ⭐
-                if "pending_supergirl_boxes" in user_data:
-                    del user_data["pending_supergirl_boxes"]
-                if "has_batpass" not in user_data:
-                    user_data["has_batpass"] = False
-                if "batpass_expires_at" not in user_data:
-                    user_data["batpass_expires_at"] = 0
-                if "batpass_privileges" not in user_data:
-                    user_data["batpass_privileges"] = {
-                        "reduced_cooldown": True,      # 2.5 часа вместо 3 часов
-                        "extra_dice_rolls": True,      # 2 броска кубика в неделю
-                        "free_clan_creation": True,    # Бесплатное создание клана
-                        "extra_casino_attempts": True, # 7 попыток в казино вместо 5
-                    }
-                # ⭐ НОВОЕ: Счётчик бросков кубика за неделю ⭐
-                if "weekly_dice_rolls" not in user_data:
-                    user_data["weekly_dice_rolls"] = 1  # 1 бросок по умолчанию
-                if "last_dice_week_reset" not in user_data:
-                    user_data["last_dice_week_reset"] = 0
-                if "last_daily_activity" not in user_data:
-                    user_data["last_daily_activity"] = None  # Дата в формате "YYYY-MM-DD" или None
-                if "registered_at" not in user_data:
-                    user_data["registered_at"] = None  # Дата регистрации в формате "YYYY-MM-DD"
-                if "seasonal_quests" not in user_data:
-                    user_data["seasonal_quests"] = {"completed": [], "progress": {}}
-                # ⭐ НОВОЕ: Миграция аватарок ⭐
-                if "avatar_url" not in user_data:
-                    user_data["avatar_url"] = DEFAULT_AVATAR_URL
-                if "avatars" not in user_data:
-                    user_data["avatars"] = [DEFAULT_AVATAR_URL]
-                if "event_completed" not in user_data:
-                    user_data["event_completed"] = False
-                if "event_completed_at" not in user_data:
-                    user_data["event_completed_at"] = 0
-                if "injustice_exchanged" not in user_data:
-                    user_data["injustice_exchanged"] = False
-
-                for card in data.get("cards", []):
-                    if "is_classic" not in card:
-                        card["is_classic"] = False
+            # ⭐ Сохраняем в кэш ⭐
+            _data_cache["data"] = data
+            _data_cache["last_load"] = current_time
             return data
             
         except Exception as e:
             logger.error(f"Ошибка загрузки данных: {e}")
+            # ⭐ При ошибке возвращаем кэш или пустую структуру ⭐
+            if _data_cache["data"] is not None:
+                return _data_cache["data"]
             return {
                 "users": {},
                 "cards": [],
@@ -524,6 +506,7 @@ def load_data() -> Dict[str, Any]:
                 "active_trades": {},
             }
     
+    # ⭐ Файла нет — возвращаем пустую структуру ⭐
     return {
         "users": {},
         "cards": [],
@@ -552,12 +535,15 @@ def check_casino_reset(user_data: Dict) -> None:
         user_data["last_casino_reset"] = current_day_start_ts
 
 def save_data(data: Dict[str, Any]) -> None:
-    """Сохраняет данные в файл, компактно оформляя списки."""
+    """Сохраняет данные в файл, компактно оформляя списки, и обновляет кэш."""
     try:
-        # 1. Сначала превращаем данные в JSON строку с отступами
+        # ⭐ 1. Применяем миграцию перед сохранением ⭐
+        data = migrate_data(data)
+        
+        # 2. Превращаем данные в JSON строку с отступами
         json_str = json.dumps(data, ensure_ascii=False, indent=4)
         
-        # 2. Используем регулярное выражение, чтобы найти все списки [...] 
+        # 3. Используем регулярное выражение, чтобы найти все списки [...] 
         # и удалить внутри них переносы строк, оставив только пробелы
         # Это сделает вид: "cards": [1, 2, 3, 4, 5] вместо многострочного списка
         
@@ -569,15 +555,18 @@ def save_data(data: Dict[str, Any]) -> None:
             cleaned = re.sub(r'\s+', ' ', cleaned)
             return cleaned
 
-        # Ищем паттерны списков. Внимание: это упрощенный регекс, он работает для простых списков чисел/строк
-        # Для вложенных структур может потребоваться более сложный парсер, но для ID карт подойдет
+        # Ищем паттерны списков
         json_str_compact = re.sub(r'\[.*?\]', replace_newlines_in_lists, json_str, flags=re.DOTALL)
 
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             f.write(json_str_compact)
             f.flush()
             os.fsync(f.fileno())
-            
+        
+        # ⭐ 4. Обновляем кэш после успешного сохранения ⭐
+        _data_cache["data"] = data
+        _data_cache["last_load"] = time.time()
+        
     except Exception as e:
         logger.error(f"Ошибка сохранения данных: {e}")
 
@@ -587,6 +576,9 @@ def is_admin(user_id: str, data: Dict[str, Any]) -> bool:
     admins = data.get("admins", [])
     return user_id in admins
 
+def is_bot_disabled(data: Dict) -> bool:
+    """Проверяет, включён ли режим техработ."""
+    return data.get("maintenance_mode", False)
 
 def find_card_by_id(card_id: int, cards: List[Dict]) -> Optional[Dict]:
     """Находит карточку по ID."""
@@ -638,26 +630,44 @@ def generate_card_caption(
     user_data: Optional[Dict] = None,
     count: int = 1,
     show_bonus: bool = False,
+    super_coins_earned: int = 0, 
 ) -> str:
     """Генерирует описание карточки с количеством дубликатов и цитатой."""
     # ⭐ БАЗОВЫЙ CAPTION ⭐
     if user_data is None:
         caption = f"{card['title']}"
     else:
-        caption = f"🔍 У Вас новый\n подозреваемый!\n\n{html.escape(card['title'])}"
+        caption = f"🔍 У Вас новый подозреваемый!\n\n{html.escape(card['title'])}"
 
     caption += f"\nРедкость: {card['rarity']}"
     
     # ⭐ НОВОЕ: ЦИТАТА ЧЕРЕЗ BLOCKQUOTE (HTML-тег) ⭐
     if card.get("catchphrase"):
-        # ⭐ Telegram HTML поддерживает обычные \n для переноса строк ⭐
         escaped_phrase = html.escape(card['catchphrase'])
         caption += f"\n<blockquote><i>{escaped_phrase}</i></blockquote>"
         
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов\n💥 +{bonus['points']} очков репутации"
+        caption += f"\n\n💰 +{bonus['cents']} бэт-коинов"
+        
+        # ⭐ НОВОЕ: Правильное склонение слова "супер-коин" ⭐
+        if super_coins_earned > 0:
+            n = super_coins_earned % 100
+            n1 = n % 10
+            
+            if n > 10 and n < 20:
+                coin_word = "супер-коинов"
+            elif n1 > 1 and n1 < 5:
+                coin_word = "супер-коина"
+            elif n1 == 1:
+                coin_word = "супер-коин"
+            else:
+                coin_word = "супер-коинов"
+                
+            caption += f"\n🪙 +{super_coins_earned} {coin_word}"
+            
+        caption += f"\n💥 +{bonus['points']} очков репутации"
         
     # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО, ЕСЛИ ЕСТЬ ДУБЛИКАТЫ ⭐
     if count > 1:
@@ -814,12 +824,17 @@ async def edit_card_message(query, card: Dict, caption: str, reply_markup: Inlin
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start с поддержкой реферальной системы."""
     try:
-        if update.effective_chat.type in ["group", "supergroup"]:
-            await send_chat_keyboard(update.effective_chat.id, context)
-            return
-           
         user_id = str(update.effective_user.id)
         data = load_data()
+
+        if is_bot_disabled(data) and not is_admin(user_id, data):
+            await update.message.reply_text(
+                "🔧 <b>Ведутся технические работы</b>\n\n"
+                "Бот временно недоступен.\n"
+                "Пожалуйста, попробуйте позже.",
+                parse_mode="HTML"
+            )
+            return
         
         # Инициализация пользователя, если его нет
         if user_id not in data["users"]:
@@ -936,59 +951,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в start: {e}")
 
-async def send_chat_keyboard(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет клавиатуру для группового чата."""
-    try:
-        # ⭐ Клавиатура для группового чата — только одна кнопка ⭐
-        chat_keyboard = [
-            [KeyboardButton("🔍 Получить досье")]
-        ]
-        
-        welcome_text = (
-            "👋 <b>Привет!</b>\n\n"
-            "Я добавил панель с кнопками для нашего чата.\n"
-            "Нажмите кнопку ниже, чтобы получить досье!\n\n"
-            "💡 <i>Для полного функционала пишите мне в личные сообщения!</i>"
-        )
-        
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=welcome_text,
-            reply_markup=ReplyKeyboardMarkup(chat_keyboard, resize_keyboard=True),
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        logger.error(f"Ошибка отправки групповой клавиатуры: {e}")
-
-async def on_bot_added_to_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет групповую клавиатуру при добавлении бота в чат."""
-    try:
-        chat_member_update = update.my_chat_member
-        
-        # ⭐ Проверяем, что изменения касаются именно бота ⭐
-        if chat_member_update.new_chat_member.user.id != context.bot.id:
-            return
-        
-        # ⭐ Проверяем, что бота добавили (а не удалили) ⭐
-        new_status = chat_member_update.new_chat_member.status
-        if new_status not in ["member", "administrator"]:
-            return
-        
-        chat = chat_member_update.chat
-        
-        # ⭐ Работаем только с группами и супергруппами ⭐
-        if chat.type not in ["group", "supergroup"]:
-            return
-        
-        logger.info(f"Бот добавлен в групповой чат {chat.id} ({chat.title})")
-        
-        # ⭐ Отправляем клавиатуру ⭐
-        await send_chat_keyboard(chat.id, context)
-        
-    except Exception as e:
-        logger.error(f"Ошибка on_bot_added_to_chat: {e}")
-
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
     try:
@@ -1026,8 +988,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/create_promo [КОД] [ID/random] [лимит] - создать промокод\n"
             response += "/delete_promo [КОД] - удалить промокод\n"
             response += "/list_promo - список всех промокодов\n"
+            response += "/reset_weekly_quests - сюросить ежнедельные квесты\n"
             response += "/add_seasonal [ID] [стоимость] - Добавить карту в список сезонных\n"
             response += "/remove_seasonal [ID] - Убрать из списка сезонных\n"
+            response += "/list_seasonal - посмотреть сезонные карты\n"
             response += "/give_season_box [@никнейм] - Выдать игроку сезонный бокс\n"
             response += "/add_cents_to_player [ID] [количество] - добавить/списать бэт-коины\n"
             response += "/daily_stats - статистика активности за сегодня\n" 
@@ -1035,10 +999,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/give_batpass [@никнейм] [дней] - выдать Бэт-пасс\n"
             response += "/remove_batpass [@никнейм] - отозвать Бэт-пасс\n"
             response += "/give_card_to_batpass [ID_карты] [количество] - выдать карту всем с Бэт-пассом\n"
-            response += "/give_superman_box heroes @username\n"
-            response += "/give_superman_box villain @username\n"
-            response += "/reset\\_event\\_all confirm - сбросить прохождение ивента у всех\n"
-            
+            response += "/add_supercoins [@никнейм] [количество] - начислить супер-коины в бюджет клана\n"
+            response += "/add_injustice_points [@никнейм] [сторона] [очки]- выдать очки противостояния стороне\n"
+            response += "/maintenance - включить режим тех работ\n"    
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -2612,6 +2575,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_id = str(update.effective_user.id)
         text = update.message.text if update.message else None
 
+        # ⭐ НОВОЕ: Проверка режима техработ ⭐
+        data = load_data()
+        if is_bot_disabled(data) and not is_admin(user_id, data):
+            await update.message.reply_text(
+                "🔧 <b>Ведутся технические работы</b>\n\n"
+                "Бот временно недоступен.\n"
+                "Пожалуйста, попробуйте позже.",
+                parse_mode="HTML"
+            )
+            return
+
         # ⭐ ОБРАБОТКА ФОТО ДЛЯ УСТАНОВКИ АВАТАРКИ КЛАНА ⭐
         if update.message.photo and user_id in context.user_data:
             if context.user_data[user_id].get("step") == "clan_set_avatar":
@@ -2832,27 +2806,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 catchphrase = None if text.lower() == "нет" else text
                 user_state["catchphrase"] = catchphrase
     
-                # ⭐ ПЕРЕХОДИМ К ВОПРОСУ ПРО CLASSIC ⭐
-                user_state["step"] = ADD_CARD_WAITING_CLASSIC
+                # ⭐ ПЕРЕХОДИМ К ВОПРОСУ ПРО ВСЕЛЕННУЮ ⭐
+                user_state["step"] = ADD_CARD_WAITING_UNIVERSE
     
                 await update.message.reply_text(
                     f"✅ Catchphrase: **{catchphrase or 'пропущено'}**\n\n"
-                    f"🏛 **Шаг 5/5:** Является ли эта карта Classic?\n\n"
-                    f"Ответьте **да** или **нет**\n\n"
+                    f"🌍 **Шаг 5/5:** К какой вселенной относится эта карта?\n\n"
+                    f"• **Classic** — классическая вселенная\n"
+                    f"• **Injustice** — вселенная Injustice\n"
+                    f"• **Нет** — обычная карта (не относится к вселенным)\n\n"
+                    f"Ответьте **Classic**, **Injustice** или **Нет**\n\n"
                     f"❌ Для отмены: /cancel",
                     parse_mode="Markdown"
                 )
                 return
-
-            # ⭐ НОВОЕ: Если ожидается ответ про Classic ⭐
-            if step == ADD_CARD_WAITING_CLASSIC:
+        
+            # ⭐ НОВОЕ: Если ожидается ответ про вселенную ⭐
+            if step == ADD_CARD_WAITING_UNIVERSE:
                 if text.lower() == "/cancel":
                     del context.user_data[user_id]
                     await update.message.reply_text("❌ Добавление карты отменено.")
                     return
     
                 # ⭐ Парсим ответ ⭐
-                is_classic = text.lower().strip() in ["да", "true", "1", "yes", "classic"]
+                universe_input = text.strip().lower()
+                if universe_input in ["classic", "классик"]:
+                    universe = "classic"
+                elif universe_input in ["injustice", "инджастис"]:
+                    universe = "injustice"
+                elif universe_input in ["нет", "no", "none", "обычная"]:
+                    universe = "none"
+                else:
+                    await update.message.reply_text(
+                        "❌ Неверный ответ!\n"
+                        "Ответьте **Classic**, **Injustice** или **Нет**\n\n"
+                        "❌ Для отмены: /cancel",
+                        parse_mode="Markdown"
+                    )
+                    return
     
                 # ⭐ ИСПРАВЛЕНИЕ 1: Заменяем \\n на реальный перенос строки ⭐
                 catchphrase_raw = user_state.get("catchphrase")
@@ -2874,7 +2865,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     "media_source": "file_id",
                     "file_id": user_state["file_id"],
                     "image_url": "",
-                    "is_classic": is_classic,
+                    "universe": universe,  # ⭐ НОВОЕ: поле universe ⭐
                 }
     
                 data["cards"].append(new_card)
@@ -2900,7 +2891,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
                 # ⭐ Формируем текст ответа ⭐
                 catchphrase_text = f"💬 {catchphrase_escaped}" if catchphrase_escaped else ""
-                classic_text = "🏛 **Classic**" if is_classic else ""
+                universe_text = ""
+                if universe == "classic":
+                    universe_text = "🏛 **Classic**"
+                elif universe == "injustice":
+                    universe_text = "⚔️ **Injustice**"
     
                 result_text = (
                     f"✅ **Карточка #{new_id} добавлена!**\n"
@@ -2908,7 +2903,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     f"{catchphrase_text}\n"
                     f"🌟 {user_state['rarity']}\n"
                     f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
-                    f"{classic_text}\n"
+                    f"{universe_text}\n"
                     f"📤 Источник: file\\_id"
                 )
     
@@ -2921,13 +2916,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 except Exception as e:
                     logger.warning(f"Ошибка отправки Markdown: {e}. Пробую без parse_mode.")
                     # Fallback: отправляем без парсинга
+                    universe_display = "Classic" if universe == "classic" else "Injustice" if universe == "injustice" else "Нет"
                     await update.message.reply_text(
                         f"✅ Карточка #{new_id} добавлена!\n"
                         f"🏷 {user_state['title']}\n"
                         f"💬 {user_state['catchphrase'] or ''}\n"
                         f"🌟 {user_state['rarity']}\n"
                         f"📺 {'Анимация' if user_state['media_type'] == 'animation' else 'Фото'}\n"
-                        f"🏛 Classic: {'Да' if is_classic else 'Нет'}\n"
+                        f"🌍 Вселенная: {universe_display}\n"
                         f"📤 Источник: file_id"
                     )
     
@@ -2998,6 +2994,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await edit_clan_description_start(update, context)
             return
 
+        if text == "🚫 Выгнать участника":
+            await kick_clan_member_start(update, context)
+            return
+
+        if text == "👑 Передать лидерство":
+            await transfer_leadership_start(update, context)
+            return
+
+        if text == "🛒 Магазин клана":
+            await clan_shop_open(update, context)
+            return
+
         if text == "🖼 Установить аватарку клана":  # ⭐ НОВОЕ
             await set_clan_avatar_start(update, context)
             return
@@ -3020,6 +3028,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
             if user_step == "clan_invite_enter_username":
                 await process_clan_invite(update, context)
+                return
+
+            if user_step == "clan_kick_enter_username":
+                await process_kick_clan_member(update, context)
+                return
+
+            if user_step == "clan_transfer_enter_username":
+                await process_transfer_leadership(update, context)
                 return
 
             if user_step == "clan_edit_description":
@@ -3067,8 +3083,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await submenu(update, context)
             return
 
-        elif text == "🃏 Ивент":
-            await event_menu(update, context)
+        elif text == "⚔️ Противостояние":
+            await show_injustice_stats(update, context)
             return
 
         elif text == "🎙 Начать допрос":
@@ -3197,6 +3213,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["season_points"] += bonus["points"]
             user_data["cents"] += bonus["cents"]
             user_data["cards"].append(card["id"])
+            super_coins_earned = 0
+            
+            # ⭐ НОВОЕ: Начисление супер-коинов в клан ⭐
+            user_clan_id = get_user_clan(user_id, data)
+            if user_clan_id:
+                clan_data = data["clans"].get(user_clan_id)
+                if clan_data:
+                    # ⭐ Получаем количество супер-коинов по редкости ⭐
+                    super_coins_amount = SUPER_COIN_REWARDS.get(card["rarity"], 0)
+                    if super_coins_amount > 0:
+                        clan_data["super_coins"] = clan_data.get("super_coins", 0) + super_coins_amount
+                        super_coins_earned = super_coins_amount
+                        add_injustice_points_to_clan(user_clan_id, super_coins_amount, data)
+                        logger.info(f"Клан {clan_data.get('name')} получил {super_coins_amount} супер-коинов за карту #{card['id']}")
 
             # ⭐ ОБНОВЛЕНИЕ ВРЕМЕНИ И БЕСПЛАТНЫХ ПОПЫТОК ⭐
             if use_free_roll:
@@ -3242,7 +3272,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await update_weekly_quest_progress(context, user_id, "weekly_rare_6", 1)
             if card["rarity"] == "Epic Team-up":
                 await update_weekly_quest_progress(context, user_id, "weekly_epic_tu_1", 1)
-            caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
+            caption = generate_card_caption(card, user_data, count=1, show_bonus=True, super_coins_earned=super_coins_earned)
             await send_card(update, card, context, caption=caption)
 
         elif text == "🍺 Бар":
@@ -3812,8 +3842,8 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
             return
         
-        # ⭐ ДОБАВЛЯЕМ classic В СПИСОК ДОПУСТИМЫХ ПАРАМЕТРОВ
-        valid_params = ["title", "url", "rarity", "available", "catchphrase", "classic"]
+        # ⭐ ДОБАВЛЯЕМ universe В СПИСОК ДОПУСТИМЫХ ПАРАМЕТРОВ ⭐
+        valid_params = ["title", "url", "rarity", "available", "catchphrase", "universe"]
         if param not in valid_params:
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
@@ -3828,12 +3858,26 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             display_new = new_value_bool
             display_old = old_value
             
-        # ⭐ НОВОЕ: ОБРАБОТКА ПАРАМЕТРА classic
-        elif param == "classic":
-            new_value_bool = new_value.lower() in ["да", "true", "1", "yes", "classic"]
-            card["is_classic"] = new_value_bool
-            display_new = "Да" if new_value_bool else "Нет"
-            display_old = "Да" if card.get("is_classic") else "Нет"
+        # ⭐ НОВОЕ: ОБРАБОТКА ПАРАМЕТРА universe ⭐
+        elif param == "universe":
+            universe_input = new_value.strip().lower()
+            if universe_input in ["classic", "классик"]:
+                new_universe = "classic"
+            elif universe_input in ["injustice", "инджастис"]:
+                new_universe = "injustice"
+            elif universe_input in ["нет", "no", "none", "обычная"]:
+                new_universe = "none"
+            else:
+                await update.message.reply_text(
+                    "⚠️ Неверное значение для universe!\n"
+                    "Доступные: **classic**, **injustice**, **нет**",
+                    parse_mode="Markdown"
+                )
+                return
+    
+            card["universe"] = new_universe
+            display_new = "Classic" if new_universe == "classic" else "Injustice" if new_universe == "injustice" else "Нет"
+            display_old = "Classic" if card.get("universe") == "classic" else "Injustice" if card.get("universe") == "injustice" else "Нет"
             
         elif param == "catchphrase":
             if new_value.lower() != "нет":
@@ -3900,7 +3944,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         save_data(data)
         
-        # ⭐ ФОРМИРУЕМ ОТВЕТ С УЧЁТОМ classic
+        # ⭐ ФОРМИРУЕМ ОТВЕТ С УЧЁТОМ universe ⭐
         response = (
             f"✅ **Карта #{card_id} обновлена!**\n"
             f"📝 Параметр: {param}\n"
@@ -3910,8 +3954,11 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🌟 {card.get('rarity')}\n"
             f"{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         )
-        if card.get("is_classic"):
+        universe = card.get("universe", "none")
+        if universe == "classic":
             response += "\n🏛 **Classic**"
+        elif universe == "injustice":
+            response += "\n⚔️ **Injustice**"
         if card.get("catchphrase"):
             response += f"\n💬 _\"{card['catchphrase']}\"_"
             
@@ -3944,11 +3991,20 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if card_id in user_data.get("cards", []):
                 players_count += 1
         
+        # ⭐ Определяем вселенную карты ⭐
+        universe = card.get("universe", "none")
+        if universe == "classic":
+            universe_text = "🏛 **Classic**"
+        elif universe == "injustice":
+            universe_text = "⚔️ **Injustice**"
+        else:
+            universe_text = "❌ **Нет**"
+
         info_text = (
             f"📊 **Информация о карте #{card_id}**\n"
             f"🏷 **Название:** {card.get('title')}\n"
             f"🌟 **Редкость:** {card.get('rarity')}\n"
-            f"🏛 **Classic:** {'Да' if card.get('is_classic') else 'Нет'}\n"
+            f"🌍 **Вселенная:** {universe_text}\n"
         )
 
         if card.get("catchphrase"):
@@ -4229,17 +4285,17 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 return
 
             # Проверяем баланс
-            if cents < 1500:
+            if cents < 1300:
                 await query.edit_message_text(
                     f"❌ **Недостаточно бэт-коинов!**\n\n"
-                    f"Нужно: 1500 бэт-коинов\n"
+                    f"Нужно: 1300 бэт-коинов\n"
                     f"У вас: {cents} бэт-коинов\n\n",
                     parse_mode="Markdown",
                 )
                 return
 
             # Списываем центы и попытки
-            user_data["cents"] -= 1500
+            user_data["cents"] -= 1300
             user_data["casino_attempts"] -= 1
         save_data(data)        
         # ⭐ ОТПРАВЛЯЕМ СЛОТ TELEGRAM ⭐
@@ -4278,7 +4334,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
-                f"💰 Списано: 1500 бэт-коинов\n"
+                f"💰 Списано: 1300 бэт-коинов\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
                 f"💰 Ваш баланс: {user_data['cents']} бэт-коинов",
                 reply_markup=InlineKeyboardMarkup(keyboard), 
@@ -4490,8 +4546,6 @@ async def add_rolls_to_player(update: Update, context: ContextTypes.DEFAULT_TYPE
                     "avatars": [DEFAULT_AVATAR_URL],
                     "pending_season_boxes": 0,
                     "pending_rolls_box": 0,
-                    "pending_superman_heroes_boxes": 0,
-                    "pending_superman_villain_boxes": 0,
                     "last_daily_activity": None,
                     "registered_at": None,
                 }
@@ -5032,7 +5086,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         cents = user_data.get("cents", 0) if user_data else 0
         
         # ⭐ НОВОЕ: Отображение баланса с индикаторами ⭐
-        if cents >= 1500:
+        if cents >= 1300:
             balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ✅"
         else:
             balance_text = f"💰 Ваш баланс: **{cents}** бэт-коинов ❌ _(недостаточно)_"
@@ -5045,7 +5099,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(
             f"🎰 **Казино**\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 1500 бэт-коинов\n"
+            f"• Стоимость игры: 1300 бэт-коинов\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных попыток\n"
             f"• Лимит: {max_casino_attempts} игр в день (сброс в 00:00 МСК)\n"
@@ -5307,6 +5361,7 @@ async def craft_execute(
         user_data["total_points"] += bonus["points"]
         user_data["season_points"] += bonus["points"]
         user_data["cents"] += bonus["cents"]
+        update_seasonal_on_card_get(user_data, new_card["rarity"])
         
         save_data(data)
         
@@ -5524,8 +5579,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 def get_user_clan(user_id: str, data: Dict) -> Optional[str]:
-    """Возвращает название клана пользователя или None."""
-    return data.get("user_clan", {}).get(user_id)
+    """Возвращает ID клана, в котором состоит пользователь, или None."""
+    # Ищем пользователя в списках участников всех реальных кланов
+    for clan_id, clan_data in data.get("clans", {}).items():
+        if user_id in clan_data.get("members", {}):
+            return clan_id  # Возвращаем именно ID клана (строку)
+    return None
 
 def get_clan_data(clan_identifier: str, data: Dict) -> Optional[Dict]:
     """Возвращает данные клана по ID или по названию."""
@@ -5712,23 +5771,166 @@ async def invite_player_to_clan(
         "invited_at": int(time.time())
     }
     data["users"][target_user_id] = target_user_data
-    
-    # Уведомляем целевого пользователя
+
+    # ⭐ ИСПРАВЛЕНИЕ: Сохраняем данные ПЕРЕД отправкой сообщения ⭐
+    # Это гарантирует, что когда игрок нажмёт кнопку, приглашение уже будет в файле
+    save_data(data)
+
+    # ⭐ Уведомляем целевого пользователя с inline-кнопками ⭐
     try:
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Принять", callback_data="accept_clan_invite"),
+                InlineKeyboardButton("❌ Отказаться", callback_data="decline_clan_invite"),
+            ]
+        ]
+    
+        inviter_data = data["users"].get(inviter_id, {})
+    
         await context.bot.send_message(
             chat_id=target_user_id,
             text=(
-                f"🏰 Вас пригласили в клан **{inviter_clan_name}**!\n"
-                f"Для принятия приглашения используйте команду:\n"
-                f"`/accept_clan_invite`"
-                f"⏳ *Приглашение действительно в течение 1 часа.*"
+                f"🏰 <b>Вас пригласили в клан {html.escape(inviter_clan_name)}!</b>\n\n"
+                f"👑 Приглашение от: {html.escape(inviter_data.get('first_name', 'Глава клана'))}\n\n"
+                f"⏳ <i>Приглашение действительно в течение 1 часа.</i>"
             ),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
         )
     except Exception as notify_error:
         logger.warning(f"Не удалось отправить уведомление о приглашении: {notify_error}")
-    
-    return True, f"Приглашение отправлено пользователю @{target_username}!"
+        return True, f"Приглашение отправлено пользователю @{target_username}!"
+
+async def accept_clan_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик inline-кнопки 'Принять' для приглашения в клан."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        invite = user_data.get("clan_invite_pending")
+        if not invite:
+            await query.answer("❌ У вас нет ожидающих приглашений!", show_alert=True)
+            return
+        
+        # ⭐ Проверка срока действия (1 час) ⭐
+        invited_at = invite.get("invited_at", 0)
+        current_time = int(time.time())
+        if current_time - invited_at > 3600:
+            user_data["clan_invite_pending"] = None
+            save_data(data)
+            await query.answer("⏳ Приглашение истекло!", show_alert=True)
+            try:
+                await query.edit_message_text(
+                    "⏳ <b>Приглашение истекло!</b>\n\n"
+                    "Срок действия приглашения — 1 час.\n"
+                    "Попросите главу клана отправить новое приглашение.",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+            return
+        
+        clan_name = invite.get("clan_name")
+        inviter_id = invite.get("inviter_id")
+        
+        # ⭐ Проверка: уже в клане? ⭐
+        if get_user_clan(user_id, data):
+            await query.answer("❌ Вы уже состоите в клане!", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_name, data)
+        if not clan:
+            await query.answer("❌ Клан больше не существует!", show_alert=True)
+            user_data["clan_invite_pending"] = None
+            save_data(data)
+            return
+        
+        # ⭐ Добавляем пользователя в клан ⭐
+        clan["members"][user_id] = {
+            "joined_at": int(time.time()),
+            "role": "member"
+        }
+        data["user_clan"][user_id] = clan_name
+        user_data["clan_invite_pending"] = None
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока ⭐
+        try:
+            await query.edit_message_text(
+                f"🎉 <b>Вы успешно вступили в клан {html.escape(clan['name'])}!</b>\n\n"
+                f"Используйте кнопку «📋 Мой клан» для просмотра участников.",
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        # ⭐ Уведомляем лидера ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=inviter_id,
+                text=f"✅ Игрок {user_data.get('first_name', 'Новый участник')} принял приглашение в клан **{clan['name']}**!",
+                    parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        await query.answer("✅ Приглашение принято!", show_alert=False)
+        logger.info(f"Игрок {user_id} принял приглашение в клан {clan['name']}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка accept_clan_invite_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def decline_clan_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик inline-кнопки 'Отказаться' для приглашения в клан."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id, {})
+        
+        invite = user_data.get("clan_invite_pending")
+        if not invite:
+            await query.answer("❌ У вас нет ожидающих приглашений!", show_alert=True)
+            return
+        
+        clan_name = invite.get("clan_name")
+        inviter_id = invite.get("inviter_id")
+        
+        # ⭐ Очищаем приглашение ⭐
+        user_data["clan_invite_pending"] = None
+        save_data(data)
+        
+        # ⭐ Уведомляем игрока ⭐
+        try:
+            await query.edit_message_text(
+                f"❌ <b>Вы отказались от приглашения в клан {html.escape(clan['name'])}.</b>",
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        # ⭐ Уведомляем лидера ⭐
+        try:
+            await context.bot.send_message(
+                chat_id=inviter_id,
+                text=(
+                    f"❌ Игрок {html.escape(user_data.get('first_name', 'Игрок'))} "
+                    f"отклонил приглашение в клан <b>{html.escape(clan['name'])}</b>.",
+                ),
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        
+        await query.answer("❌ Приглашение отклонено", show_alert=False)
+        logger.info(f"Игрок {user_id} отказался от приглашения в клан {clan['name']}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка decline_clan_invite_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
         
 async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Присоединение к клану по ID."""
@@ -5998,6 +6200,7 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"🏰 <b>Ваш клан: {clan_name_escaped}</b>\n"
             f"{description_text}"
             f"{members_list}\n"
+            f"🪙 Бюджет клана: {clan.get('super_coins', 0)} супер-коинов\n\n"
             f"📊 Всего участников: {len(clan['members'])}\n"
             f"📅 Создан: {datetime.datetime.fromtimestamp(clan['created_at']).strftime('%d.%m.%Y')}"
         )
@@ -6008,6 +6211,9 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 [KeyboardButton("📨 Пригласить игрока")],
                 [KeyboardButton("✏️ Описание клана")],
                 [KeyboardButton("🖼 Установить аватарку клана")],  # ⭐ НОВОЕ
+                [KeyboardButton("🚫 Выгнать участника")],
+                [KeyboardButton("👑 Передать лидерство")],
+                [KeyboardButton("🛒 Магазин клана")],
                 [KeyboardButton("🚪 Покинуть клан")],
                 [KeyboardButton("🔙 Назад в кланы")]
             ]
@@ -6019,17 +6225,33 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        # ⭐ ОТПРАВКА С АВАТАРКОЙ КЛАНА ⭐
+        # ⭐ ОТПРАВКА С АВАТАРКОЙ КЛАНА (с fallback) ⭐
         clan_avatar = clan.get("clan_avatar")
-        
         if clan_avatar:
-            # Если есть аватарка клана, отправляем фото
-            await update.message.reply_photo(
-                photo=clan_avatar,
-                caption=message_text,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
+            try:
+                # Если есть аватарка клана, отправляем фото
+                await update.message.reply_photo(
+                    photo=clan_avatar,
+                    caption=message_text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+            except Exception as photo_error:
+                # ⭐ FALLBACK: Если фото не удалось отправить — отправляем текст ⭐
+                error_str = str(photo_error)
+                if "Wrong file identifier" in error_str or "http url" in error_str.lower():
+                    logger.warning(
+                        f"Аватарка клана {clan.get('name')} невалидна ({clan_avatar}). "
+                        f"Отправляю текстовое сообщение."
+                    )
+                    await update.message.reply_text(
+                        message_text,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
+                else:
+                    # Другая ошибка — пробрасываем дальше
+                    raise photo_error
         else:
             # Если аватарки нет, отправляем текст
             await update.message.reply_text(
@@ -6037,9 +6259,23 @@ async def my_clan_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-    except Exception as e:
-        logger.error(f"Ошибка в my_clan_view: {e}")
-        await update.message.reply_text("❌ Ошибка при показе информации о клане")
+    except Exception as photo_error:
+        error_str = str(photo_error)
+        if "Wrong file identifier" in error_str or "http url" in error_str.lower():
+            logger.warning(
+                f"Аватарка клана {clan.get('name')} невалидна. Сбрасываю."
+            )
+            # ⭐ НОВОЕ: Сбрасываем невалидную аватарку ⭐
+            clan["clan_avatar"] = None
+            save_data(data)
+        
+            await update.message.reply_text(
+                message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        else:
+            raise photo_error
 
 async def set_clan_avatar_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Начинает процесс установки аватарки клана."""
@@ -6316,12 +6552,15 @@ async def accept_clan_invite(update: Update, context: ContextTypes.DEFAULT_TYPE)
         user_data["clan_invite_pending"] = None
         save_data(data)
 
-        # Уведомляем лидера
+        # ⭐ Уведомляем лидера (с экранированием) ⭐
         try:
             await context.bot.send_message(
                 chat_id=inviter_id,
-                text=f"✅ Игрок {user_data.get('first_name', 'Новый участник')} принял приглашение в клан **{clan_name}**!",
-                parse_mode="Markdown"
+                text=(
+                    f"✅ Игрок {html.escape(user_data.get('first_name', 'Новый участник'))} "
+                    f"принял приглашение в клан <b>{html.escape(clan_name)}</b>!"
+                ),
+                parse_mode="HTML"
             )
         except:
             pass
@@ -6390,6 +6629,7 @@ def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, 
         "leader_id": user_id,  # ← Добавьте это поле!
         "members": {user_id: {"joined_at": int(time.time()), "role": "leader"}},  # ← dict, не list!
         "max_members": MAX_CLAN_MEMBERS,
+        "super_coins": 0,  # ⭐ НОВОЕ
         "created_at": int(time.time()),
         "description": "",
         "clan_avatar": None,
@@ -6538,17 +6778,13 @@ async def basket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # 🖼 ССЫЛКИ НА ИЗОБРАЖЕНИЯ (ЗАМЕНИТЕ НА СВОИ)
 SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное меню
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
-CLASSIC_BOX_IMAGE = "https://files.catbox.moe/pezd3a.jpg"
 SEASON_BOX_IMAGE = "https://files.catbox.moe/l3hxku.jpg"
 ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 
 # Список боксов для навигации
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
-    {"name": "Classic-Box", "price": 30000, "image": CLASSIC_BOX_IMAGE, "is_classic_box": True},
     {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
-    {"name": "Superman Heroes Box", "price": 0, "image": SUPERMAN_HEROES_IMAGE, "is_superman_heroes": True},
-    {"name": "Superman Villain Box", "price": 0, "image": SUPERMAN_VILLAIN_IMAGE, "is_superman_villain": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -6640,14 +6876,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
             f"⚠️ Цена растёт на 5000 с каждой покупкой!"
         )
-    elif current_box.get("is_classic_box"):
-        text = (
-            f"🏛 **{current_box['name']}**\n"
-            f"💰 Цена: {display_price} бэт-коинов\n"
-            f"🎁 Содержимое:\n"
-            f"• 10 случайных Classic-карт\n"
-            f"• Гарантированно 1 карта Epic\n"
-        )
     elif current_box.get("is_season_box"):
         pending = user_data.get("pending_season_boxes", 0)
         text = (
@@ -6660,24 +6888,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
-    # ⭐ НОВОЕ: Superman Heroes Box ⭐
-    elif current_box.get("is_superman_heroes"):
-        pending = user_data.get("pending_superman_heroes_boxes", 0)
-        text = (
-            f"🦸‍♂️ **{current_box['name']}**\n"
-            f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор карт героев по Мои приключения с Суперменом\n\n"
-            f"💳 Для покупки напишите: @Be9onder"
-        )
-    # ⭐ НОВОЕ: Superman Villain Box ⭐
-    elif current_box.get("is_superman_villain"):
-        pending = user_data.get("pending_superman_villain_boxes", 0)
-        text = (
-            f"🦹‍♂️ **{current_box['name']}**\n"
-            f"💰 Цена: **179₽**\n"
-            f"🎁 Содержимое: набор карт злодеев по Мои приключения с Суперменом\n\n"
-            f"💳 Для покупки напишите: @Be9onder"
-        )
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
@@ -6688,18 +6898,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         if pending > 0:
             keyboard.append([InlineKeyboardButton(f"🎁 Открыть Season-Box ({pending} шт.)", callback_data="shop_open_season_box")])
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
-        
-    # ⭐ НОВОЕ: Логика кнопок для Superman боксов ⭐
-    elif current_box.get("is_superman_heroes") or current_box.get("is_superman_villain"):
-        box_type = "heroes" if current_box.get("is_superman_heroes") else "villain"
-        pending_key = f"pending_superman_{box_type}_boxes"
-        pending = user_data.get(pending_key, 0)
-        
-        if pending > 0:
-            emoji = "🦸‍♂️" if box_type == "heroes" else "🦹‍♂️"
-            keyboard.append([InlineKeyboardButton(f"{emoji} Открыть ({pending} шт.)", callback_data=f"shop_open_superman_{box_type}")])
-        keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
-        
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
@@ -6746,157 +6944,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             parse_mode="Markdown"
         )
 
-async def open_classic_box(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    price_paid: int
-) -> None:
-    """Открывает Classic-Box: 10 Classic-карт + 1 гарантированная Epic."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        # ⭐ Собираем все доступные Classic-карты ⭐
-        classic_cards = [
-            c for c in data["cards"]
-            if c.get("is_classic") and c.get("available", True)
-        ]
-        
-        # ⭐ Classic-карты редкости Epic (для гарантии) ⭐
-        classic_epic_cards = [
-            c for c in classic_cards
-            if c.get("rarity") == "Epic"
-        ]
-        
-        # Проверка: достаточно ли карт в системе
-        if not classic_cards:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ **Ошибка!**\nВ системе нет доступных Classic-карт.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]]),
-                parse_mode="Markdown"
-            )
-            return
-        
-        if not classic_epic_cards:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ **Ошибка!**\nВ системе нет Classic-карт редкости Epic.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]]),
-                parse_mode="Markdown"
-            )
-            return
-        
-        # ⭐ ВЫБИРАЕМ КАРТЫ ⭐
-        # 1 гарантированная Epic
-        guaranteed_epic = random.choice(classic_epic_cards)
-        
-        # 9 случайных Classic-карт (могут повторяться, включая Epic)
-        other_9 = random.choices(classic_cards, k=9)
-        
-        # Итоговый набор из 10 карт
-        result_cards = [guaranteed_epic] + other_9
-        
-        # ⭐ ДОБАВЛЯЕМ КАРТЫ В КОЛЛЕКЦИЮ ИГРОКА (дубликаты как обычно) ⭐
-        for card in result_cards:
-            user_data["cards"].append(card["id"])
-        
-        save_data(data)
-        
-        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) ⭐
-        media_group = []
-        for i, card in enumerate(result_cards):
-            # Caption только у первого элемента (ограничение Telegram)
-            caption = None
-            if i == 0:
-                caption = (
-                    f"🏛 <b>Classic-Box открыт!</b>\n"
-                    f"🎁 Получено 10 Classic-карт\n"
-                    f"💰 Списано: {price_paid} бэт-коинов\n"
-                    f"💳 Остаток: {user_data['cents']} бэт-коинов"
-                )
-            
-            # Определяем тип медиа
-            if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
-                media_group.append(
-                    InputMediaAnimation(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML" if caption else None
-                    )
-                )
-            else:
-                media_group.append(
-                    InputMediaPhoto(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML" if caption else None
-                    )
-                )
-        
-        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
-        try:
-            await context.bot.send_media_group(
-                chat_id=query.message.chat_id,
-                media=media_group
-            )
-        except Exception as media_error:
-            # ⭐ FALLBACK: если альбом не получился (например, смешанные типы) — шлём по одному ⭐
-            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
-            for i, card in enumerate(result_cards):
-                cap = None
-                if i == 0:
-                    cap = (
-                        f"🏛 <b>Classic-Box открыт!</b>\n"
-                        f"🎁 Получено 10 Classic-карт\n"
-                        f"⭐ Гарантированная Epic: <b>{html.escape(guaranteed_epic['title'])}</b>\n"
-                        f"💰 Списано: {price_paid} бэт-коинов"
-                    )
-                
-                if card.get("media_type") == "animation" or card["image_url"].lower().endswith((".mp4", ".webm")):
-                    await context.bot.send_video(
-                        chat_id=query.message.chat_id,
-                        video=card["image_url"],
-                        caption=cap,
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                        ]]),
-                        parse_mode="HTML" if cap else None,
-                        supports_streaming=True
-                    )
-                else:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=card["image_url"],
-                        caption=cap,
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                        ]]),
-                        parse_mode="HTML" if cap else None
-                    )
-                await asyncio.sleep(0.3)
-        
-        logger.info(f"Игрок {user_id} открыл Classic-Box за {price_paid} бэт-коинов")
-        
-    except Exception as e:
-        logger.error(f"Ошибка открытия Classic-Box: {e}")
-        try:
-            await context.bot.send_message(
-                chat_id=update.callback_query.message.chat_id,
-                text="❌ Произошла ошибка при открытии Classic-Box",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")
-                ]])
-            )
-        except Exception:
-            pass
-
 async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Открывает 1 Season-Box: все сезонные карты + ID 67 + аватарка + 10 попыток."""
     try:
@@ -6926,8 +6973,8 @@ async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if card:
                 seasonal_cards.append(card)
                 
-        # ⭐ Эксклюзивная карта ID 67 ⭐
-        exclusive_card = find_card_by_id(67, data["cards"])
+        # ⭐ Эксклюзивная карта ID 241 ⭐
+        exclusive_card = find_card_by_id(241, data["cards"])
         if exclusive_card and exclusive_card not in seasonal_cards:
             seasonal_cards.append(exclusive_card)
             
@@ -7047,251 +7094,6 @@ async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         except Exception:
             pass
-
-async def open_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE, box_type: str) -> None:
-    """Универсальная функция открытия Superman боксов."""
-    try:
-        query = update.callback_query
-        await query.answer()
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден", show_alert=True)
-            return
-        
-        # Определяем параметры бокса
-        if box_type == "heroes":
-            box_name = "Superman Heroes Box"
-            emoji = "🦸‍♂️"
-            pending_key = "pending_superman_heroes_boxes"
-            cards_list = SUPERMAN_HEROES_CARDS
-        else:
-            box_name = "Superman Villain Box"
-            emoji = "🦹‍♂️"
-            pending_key = "pending_superman_villain_boxes"
-            cards_list = SUPERMAN_VILLAIN_CARDS
-        
-        pending = user_data.get(pending_key, 0)
-        if pending <= 0:
-            await query.answer(f"❌ У вас нет накопленных {box_name}", show_alert=True)
-            return
-        
-        # Собираем карты
-        box_cards = []
-        for card_id in cards_list:
-            card = find_card_by_id(card_id, data["cards"])
-            if card:
-                box_cards.append(card)
-        
-        if not box_cards:
-            await query.answer("❌ В боксе нет доступных карт (проверьте константы)", show_alert=True)
-            return
-        
-        # Выдаём карты
-        for card in box_cards:
-            user_data["cards"].append(card["id"])
-        
-        # Уменьшаем счётчик
-        user_data[pending_key] = pending - 1
-        save_data(data)
-        
-        await query.answer(f"{emoji} {box_name} открыт!", show_alert=True)
-        
-        # ФОРМИРУЕМ АЛЬБОМ
-        media_group = []
-        for i, card in enumerate(box_cards):
-            caption = None
-            if i == 0:
-                caption = (
-                    f"{emoji} <b>{box_name} открыт!</b>\n"
-                    f"🎴 Получено {len(box_cards)} карт\n"
-                    f"📦 Осталось открытых боксов: {user_data[pending_key]}"
-                )
-            
-            # Универсальная логика: file_id или URL
-            media_source = card.get("media_source", "url")
-            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-            
-            if not media_value:
-                logger.warning(f"У карты #{card['id']} отсутствует медиа! Пропускаем.")
-                continue
-            
-            if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
-                media_group.append(
-                    InputMediaVideo(media=media_value, caption=caption, parse_mode="HTML" if caption else None, supports_streaming=True)
-                )
-            else:
-                media_group.append(
-                    InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML" if caption else None)
-                )
-        
-        # ОТПРАВЛЯЕМ АЛЬБОМ
-        try:
-            await context.bot.send_media_group(chat_id=query.message.chat_id, media=media_group)
-        except Exception as media_error:
-            logger.warning(f"Не удалось отправить альбом: {media_error}. Отправляю по одному.")
-            for i, card in enumerate(box_cards):
-                cap = f"{emoji} <b>{box_name} открыт!</b>\n🎴 Получено {len(box_cards)} карт" if i == 0 else None
-                
-                media_source = card.get("media_source", "url")
-                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-                if not media_value: continue
-                
-                try:
-                    if card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
-                        await context.bot.send_video(chat_id=query.message.chat_id, video=media_value, caption=cap, parse_mode="HTML" if cap else None, supports_streaming=True)
-                    else:
-                        await context.bot.send_photo(chat_id=query.message.chat_id, photo=media_value, caption=cap, parse_mode="HTML" if cap else None)
-                except Exception:
-                    continue
-                await asyncio.sleep(0.3)
-        
-        # Финальное сообщение
-        kb = []
-        if user_data[pending_key] > 0:
-            kb.append([InlineKeyboardButton(f"{emoji} Открыть ещё ({user_data[pending_key]} шт.)", callback_data=f"shop_open_superman_{box_type}")])
-        kb.append([InlineKeyboardButton("🔙 Назад к бокosм", callback_data="shop_boxes_0")])
-        
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=f"✅ <b>{box_name} успешно открыт!</b>",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка открытия Superman box: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
-
-# Обёртки для callback-обработчиков
-async def open_superman_heroes_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await open_superman_box(update, context, "heroes")
-
-async def open_superman_villain_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await open_superman_box(update, context, "villain")
-
-async def give_superman_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выдаёт Superman-бокс игроку."""
-    try:
-        data = load_data()
-        if not is_admin(str(update.effective_user.id), data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n"
-                "/give\\_superman\\_box \\[heroes\\|villain\\] \\[@никнейм\\] \\[количество\\]\n\n"
-                "**Примеры:**\n"
-                "/give\\_superman\\_box heroes @username\n"
-                "/give\\_superman\\_box villain @username 3",
-                parse_mode="Markdown"
-            )
-            return
-        
-        box_type = context.args[0].lower()
-        target_input = context.args[1]
-        count = int(context.args[2]) if len(context.args) > 2 else 1
-        
-        if box_type not in ["heroes", "villain"]:
-            await update.message.reply_text("⚠️ Неверный тип! Используйте `heroes` или `villain`")
-            return
-        if count <= 0:
-            await update.message.reply_text("⚠️ Количество должно быть положительным!")
-            return
-        
-        # Определяем ID игрока
-        target_user_id = None
-        if target_input.startswith("@"):
-            username_to_find = target_input[1:].strip().lower()
-            for uid, udata in data["users"].items():
-                if udata.get("username", "").lower() == username_to_find:
-                    target_user_id = uid
-                    break
-            if not target_user_id:
-                await update.message.reply_text(f"⚠️ Игрок @{username_to_find} не найден!")
-                return
-        else:
-            target_user_id = target_input
-            if target_user_id not in data["users"]:
-                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
-                return
-        
-        user_data = data["users"][target_user_id]
-        pending_key = f"pending_superman_{box_type}_boxes"
-        
-        # Миграция
-        if pending_key not in user_data:
-            user_data[pending_key] = 0
-        
-        user_data[pending_key] += count
-        save_data(data)
-        
-        # ⭐ Уведомление игроку с кнопкой "Открыть" ⭐
-        try:
-            box_name = "Superman Heroes Box" if box_type == "heroes" else "Superman Villain Box"
-            emoji = "🦸‍♂️" if box_type == "heroes" else "🦹‍♂️"
-            
-            # Склонение
-            if count % 10 == 1 and count % 100 != 11: 
-                box_word = "бокс"
-            elif count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]: 
-                box_word = "бокса"
-            else: 
-                box_word = "боксов"
-            
-            image_url = SUPERMAN_HEROES_IMAGE if box_type == "heroes" else SUPERMAN_VILLAIN_IMAGE
-            
-            # ⭐ ФОРМИРУЕМ КНОПКУ ОТКРЫТИЯ ⭐
-            keyboard = [[
-                InlineKeyboardButton(
-                    f"{emoji} Открыть {box_name}", 
-                    callback_data=f"shop_open_superman_{box_type}"
-                )
-            ]]
-            
-            try:
-                await context.bot.send_photo(
-                    chat_id=int(target_user_id),
-                    photo=image_url,
-                    caption=(
-                        f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
-                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
-                    ),
-                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
-                    parse_mode="HTML"
-                )
-            except Exception:
-                # Fallback, если картинка не загрузилась
-                await context.bot.send_message(
-                    chat_id=int(target_user_id),
-                    text=(
-                        f"{emoji} <b>Вам был выдан {box_name}!</b>\n\n"
-                        f"📦 <b>Количество:</b> {count} {box_word}\n\n"
-                        f"Нажмите кнопку ниже, чтобы открыть бокс:"
-                    ),
-                    reply_markup=InlineKeyboardMarkup(keyboard), # ⭐ ДОБАВЛЕНО ⭐
-                    parse_mode="HTML"
-                )
-        except Exception as notify_error:
-            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
-        
-        await update.message.reply_text(
-            f"✅ **{box_name} выдан!**\n"
-            f"👤 Игрок: {target_user_id}\n"
-            f"📦 Количество: {count} шт.\n"
-            f"📊 Всего накоплено: {user_data[pending_key]}",
-            parse_mode="Markdown"
-        )
-        
-    except ValueError:
-        await update.message.reply_text("⚠️ Количество должно быть числом!")
-    except Exception as e:
-        logger.error(f"Ошибка give_superman_box: {e}")
-        await update.message.reply_text("❌ Ошибка при выдаче бокса")
         
 async def give_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выдаёт Season-Box игроку по ID или @никнейму."""
@@ -7655,12 +7457,6 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 # ⭐ НОВОЕ: Обновляем сезонные квесты при покупке бокса ⭐
                 if box.get("is_rolls_box"):
                     update_seasonal_on_box_buy(user_data, "rolls")
-                elif box.get("is_classic_box"):
-                    update_seasonal_on_box_buy(user_data, "classic")  # ⭐ ДОБАВЛЕНО: Обновляем квест!
-                    await query.answer("🏛 Открываем Classic-Box...", show_alert=False)
-                    save_data(data)  # ⭐ ВАЖНО: Сохраняем обновление сезонного квеста!
-                    await open_classic_box(update, context, current_price)
-                    return
             
                 # ⭐ Логика для Rolls-Box ⭐
                 if box.get("is_rolls_box"):
@@ -8260,7 +8056,6 @@ async def burn_all_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         logger.error(f"Ошибка в burn_all_preview: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
-
 async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выполняет сжигание ВСЕХ дубликатов карт (оставляя 1 копию каждой)."""
     try:
@@ -8302,7 +8097,7 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             total_rolls += reward["free_rolls"] * duplicates
             cards_to_burn.append((cid, duplicates))
             
-            # Считаем для квестов
+            # Считаем для обычных/еженедельных квестов
             if card["rarity"] == "Common":
                 burned_common += duplicates
             elif card["rarity"] == "Rare":
@@ -8315,18 +8110,25 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             return
         
-        # ⭐ УДАЛЯЕМ ДУБЛИКАТЫ КАРТ (оставляя 1 копию каждой) ⭐
+        # ⭐ УДАЛЯЕМ ДУБЛИКАТЫ КАРТ И ОБНОВЛЯЕМ СЕЗОННЫЕ КВЕСТЫ ⭐
         for card_id, duplicates_count in cards_to_burn:
+            # ⭐ ИСПРАВЛЕНИЕ: Находим объект карты, чтобы получить её редкость ⭐
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                continue
+                
             for _ in range(duplicates_count):
                 if card_id in user_data["cards"]:
                     user_data["cards"].remove(card_id)
+                    # ⭐ ТЕПЕРЬ ЭТО РАБОТАЕТ: передаем правильную редкость ⭐
+                    update_seasonal_on_burn(user_data, card["rarity"])
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["cents"] = user_data.get("cents", 0) + total_cents
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + total_rolls
-        save_data(data)
+        save_data(data) # Сохраняем прогресс сезонных квестов и награды
         
-        # ⭐ ТРИГГЕРЫ КВЕСТОВ ⭐
+        # ⭐ ТРИГГЕРЫ ОБЫЧНЫХ/ЕЖЕНЕДЕЛЬНЫХ КВЕСТОВ ⭐
         if burned_common > 0:
             await update_quest_progress(context, user_id, "burn_common_3", burned_common)
         if burned_rare > 0:
@@ -8712,7 +8514,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🃏 Ивент")],
+            [KeyboardButton("⚔️ Противостояние")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -8821,7 +8623,7 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # ===== ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
 DAILY_QUESTS_POOL = [
-    {"id": "common_4", "desc": "Получить 4 карты редкости Common через «Получить досье»", "reward_type": "cents", "reward_amount": 500, "target": 4},
+    {"id": "common_4", "desc": "Получить 4 карты редкости Common через «Получить досье»", "reward_type": "super-coins", "reward_amount": 3, "target": 4},
     {"id": "darts_win_2", "desc": "Победить в дартсе 2 раза", "reward_type": "free_rolls", "reward_amount": 1, "target": 2},
     {"id": "burn_common_3", "desc": "Сжечь 3 карты редкости Common", "reward_type": "free_rolls", "reward_amount": 1, "target": 3},
     {"id": "trade_2", "desc": "Совершить 2 трейда", "reward_type": "cents", "reward_amount": 250, "target": 2},
@@ -8855,19 +8657,39 @@ def check_daily_quests_reset(user_data: Dict) -> None:
         user_data["daily_quests_last_reset"] = int(now_msk.timestamp())
 
 
-async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: int, quest: Dict) -> None:
+async def notify_quest_completed(context: ContextTypes.DEFAULT_TYPE, chat_id: int, quest: Dict, data: Dict = None) -> None:
     """Отправляет отдельное уведомление о выполнении квеста."""
     reward_text = ""
+    
     if quest["reward_type"] == "cents":
         reward_text = f"{quest['reward_amount']} Бэт-коинов 💰"
     elif quest["reward_type"] == "free_rolls":
         reward_text = f"{quest['reward_amount']} бесплатная попытка 🔍"
+    elif quest["reward_type"] == "rep_points":
+        reward_text = f"{quest['reward_amount']} очков репутации 💥"
+    # ⭐ НОВОЕ: Супер-коины ⭐
+    elif quest["reward_type"] == "super_coins":
+        amount = quest["reward_amount"]
+        # Склонение слова "супер-коин"
+        n = amount % 100
+        n1 = n % 10
+        if n > 10 and n < 20:
+            word = "супер-коинов"
+        elif n1 > 1 and n1 < 5:
+            word = "супер-коина"
+        elif n1 == 1:
+            word = "супер-коин"
+        else:
+            word = "супер-коинов"
+            
+        reward_text = f"{amount} {word} в бюджет клана 🪙"
     
     text = (
-        f"✅ <b>Выполнен квест!</b>\n\n"
+        f"✅ <b>Выполнен квест!</b>\n"
         f"📋 {quest['desc']}\n"
         f"🎁 Ваша награда: {reward_text}"
     )
+    
     try:
         await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
     except Exception as e:
@@ -8880,15 +8702,7 @@ async def update_quest_progress(
     quest_id: str,
     amount: int = 1
 ) -> None:
-    """
-    Обновляет прогресс квеста. Вызывается из игровых функций.
-    ⚡ ВАЖНО: Добавляйте вызов этой функции в соответствующие места:
-    - handle_message() при получении карты Common → update_quest_progress(..., "common_4", 1)
-    - darts_play() при победе → update_quest_progress(..., "darts_win_2", 1)
-    - burn_execute() при сжигании карты Common → update_quest_progress(..., "burn_common_3", 1)
-    - trade_final_callback() при успешном трейде → update_quest_progress(..., "trade_2", 1)
-    - basket_play() при любой игре → update_quest_progress(..., "basket_3", 1)
-    """
+    """Обновляет прогресс квеста. Вызывается из игровых функций."""
     data = load_data()
     user_data = data["users"].get(user_id)
     if not user_data:
@@ -8904,17 +8718,31 @@ async def update_quest_progress(
             quest["progress"] = min(quest["progress"] + amount, quest["target"])
             if quest["progress"] >= quest["target"]:
                 quest["completed"] = True
-                # Выдаём награду
+                
+                # ⭐ ВЫДАЁМ НАГРАДУ ⭐
                 if quest["reward_type"] == "cents":
                     user_data["cents"] = user_data.get("cents", 0) + quest["reward_amount"]
                 elif quest["reward_type"] == "free_rolls":
                     user_data["free_rolls"] = user_data.get("free_rolls", 0) + quest["reward_amount"]
+                # ⭐ НОВОЕ: Начисление супер-коинов в бюджет клана ⭐
+                elif quest["reward_type"] == "super_coins":
+                    clan_id = get_user_clan(user_id, data)
+                    if clan_id:
+                        clan = data["clans"].get(clan_id)
+                        if clan:
+                            clan["super_coins"] = clan.get("super_coins", 0) + quest["reward_amount"]
+                            add_injustice_points_to_clan(clan_id, quest["reward_amount"], data)
+                            logger.info(f"Клан {clan.get('name')} получил {quest['reward_amount']} супер-коинов за квест {quest_id}")
+                        else:
+                            logger.warning(f"Клан {clan_id} не найден при начислении супер-коинов")
+                    else:
+                        logger.info(f"Игрок {user_id} выполнил квест на супер-коины, но не состоит в клане. Награда пропущена.")
                 
                 changed = True
                 save_data(data)
                 
                 # Отправляем уведомление
-                await notify_quest_completed(context, int(user_id), quest)
+                await notify_quest_completed(context, int(user_id), quest, data) # ⭐ Передаём data для названия клана
                 logger.info(f"Игрок {user_id} выполнил квест {quest_id}")
             else:
                 changed = True
@@ -9149,7 +8977,7 @@ async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYP
             if quest.get("check_button"):
                 # Квест с кнопкой "Проверить"
                 text = (
-                    f"🏆 <b>Сезонный квест {current_quest_id}/12</b>\n\n"
+                    f"🏆 <b>Сезонный квест {current_quest_id}/10</b>\n\n"
                     f"📋 {quest['desc']}{extra_info}\n\n"
                     f"🎁 Награда: {reward_text}"
                 )
@@ -9171,7 +8999,7 @@ async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYP
                 bar = "█" * filled + "░" * (progress_bar_len - filled)
                 
                 text = (
-                    f"🏆 <b>Сезонный квест {current_quest_id}/12</b>\n\n"
+                    f"🏆 <b>Сезонный квест {current_quest_id}/10</b>\n\n"
                     f"📋 {quest['desc']}\n"
                     f"📊 Прогресс: [{bar}] {progress}/{target}\n\n"
                     f"🎁 Награда: {reward_text}"
@@ -9357,6 +9185,8 @@ async def quests_daily_view(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             reward_text = f"{quest['reward_amount']} 💰"
         elif quest["reward_type"] == "free_rolls":
             reward_text = f"{quest['reward_amount']} 🔍"
+        elif quest["reward_type"] == "super_coins":
+            reward_text = f"{quest['reward_amount']} 🪙"
         
         text += (
             f"{status_icon} {quest['desc']}\n"
@@ -9442,8 +9272,8 @@ WEEKLY_QUESTS_POOL = [
     {
         "id": "weekly_epic_tu_1",
         "desc": "Получить карту редкости Epic Team-up через «Получить досье»",
-        "reward_type": "cents",
-        "reward_amount": 1000,
+        "reward_type": "super_coins",
+        "reward_amount": 5,
         "target": 1
     },
 ]
@@ -9509,7 +9339,19 @@ async def update_weekly_quest_progress(
                 elif quest["reward_type"] == "rep_points":
                     user_data["season_points"] = user_data.get("season_points", 0) + quest["reward_amount"]
                     user_data["total_points"] = user_data.get("total_points", 0) + quest["reward_amount"]
-                
+                elif quest["reward_type"] == "super_coins":
+                    clan_id = get_user_clan(user_id, data)
+                    if clan_id:
+                        clan = data["clans"].get(clan_id)
+                        if clan:
+                            clan["super_coins"] = clan.get("super_coins", 0) + quest["reward_amount"]
+                            # ⭐ Начисляем очки Противостояния ⭐
+                            add_injustice_points_to_clan(clan_id, quest["reward_amount"], data)
+                            logger.info(f"Клан {clan.get('name')} получил {quest['reward_amount']} супер-коинов за еженедельный квест {quest_id}")
+                        else:
+                            logger.warning(f"Клан {clan_id} не найден при начислении супер-коинов")
+                    else:
+                        logger.info(f"Игрок {user_id} выполнил еженедельный квест на супер-коины, но не состоит в клане. Награда пропущена.")
                 changed = True
                 save_data(data)
                 
@@ -9521,7 +9363,26 @@ async def update_weekly_quest_progress(
                     reward_text = f"{quest['reward_amount']} бесплатных попыток 🔍"
                 elif quest["reward_type"] == "rep_points":
                     reward_text = f"{quest['reward_amount']} очков репутации 💥"
-                
+                elif quest["reward_type"] == "super_coins":
+                    amount = quest["reward_amount"]
+                    n = amount % 100
+                    n1 = n % 10
+                    if n > 10 and n < 20:
+                        word = "супер-коинов"
+                    elif n1 > 1 and n1 < 5:
+                        word = "супер-коина"
+                    elif n1 == 1:
+                        word = "супер-коин"
+                    else:
+                        word = "супер-коинов"
+    
+                    clan_id = get_user_clan(user_id, data)
+                    if clan_id:
+                        clan = data["clans"].get(clan_id)
+                        clan_name = clan.get("name", "ваш клан") if clan else "ваш клан"
+                        reward_text = f"{amount} {word} в бюджет клана «{clan_name}» 🪙"
+                    else:
+                        reward_text = f"{amount} {word} (не начислено — вы не в клане) 🪙"
                 text = (
                     f"✅ <b>Выполнен еженедельный квест!</b>\n\n"
                     f"📋 {quest['desc']}\n"
@@ -9590,6 +9451,8 @@ async def quests_weekly_view(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reward_text = f"{quest['reward_amount']} 🔍"
         elif quest["reward_type"] == "rep_points":
             reward_text = f"{quest['reward_amount']} 💥"
+        elif quest["reward_type"] == "super_coins":
+            reward_text = f"{quest['reward_amount']} 🪙"
         
         text += (
             f"{status_icon} {quest['desc']}\n"
@@ -10826,817 +10689,6 @@ async def shop_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         else:
             await update.message.reply_text("❌ Ошибка при открытии раздела Бэт-пасс")
 
-async def event_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню ивента."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await update.message.reply_text("❌ Профиль не найден!")
-            return
-        
-        # ⭐ Миграция ⭐
-        if "event_completed" not in user_data:
-            user_data["event_completed"] = False
-        if "event_completed_at" not in user_data:
-            user_data["event_completed_at"] = 0
-        
-        # ⭐ Проверяем, завершён ли ивент ⭐
-        if user_data.get("event_completed", False):
-            if user_data.get("injustice_exchanged", False):
-                keyboard = [
-                    [KeyboardButton("👤 Личное дело")],
-                    [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
-                    [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🃏 Ивент")],
-                    [KeyboardButton("🔙 Назад в главное меню")],
-                ]
-                await update.message.reply_text(
-                    "🃏 <b>Ивент</b>\n\n"
-                    "🔒 <b>Ивент завершён!</b>\n\n"
-                    "Вы уже прошли допрос и обменяли карты Injustice.\n",
-                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-                    parse_mode="HTML"
-                )
-                return
-            else:
-                # ⭐ Ивент пройден, но обмен ещё не был — показываем окно обмена ⭐
-                await show_injustice_exchange(update, context)
-                return
-        
-        # ⭐ Ивент доступен ⭐
-        intro_text = (
-            "🃏 <b>Ивент: Допрос Харли Квинн</b>\n\n"
-            "После допроса Загадочника вы узнали страшную правду: "
-            "только Харли Квинн знает весь план Джокера полностью.\n\n"
-            "🎭 Пора вызвать её на допрос! Но будьте осторожны — "
-            "Харли безумна, болтлива и непредсказуема. Она может рассказать всё... "
-            "а может увести вас в сторону своими безумием и хохотом.\n\n"
-            "💡 <b>Вы готовы?</b>"
-        )
-        
-        keyboard = [
-            [KeyboardButton("🎙 Начать допрос")]
-        ]
-        
-        await update.message.reply_text(
-            intro_text,
-            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка в event_menu: {e}")
-        await update.message.reply_text("❌ Ошибка при открытии ивента")
-
-async def show_injustice_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает окно обмена карт Injustice."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await update.message.reply_text("❌ Профиль не найден!")
-            return
-        
-        # ⭐ Проверяем наличие карт ⭐
-        user_cards = user_data.get("cards", [])
-        card_status = []
-        all_cards_present = True
-        
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            card = find_card_by_id(card_id, data["cards"])
-            if not card:
-                card_status.append({
-                    "name": f"Карта #{card_id} (не найдена)",
-                    "present": False,
-                    "count": 0
-                })
-                all_cards_present = False
-                continue
-            
-            count = user_cards.count(card_id)
-            present = count > 0
-            if not present:
-                all_cards_present = False
-            
-            card_status.append({
-                "name": card.get("title", "Без названия"),
-                "present": present,
-                "count": count
-            })
-        
-        # ⭐ Формируем текст ⭐
-        text = (
-            "🎁 <b>Обмен картами Injustice</b>\n\n"
-            "Вы можете обменять следующие карты:\n\n"
-        )
-        
-        for status in card_status:
-            emoji = "✅" if status["present"] else "❌"
-            count_text = f" (у вас: {status['count']})" if status["count"] > 1 else ""
-            text += f"{emoji} {status['name']}{count_text}\n"
-        
-        text += "\nНа новую <b>Limited</b> карту!\n\n"
-        
-        if not all_cards_present:
-            # ⭐ Не хватает каких-то карт ⭐
-            missing_cards = [s["name"] for s in card_status if not s["present"]]
-            text += "⚠️ <b>Вам не хватает карт:</b>\n"
-            for missing in missing_cards:
-                text += f"• {missing}\n"
-        
-        # ⭐ Формируем клавиатуру ⭐
-        keyboard = []
-        if all_cards_present:
-            keyboard.append([
-                InlineKeyboardButton("🔄 Обмен", callback_data="injustice_exchange_start")
-            ])
-        else:
-            keyboard.append([
-                InlineKeyboardButton(
-                    "❌ Недостаточно карт для обмена",
-                    callback_data="injustice_exchange_no_cards"
-                )
-            ])
-        
-        keyboard.append([
-            InlineKeyboardButton("❌ Закрыть", callback_data="injustice_exchange_close")
-        ])
-        
-        await update.message.reply_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка show_injustice_exchange: {e}")
-        await update.message.reply_text("❌ Ошибка при открытии окна обмена")
-
-async def injustice_exchange_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает подтверждение обмена."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден!", show_alert=True)
-            return
-        
-        # ⭐ Проверяем, что все карты всё ещё есть ⭐
-        user_cards = user_data.get("cards", [])
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            if user_cards.count(card_id) < 1:
-                await query.answer("❌ У вас больше нет всех необходимых карт!", show_alert=True)
-                return
-        
-        text = (
-            "⚠️ <b>Подтверждение обмена</b>\n\n"
-            "Вы собираетесь обменять <b>4 карты</b> на новую <b>Limited</b> карту.\n\n"
-            "⚠️ <b>Это действие нельзя отменить!</b>\n\n"
-            "Будут удалены:\n"
-        )
-        
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            card = find_card_by_id(card_id, data["cards"])
-            if card:
-                text += f"• {card.get('title', 'Без названия')}\n"
-        
-        text += "\n✅ Подтвердить обмен?"
-        
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Подтвердить", callback_data="injustice_exchange_execute"),
-                InlineKeyboardButton("❌ Отказаться", callback_data="injustice_exchange_cancel")
-            ]
-        ]
-        
-        try:
-            await query.edit_message_text(
-                text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка injustice_exchange_confirm: {e}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка injustice_exchange_confirm: {e}")
-        await query.answer("❌ Ошибка", show_alert=True)
-
-async def injustice_exchange_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выполняет обмен карт."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден!", show_alert=True)
-            return
-        
-        # ⭐ Проверяем, что обмен ещё не был ⭐
-        if user_data.get("injustice_exchanged", False):
-            await query.answer("❌ Вы уже обменяли карты!", show_alert=True)
-            return
-        
-        # ⭐ Проверяем, что все карты есть ⭐
-        user_cards = user_data.get("cards", [])
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            if user_cards.count(card_id) < 1:
-                await query.answer("❌ У вас больше нет всех необходимых карт!", show_alert=True)
-                return
-        
-        # ⭐ Удаляем по 1 копии каждой карты ⭐
-        removed_cards = []
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            user_data["cards"].remove(card_id)
-            card = find_card_by_id(card_id, data["cards"])
-            if card:
-                removed_cards.append(card.get("title", "Без названия"))
-        
-        # ⭐ Добавляем новую Limited карту ⭐
-        new_card = find_card_by_id(INJUSTICE_REWARD_CARD_ID, data["cards"])
-        if not new_card:
-            await query.answer("❌ Новая карта не найдена!", show_alert=True)
-            return
-        
-        user_data["cards"].append(INJUSTICE_REWARD_CARD_ID)
-        
-        # ⭐ Помечаем обмен как выполненный ⭐
-        user_data["injustice_exchanged"] = True
-        save_data(data)
-        
-        # ⭐ Формируем caption для новой карты ⭐
-        caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
-        caption += "\n\n🎁 <i>Получена в обмен на карты Injustice</i>"
-        
-        # ⭐ Отправляем сообщение об успехе ⭐
-        success_text = (
-            "✅ <b>Обмен выполнен!</b>\n\n"
-            "🗑️ <b>Удалены карты:</b>\n"
-        )
-        for card_name in removed_cards:
-            success_text += f"• {card_name}\n"
-        
-        success_text += f"\n🎁 <b>Получена карта:</b> {new_card.get('title', 'Без названия')}\n"
-        success_text += f"🌟 <b>Редкость:</b> {new_card.get('rarity', 'Unknown')}"
-        
-        try:
-            await query.edit_message_text(
-                success_text,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка отправки сообщения: {e}")
-        
-        # ⭐ ИСПРАВЛЕНИЕ: Отправляем карту напрямую с полным caption ⭐
-        chat_id = query.message.chat_id
-        media_source = new_card.get("media_source", "url")
-        media_value = new_card.get("file_id") if media_source == "file_id" else new_card.get("image_url", "")
-
-        if not media_value:
-            await query.answer("❌ У карты нет медиа-файла!", show_alert=True)
-            return
-
-        try:
-            if new_card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif"))):
-                await context.bot.send_video(
-                    chat_id=chat_id,
-                    video=media_value,
-                    caption=caption,
-                    parse_mode="HTML",
-                    supports_streaming=True
-                )
-            else:
-                await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=media_value,
-                    caption=caption,
-                    parse_mode="HTML"
-                )
-        except Exception as send_error:
-            logger.error(f"Ошибка отправки карты при обмене: {send_error}")
-            await query.answer("❌ Не удалось отправить карту", show_alert=True)
-        
-        await query.answer("✅ Обмен выполнен!", show_alert=False)
-        logger.info(f"Игрок {user_id} обменял карты Injustice на карту #{INJUSTICE_REWARD_CARD_ID}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка injustice_exchange_execute: {e}")
-        await query.answer("❌ Ошибка при обмене", show_alert=True)
-
-async def injustice_exchange_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отмена обмена — возврат в окно обмена."""
-    try:
-        query = update.callback_query
-        await query.answer("❌ Обмен отменён", show_alert=False)
-        
-        # ⭐ Возвращаемся в окно обмена ⭐
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            return
-        
-        # ⭐ Проверяем наличие карт ⭐
-        user_cards = user_data.get("cards", [])
-        card_status = []
-        all_cards_present = True
-        
-        for card_id in INJUSTICE_EXCHANGE_CARDS:
-            card = find_card_by_id(card_id, data["cards"])
-            if not card:
-                card_status.append({
-                    "name": f"Карта #{card_id} (не найдена)",
-                    "present": False,
-                    "count": 0
-                })
-                all_cards_present = False
-                continue
-            
-            count = user_cards.count(card_id)
-            present = count > 0
-            if not present:
-                all_cards_present = False
-            
-            card_status.append({
-                "name": card.get("title", "Без названия"),
-                "present": present,
-                "count": count
-            })
-        
-        # ⭐ Формируем текст ⭐
-        text = (
-            "🎁 <b>Обмен картами Injustice</b>\n\n"
-            "Вы можете обменять следующие карты:\n\n"
-        )
-        
-        for status in card_status:
-            emoji = "✅" if status["present"] else "❌"
-            count_text = f" (у вас: {status['count']})" if status["count"] > 1 else ""
-            text += f"{emoji} {status['name']}{count_text}\n"
-        
-        text += "\nНа новую <b>Limited</b> карту!\n\n"
-        
-        if not all_cards_present:
-            missing_cards = [s["name"] for s in card_status if not s["present"]]
-            text += "⚠️ <b>Вам не хватает карт:</b>\n"
-            for missing in missing_cards:
-                text += f"• {missing}\n"
-        
-        # ⭐ Формируем клавиатуру ⭐
-        keyboard = []
-        if all_cards_present:
-            keyboard.append([
-                InlineKeyboardButton("🔄 Обмен", callback_data="injustice_exchange_start")
-            ])
-        else:
-            keyboard.append([
-                InlineKeyboardButton(
-                    "❌ Недостаточно карт для обмена",
-                    callback_data="injustice_exchange_no_cards"
-                )
-            ])
-        
-        keyboard.append([
-            InlineKeyboardButton("❌ Закрыть", callback_data="injustice_exchange_close")
-        ])
-        
-        try:
-            await query.edit_message_text(
-                text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка injustice_exchange_cancel: {e}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка injustice_exchange_cancel: {e}")
-        await query.answer("❌ Ошибка", show_alert=True)
-
-
-async def injustice_exchange_no_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик неактивной кнопки 'Недостаточно карт'."""
-    try:
-        query = update.callback_query
-        await query.answer("❌ У вас нет всех необходимых карт для обмена!", show_alert=True)
-    except Exception as e:
-        logger.error(f"Ошибка injustice_exchange_no_cards: {e}")
-
-
-async def injustice_exchange_close(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Закрывает окно обмена."""
-    try:
-        query = update.callback_query
-        await query.answer("✅ Окно закрыто", show_alert=False)
-        
-        try:
-            await query.edit_message_text(
-                "✅ <b>Окно обмена закрыто.</b>\n\n"
-                "Вы можете вернуться к нему через кнопку «🎩 Ивент».",
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка injustice_exchange_close: {e}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка injustice_exchange_close: {e}")
-
-async def start_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Начинает допрос Безумного Шляпника."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await update.message.reply_text("❌ Профиль не найден!")
-            return
-        
-        # ⭐ Проверяем, не завершён ли уже ивент ⭐
-        if user_data.get("event_completed", False):
-            await update.message.reply_text(
-                "🔒 Вы уже прошли этот ивент!\n"
-                "Следующий подозреваемый появится через неделю."
-            )
-            return
-        
-        # ⭐ Инициализируем состояние допроса ⭐
-        context.user_data[user_id] = {
-            "step": "interrogation",
-            "current_step": 0,  # Текущая реплика (0-11)
-            "correct_answers": 0,  # Счётчик правильных ответов
-            "first_attempt": True,  # Первый ли это ответ на текущем шаге
-        }
-        
-        # ⭐ Показываем первую реплику ⭐
-        await show_interrogation_step(update, context, user_id, 0)
-        
-    except Exception as e:
-        logger.error(f"Ошибка start_interrogation: {e}")
-        await update.message.reply_text("❌ Ошибка при начале допроса")
-
-async def show_interrogation_step(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str, step: int) -> None:
-    """Показывает текущую реплику допроса с вариантами ответов."""
-    try:
-        if step >= len(INTERROGATION_SCRIPT):
-            # ⭐ Допрос завершён ⭐
-            await finish_interrogation(update, context, user_id)
-            return
-        
-        script_step = INTERROGATION_SCRIPT[step]
-        hatter_text = script_step["hatter"]
-        options = script_step["options"]
-        
-        # ⭐ Формируем клавиатуру с вариантами ответов ⭐
-        keyboard = []
-        for option in options:
-            keyboard.append([KeyboardButton(option)])
-        
-        # ⭐ Формируем текст ⭐
-        text = (
-            f"🃏 <b>Харли Квинн:</b>\n"
-            f"<i>{hatter_text}</i>\n\n"
-            f"💬 <b>Выберите вариант ответа:</b>"
-        )
-        
-        await update.message.reply_text(
-            text,
-            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка show_interrogation_step: {e}")
-        await update.message.reply_text("❌ Ошибка при показе реплики")
-
-async def process_interrogation_answer(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str) -> None:
-    """Обрабатывает ответ игрока во время допроса."""
-    try:
-        user_state = context.user_data[user_id]
-        current_step = user_state.get("current_step", 0)
-        text = update.message.text.strip()
-        
-        # ⭐ Игнорируем основные кнопки меню ⭐
-        main_buttons = [
-            "🔍 Получить досье", "📁 Мой архив", "🍺 Бар", "🎰 Казино",
-            "🏰 Клан", "🛒 Магазин", "🃏 Ивент", "📋 Меню",
-            "👤 Личное дело", "📜 Квесты", "🏰 Кланы", "🛍️ Магазин"
-        ]
-        if text in main_buttons:
-            await update.message.reply_text(
-                "🃏 <b>Вы находитесь в режиме допроса!</b>\n\n"
-                "Пожалуйста, выберите один из вариантов ответа, чтобы продолжить расследование.",
-                parse_mode="HTML"
-            )
-            return
-        
-        if current_step >= len(INTERROGATION_SCRIPT):
-            await finish_interrogation(update, context, user_id)
-            return
-        
-        script_step = INTERROGATION_SCRIPT[current_step]
-        
-        # ⭐ ИСПРАВЛЕНИЕ 1: Поддержка списка правильных ответов ⭐
-        correct_data = script_step["correct"]
-        if isinstance(correct_data, list):
-            correct_answers = correct_data
-        else:
-            correct_answers = [correct_data]
-        
-        # ⭐ Проверяем, правильный ли ответ ⭐
-        if text in correct_answers:
-            # ⭐ Правильный ответ ⭐
-            first_attempt = user_state.get("first_attempt", True)
-            
-            if first_attempt:
-                user_state["correct_answers"] = user_state.get("correct_answers", 0) + 1
-            
-            next_step = current_step + 1
-            
-            if next_step < len(INTERROGATION_SCRIPT):
-                next_hatter = INTERROGATION_SCRIPT[next_step]["hatter"]
-                response_text = (
-                    f"👤 <b>Вы:</b>\n"
-                    f"<i>{text}</i>\n\n"
-                    f"🃏 <b>Харли Квинн:</b>\n"
-                    f"<i>{next_hatter}</i>\n\n"
-                    f"💬 <b>Выберите вариант ответа:</b>"
-                )
-            else:
-                # ⭐ Это была последняя реплика ⭐
-                response_text = (
-                    f"👤 <b>Вы:</b>\n"
-                    f"<i>{text}</i>\n\n"
-                    f"🃏 <b>Харли Квинн:</b>\n"
-                    f"<i>*вскакивает, подбегает к окну и прижимается к нему лицом*\n"
-                    f"Смотри, детектив! СМОТРИ! *машет рукой, приглашая подойти*\n"
-                    f"Это будет ТАК красиво! *хохочет*</i>\n\n"
-                    f"💥 <b>Что-то происходит...</b>"
-                )
-
-                explosion_text = (
-                    "💥 <i>Вы медленно подходите к окну...</i>\n\n"
-                    "Сначала — <b>тишина</b>. Абсолютная, оглушающая тишина, словно весь мир затаил дыхание. "
-                    "Харли прижалась к стеклу, её глаза горят безумным огнём. Она шепчет что-то невпопад: "
-                    "«Пудинг... Пудинг... Пудинг...»\n\n"
-                    "Затем — <b>ВСПЫШКА</b>.\n\n"
-                    "Ослепительно-белая, как если бы тысяча солнц вспыхнула одновременно на горизонте. "
-                    "Вы инстинктивно закрываете глаза рукой, но даже сквозь веки и ладонь этот неестественный, "
-                    "мёртвый свет пронзает насквозь. Кожа на лице становится горячей.\n\n"
-                    "🌫 Потом — <b>ГРИБ</b>.\n\n"
-                    "Огромный, клубящийся столб огня и дыма поднимается в небо на горизонте, "
-                    "там, где ещё минуту назад стоял Метрополис. Ядерный гриб разрастается "
-                    "с неестественной, тошнотворной скоростью — его верхушка достигает стратосферы, "
-                    "окрашиваясь в зловещие оттенки багрового, оранжевого и чёрного. "
-                    "Казалось, само небо кровоточит.\n\n"
-                    "🌊 <b>ЗВУК</b> доходит с опозданием — сначала низкий, утробный гул, "
-                    "от которого вибрируют зубы в челюсти. Затем — рёв, который сотрясает стены комнаты. "
-                    "Стёкла в окнах дрожат, трескаются, осыпаются градом осколков. "
-                    "Пол ходит ходуном под ногами. Вас швыряет в сторону. "
-                    "Воздух становится горячим, даже через закрытое окно — "
-                    "будто вы стоите у открытой печи гигантских размеров.\n\n"
-                    "🔥 Вдалеке видны вспышки — это рушатся здания, одно за другим, "
-                    "словно карточные домики. Волна разрушения расходится от эпицентра "
-                    "концентрическими кругами, стирая всё на своём пути. "
-                    "Пыль, обломки, искры, перевёрнутые машины — всё это поднимается в небо, "
-                    "образуя чудовищное облако, которое заслоняет солнце. "
-                    "Где-то далеко воют сирены, но их уже почти не слышно за рёвом разрушения.\n\n"
-                    "📱 Ваш телефон вибрирует в кармане — сотни уведомлений. "
-                    "Новостные каналы, сообщения от близких, экстренные оповещения. "
-                    "Экран треснул от ударной волны, но вы не можете оторвать взгляд от окна.\n\n"
-                    "💔 <b>Метрополиса больше нет.</b>\n\n"
-                    "Миллионы жизней... уничтожены в одно мгновение. "
-                    "Врачи, учителя, дети, влюблённые, старики — все они стали пылью в ядерном пламени. "
-                    "И всё это — ради чьей-то безумной шутки.\n\n"
-                    "Вы стоите в шоке, не в силах пошевелиться. "
-                    "Сердце колотится так сильно, что кажется, оно вот-вот выскочит из груди. "
-                    "Во рту — металлический вкус. В глазах — всё ещё та ослепительная, мёртвая вспышка. "
-                    "В ушах — звон.\n\n"
-                    "🌀 <i>Вы медленно оборачиваетесь назад, к Харли...</i>\n\n"
-                    "...но стул пуст.\n\n"
-                    "Дверь в камеру приоткрыта. Сквозняк шевелит бумаги на столе. "
-                    "На полу лежит её бейсбольная бита, а рядом — записка, "
-                    "написанная красной помадой на клочке бумаги:\n\n"
-                    "<blockquote><i>«Было так весело, детектив! 🃏\n"
-                    "Пудинг будет гордиться — ты такой умничка.\n"
-                    "P.S. Не ищи меня — я уже далеко.\n"
-                    "Увидимся в аду, милый! 💋\n"
-                    "— Твоя Харли»</i></blockquote>\n\n"
-                    "Она сбежала. Пока вы смотрели в окно на гибнущий город, "
-                    "она выскользнула из комнаты. Как призрак. Как безумие, которое невозможно поймать.\n\n"
-                    "А где-то далеко, в руинах Метрополиса, посреди дымящегося кратера, "
-                    "Супермен на коленях держит тело Лоис Лейн. "
-                    "Его глаза горят красным огнём тепловидения. "
-                    "Он только что убил её своими руками, видя в ней Думсдея. "
-                    "Его рот открыт в беззвучном крике.\n\n"
-                    "<b>План Джокера реализован.</b>\n\n"
-                )
-            
-            user_state["current_step"] = next_step
-            user_state["first_attempt"] = True
-            
-            # ⭐ Формируем клавиатуру для следующего шага ⭐
-            if next_step < len(INTERROGATION_SCRIPT):
-                next_options = INTERROGATION_SCRIPT[next_step]["options"]
-                keyboard = []
-                for option in next_options:
-                    keyboard.append([KeyboardButton(option)])
-            else:
-                # ⭐ Финальные кнопки ⭐
-                keyboard = [
-                    [KeyboardButton("👤 Личное дело")],
-                    [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
-                    [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-                    [KeyboardButton("🃏 Ивент")],
-                ]
-            
-            await update.message.reply_text(
-                response_text,
-                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-                parse_mode="HTML"
-            )
-            
-            if next_step >= len(INTERROGATION_SCRIPT):
-                
-                await update.message.reply_text(
-                    explosion_text,
-                    reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-                    parse_mode="HTML"
-                )
-                await finish_interrogation(update, context, user_id)
-            
-        else:
-            # ⭐ Неправильный ответ ⭐
-            user_state["first_attempt"] = False
-            
-            # ⭐ ИСПРАВЛЕНИЕ 2: Рандомный выбор фразы из списка ⭐
-            wrong_response = random.choice(WRONG_ANSWER_RESPONSES)
-            
-            response_text = (
-                f"👤 <b>Вы:</b>\n"
-                f"<i>{text}</i>\n\n"
-                f"🃏 <b>Харли Квинн:</b>\n"
-                f"<i>{wrong_response}</i>\n\n"
-                f"💬 <b>Выберите вариант ответа:</b>"
-            )
-            
-            options = script_step["options"]
-            keyboard = []
-            for option in options:
-                keyboard.append([KeyboardButton(option)])
-            
-            await update.message.reply_text(
-                response_text,
-                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
-                parse_mode="HTML"
-            )
-        
-    except Exception as e:
-        logger.error(f"Ошибка process_interrogation_answer: {e}")
-        await update.message.reply_text("❌ Ошибка при обработке ответа")
-
-async def finish_interrogation(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str) -> None:
-    """Завершает допрос и выдаёт награду."""
-    try:
-        user_state = context.user_data.get(user_id, {})
-        correct_answers = user_state.get("correct_answers", 0)
-        
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await update.message.reply_text("❌ Профиль не найден!")
-            return
-        
-        # ⭐ Помечаем ивент как завершённый ⭐
-        user_data["event_completed"] = True
-        from datetime import datetime, timezone, timedelta
-        msk_tz = timezone(timedelta(hours=3))
-        user_data["event_completed_at"] = int(datetime.now(msk_tz).timestamp())
-
-        EVENT_REWARD_AVATAR_URL="https://ibb.co/gLbnH0jp"
-
-        # ⭐ НОВОЕ: Выдаём аватарку ВСЕМ игрокам, прошедшим ивент ⭐
-        if EVENT_REWARD_AVATAR_URL:
-            if "avatars" not in user_data:
-                user_data["avatars"] = []
-            if EVENT_REWARD_AVATAR_URL not in user_data["avatars"]:
-                user_data["avatars"].append(EVENT_REWARD_AVATAR_URL)
-                # ⭐ Устанавливаем как текущую аватарку ⭐
-                logger.info(f"Игроку {user_id} выдана новая аватарка за прохождение ивента")
-
-        save_data(data)
-        
-        # ⭐ Очищаем состояние ⭐
-        if user_id in context.user_data:
-            del context.user_data[user_id]
-        
-        # ⭐ Формируем итоговое сообщение ⭐
-        if correct_answers >= EVENT_MIN_CORRECT:
-            # ⭐ Выдаём карту-награду ⭐
-            card = find_card_by_id(EVENT_REWARD_CARD_ID, data["cards"])
-            
-            if card:
-                # Добавляем карту в коллекцию
-                if "cards" not in user_data:
-                    user_data["cards"] = []
-                user_data["cards"].append(EVENT_REWARD_CARD_ID)
-                save_data(data)
-                
-                # ⭐ Формируем caption для карты ⭐
-                caption = generate_card_caption(card, user_data, count=1, show_bonus=False)
-                
-                result_text = (
-                    f"✅ <b>Допрос завершён!</b>\n\n"
-                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
-                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
-                    f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
-                    f"🎁 <b>Награда:</b>\n"
-                    f"• 🃏 Harley Queen (Nurse) «Injustice»\n"
-                    f"• 🖼 Новая аватарка"
-                )
-                
-                # ⭐ Отправляем результат ⭐
-                await update.message.reply_text(
-                    result_text,
-                    parse_mode="HTML"
-                )
-                
-                # ⭐ Отправляем карту ⭐
-                await send_card(update, card, context, caption=caption)
-                
-                logger.info(f"Игрок {user_id} завершил ивент с {correct_answers} правильными ответами, получил карту #{EVENT_REWARD_CARD_ID}")
-            else:
-                # ⭐ Карта не найдена ⭐
-                result_text = (
-                    f"✅ <b>Допрос завершён!</b>\n\n"
-                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
-                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
-                    f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
-                    f"🎁 <b>Награда:</b>\n"
-                    f"• ⚠️ Карта не найдена (проверьте EVENT_REWARD_CARD_ID)\n"
-                    f"• 🖼 Новая аватарка"
-                )
-                
-                await update.message.reply_text(
-                    result_text,
-                    parse_mode="HTML"
-                )
-                logger.warning(f"Карта #{EVENT_REWARD_CARD_ID} не найдена для награды ивента")
-        else:
-            # ⭐ Недостаточно правильных ответов ⭐
-            result_text = (
-                    f"✅ <b>Допрос завершён!</b>\n\n"
-                    f"🎯 <b>Правильных ответов:</b> {correct_answers} из {len(INTERROGATION_SCRIPT)}\n\n"
-                    f"🏆 <b>Ранг:</b> Великий детектив\n\n"
-                    f"📋 <b>Что вы узнали:</b>\n"
-                    f"• 💥 Метрополис взорван. Харли сбежала. Супермен убил Лоис Лейн\n\n"
-                    f"🎁 <b>Награда:</b>\n"
-                    f"• 🖼 Новая аватарка"
-                )
-            
-            await update.message.reply_text(
-                result_text,
-                parse_mode="HTML"
-            )
-            
-            logger.info(f"Игрок {user_id} завершил ивент с {correct_answers} правильными ответами (недостаточно для награды)")
-        
-        # ⭐ Возвращаем главное меню ⭐
-        main_keyboard = [
-            [KeyboardButton("👤 Личное дело")],
-            [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
-            [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("🃏 Ивент")],
-            [KeyboardButton("🔙 Назад в главное меню")],
-        ]
-        
-        await update.message.reply_text(
-            "🔙 Вы вернулись в главное меню.",
-            reply_markup=ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка finish_interrogation: {e}")
-        await update.message.reply_text("❌ Ошибка при завершении допроса")
-
 def update_user_info(user_id: str, telegram_user, data: Dict) -> bool:
     """
     Обновляет username, first_name и last_name игрока в базе данных,
@@ -11669,8 +10721,1035 @@ def update_user_info(user_id: str, telegram_user, data: Dict) -> bool:
     
     return changed
 
-async def reset_event_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Сбрасывает прохождение ивента у ВСЕХ игроков."""
+async def kick_clan_member_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает @никнейм игрока для выгона из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может выгонять участников!")
+            return
+        
+        # ⭐ Проверяем, есть ли другие участники ⭐
+        members_count = len(clan.get("members", {}))
+        if members_count <= 1:
+            await update.message.reply_text(
+                "⚠️ В клане нет участников, которых можно выгнать.\n\n"
+                "💡 Вы единственный участник клана."
+            )
+            return
+        
+        context.user_data[user_id] = {"step": "clan_kick_enter_username"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await update.message.reply_text(
+            "✏️ Введите @никнейм игрока для выгона из клана:\n"
+            "Пример: `@username`\n\n",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в kick_clan_member_start: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню выгона")
+
+async def process_kick_clan_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма для выгона игрока из клана."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        # ⭐ Отмена ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Выгон участника отменён.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверяем формат ⭐
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        target_username = text[1:].strip().lower()
+        
+        # ⭐ Ищем игрока по username ⭐
+        target_user_id = None
+        for uid, udata in data["users"].items():
+            if udata.get("username", "").lower() == target_username:
+                target_user_id = uid
+                break
+        
+        if not target_user_id:
+            await update.message.reply_text(
+                f"❌ Игрок с никнеймом @{target_username} не найден!\n"
+                f"Повторите ввод или нажмите ❌ Отмена"
+            )
+            return
+        
+        # ⭐ Нельзя выгнать самого себя ⭐
+        if target_user_id == user_id:
+            await update.message.reply_text(
+                "❌ Вы не можете выгнать самого себя!\n"
+                "Если хотите покинуть клан, используйте кнопку «🚪 Покинуть клан»."
+            )
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            return
+        
+        # ⭐ Выполняем выгон ⭐
+        success, message = kick_clan_member(user_id, target_user_id, data)
+        
+        if success:
+            save_data(data)
+            
+            # ⭐ Уведомляем выгнанного игрока ⭐
+            try:
+                clan_id = get_user_clan(user_id, data)
+                clan = get_clan_data(clan_id, data) if clan_id else None
+                clan_name = clan.get("name", "неизвестный клан") if clan else "удалённый клан"
+                
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        f"🚫 <b>Вас выгнали из клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"👑 Решение главы клана — окончательное.\n\n"
+                        f"💡 Вы можете вступить в другой клан по приглашению главы."
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить выгнанного игрока {target_user_id}: {notify_error}")
+        else:
+            # ⭐ Даже при ошибке сохраняем (на случай изменений) ⭐
+            save_data(data)
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"{'✅' if success else '❌'} {message}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в process_kick_clan_member: {e}")
+        await update.message.reply_text("❌ Ошибка при выгоне участника")
+
+def kick_clan_member(leader_id: str, target_user_id: str, data: Dict) -> tuple[bool, str]:
+    """Выгоняет участника из клана (только для главы клана)."""
+    # ⭐ Проверяем, что глава в клане ⭐
+    clan_identifier = get_user_clan(leader_id, data)
+    if not clan_identifier:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(clan_identifier, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    # ⭐ Проверяем, что вызывающий — глава ⭐
+    if leader_id != clan.get("leader_id"):
+        return False, "Только глава клана может выгонять участников!"
+    
+    # ⭐ Проверяем, что цель — в этом же клане ⭐
+    target_clan_id = get_user_clan(target_user_id, data)
+    if target_clan_id != clan_identifier:
+        target_user_data = data["users"].get(target_user_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        return False, f"Игрок {target_name} не состоит в вашем клане!"
+    
+    # ⭐ Нельзя выгнать самого себя ⭐
+    if target_user_id == leader_id:
+        return False, "Вы не можете выгнать самого себя!"
+    
+    # ⭐ Получаем имя цели ⭐
+    target_user_data = data["users"].get(target_user_id, {})
+    target_name = target_user_data.get("first_name", "Игрок")
+    if target_user_data.get("last_name"):
+        target_name += f" {target_user_data['last_name']}"
+    
+    clan_name = clan.get("name", "Клан")
+    
+    # ⭐ Удаляем участника из клана ⭐
+    if target_user_id in clan["members"]:
+        del clan["members"][target_user_id]
+    
+    # ⭐ Удаляем привязку пользователя к клану ⭐
+    if target_user_id in data.get("user_clan", {}):
+        del data["user_clan"][target_user_id]
+    
+    logger.info(f"Глава {leader_id} выгнал игрока {target_user_id} из клана {clan_name}")
+    
+    return True, f"Игрок **{target_name}** выгнан из клана **{clan_name}**."
+
+async def transfer_leadership_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запрашивает @никнейм игрока для передачи ему лидерства."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может передавать лидерство!")
+            return
+        
+        # ⭐ Проверяем, есть ли другие участники ⭐
+        members_count = len(clan.get("members", {}))
+        if members_count <= 1:
+            await update.message.reply_text(
+                "⚠️ В клане нет участников, которым можно передать лидерство.\n\n"
+                "💡 Вы единственный участник клана."
+            )
+            return
+        
+        context.user_data[user_id] = {"step": "clan_transfer_enter_username"}
+        
+        keyboard = [[KeyboardButton("❌ Отмена")]]
+        await update.message.reply_text(
+            "👑 <b>Передача лидерства</b>\n\n"
+            "✏️ Введите @никнейм игрока, которому вы хотите передать лидерство:\n"
+            "Пример: `@username`\n\n"
+            "⚠️ <b>Внимание:</b>\n"
+            "• Передача лидерства — окончательное действие\n"
+            "• Новый глава получит все права управления кланом\n"
+            "• Вы станете обычным участником клана\n"
+            "• Вы не сможете передать лидерство самому себе",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в transfer_leadership_start: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню передачи лидерства")
+
+async def process_transfer_leadership(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод @никнейма для передачи лидерства."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        
+        # ⭐ Отмена ⭐
+        if text == "❌ Отмена":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+            await update.message.reply_text(
+                "❌ Передача лидерства отменена.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            )
+            return
+        
+        # ⭐ Проверяем формат ⭐
+        if not text.startswith("@"):
+            await update.message.reply_text(
+                "❌ Никнейм должен начинаться с @!\n"
+                "Повторите ввод:"
+            )
+            return
+        
+        target_username = text[1:].strip().lower()
+        
+        # ⭐ Ищем игрока по username ⭐
+        target_user_id = None
+        for uid, udata in data["users"].items():
+            if udata.get("username", "").lower() == target_username:
+                target_user_id = uid
+                break
+        
+        if not target_user_id:
+            await update.message.reply_text(
+                f"❌ Игрок с никнеймом @{target_username} не найден!\n"
+                f"Повторите ввод или нажмите ❌ Отмена"
+            )
+            return
+        
+        # ⭐ Нельзя передать лидерство самому себе ⭐
+        if target_user_id == user_id:
+            await update.message.reply_text(
+                "❌ Вы не можете передать лидерство самому себе!\n"
+                "Укажите другого участника клана."
+            )
+            return
+        
+        # ⭐ Выполняем передачу лидерства ⭐
+        success, message = transfer_leadership(user_id, target_user_id, data)
+        
+        if success:
+            save_data(data)
+            
+            # ⭐ Уведомляем нового главу ⭐
+            try:
+                clan_id = get_user_clan(user_id, data)
+                clan = get_clan_data(clan_id, data) if clan_id else None
+                clan_name = clan.get("name", "неизвестный клан") if clan else "удалённый клан"
+                
+                target_user_data = data["users"].get(target_user_id, {})
+                
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        f"👑 <b>Вам передали лидерство в клане!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🎉 Теперь вы — глава клана!\n\n"
+                        f"💡 Используйте кнопку «📋 Мой клан» для управления."
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить нового главу {target_user_id}: {notify_error}")
+        else:
+            save_data(data)
+        
+        # ⭐ Очищаем состояние ⭐
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+        
+        keyboard = [[KeyboardButton("🔙 Назад в кланы")]]
+        await update.message.reply_text(
+            f"{'✅' if success else '❌'} {message}",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в process_transfer_leadership: {e}")
+        await update.message.reply_text("❌ Ошибка при передаче лидерства")
+
+def transfer_leadership(current_leader_id: str, new_leader_id: str, data: Dict) -> tuple[bool, str]:
+    """Передаёт лидерство в клане другому участнику (только для текущего главы)."""
+    # ⭐ Проверяем, что текущий лидер в клане ⭐
+    clan_identifier = get_user_clan(current_leader_id, data)
+    if not clan_identifier:
+        return False, "Вы не состоите в клане!"
+    
+    clan = get_clan_data(clan_identifier, data)
+    if not clan:
+        return False, "Ошибка: клан не найден!"
+    
+    # ⭐ Проверяем, что вызывающий — текущий глава ⭐
+    if current_leader_id != clan.get("leader_id"):
+        return False, "Только текущий глава клана может передавать лидерство!"
+    
+    # ⭐ Проверяем, что цель — в этом же клане ⭐
+    target_clan_id = get_user_clan(new_leader_id, data)
+    if target_clan_id != clan_identifier:
+        target_user_data = data["users"].get(new_leader_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        return False, f"Игрок {target_name} не состоит в вашем клане!"
+    
+    # ⭐ Нельзя передать лидерство самому себе ⭐
+    if new_leader_id == current_leader_id:
+        return False, "Вы не можете передать лидерство самому себе!"
+    
+    # ⭐ Получаем имена ⭐
+    new_leader_data = data["users"].get(new_leader_id, {})
+    new_leader_name = new_leader_data.get("first_name", "Игрок")
+    if new_leader_data.get("last_name"):
+        new_leader_name += f" {new_leader_data['last_name']}"
+    
+    clan_name = clan.get("name", "Клан")
+    
+    # ⭐ Обновляем роли участников ⭐
+    # Старый лидер становится обычным участником
+    if current_leader_id in clan["members"]:
+        clan["members"][current_leader_id]["role"] = "member"
+    
+    # Новый участник становится лидером
+    if new_leader_id in clan["members"]:
+        clan["members"][new_leader_id]["role"] = "leader"
+    
+    # ⭐ Обновляем ID лидера в клане ⭐
+    clan["leader_id"] = new_leader_id
+    
+    logger.info(
+        f"Игрок {current_leader_id} передал лидерство в клане {clan_name} "
+        f"игроку {new_leader_id} ({new_leader_name})"
+    )
+    
+    return True, (
+        f"👑 Лидерство в клане **{clan_name}** передано!\n\n"
+        f"🆕 Новый глава: **{new_leader_name}**\n"
+        f"👤 Вы теперь обычный участник клана."
+    )
+
+async def clan_shop_open(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает магазин клана (только для главы)."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может пользоваться магазином!")
+            return
+        
+        super_coins = clan.get("super_coins", 0)
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            f"🛒 <b>Магазин клана «{clan_name}»</b>\n\n"
+            f"🪙 <b>Бюджет клана:</b> {super_coins} супер-коинов\n\n"
+            f"📦 <b>Доступные товары:</b>\n\n"
+        )
+        
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            status = "✅" if can_afford else "❌"
+            text += (
+                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
+                f"<i>{item['description']}</i>\n\n"
+            )
+        
+        # ⭐ Формируем клавиатуру ⭐
+        keyboard = []
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            if can_afford:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
+                        callback_data=f"clan_shop_confirm_{item_id}"
+                    )
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
+                        callback_data="clan_shop_no_coins"
+                    )
+                ])
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_open: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии магазина")
+
+async def clan_shop_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает подтверждение покупки товара."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        item_id = query.data.replace("clan_shop_confirm_", "")
+        
+        if item_id not in CLAN_SHOP_ITEMS:
+            await query.answer("❌ Неизвестный товар", show_alert=True)
+            return
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может покупать", show_alert=True)
+            return
+        
+        item = CLAN_SHOP_ITEMS[item_id]
+        super_coins = clan.get("super_coins", 0)
+        
+        if super_coins < item["price"]:
+            await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
+            return
+        
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        text = (
+            f"⚠️ <b>Подтверждение покупки</b>\n\n"
+            f"🛒 Товар: <b>{item['name']}</b>\n"
+            f"💰 Цена: {item['price']} 🪙\n"
+            f"🏰 Клан: {clan_name}\n\n"
+            f"📦 <b>Текущий бюджет:</b> {super_coins} 🪙\n"
+            f"📉 <b>После покупки:</b> {super_coins - item['price']} 🪙\n\n"
+            f"<i>{item['description']}</i>\n\n"
+            f"✅ Подтвердить покупку?"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Да, купить", callback_data=f"clan_shop_buy_{item_id}"),
+                InlineKeyboardButton("❌ Отмена", callback_data="clan_shop_cancel")
+            ]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_confirm: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_confirm: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выполняет покупку товара из магазина клана."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        item_id = query.data.replace("clan_shop_buy_", "")
+        
+        if item_id not in CLAN_SHOP_ITEMS:
+            await query.answer("❌ Неизвестный товар", show_alert=True)
+            return
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может покупать", show_alert=True)
+            return
+        
+        item = CLAN_SHOP_ITEMS[item_id]
+        super_coins = clan.get("super_coins", 0)
+        
+        if super_coins < item["price"]:
+            await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        members = list(clan.get("members", {}).keys())
+        
+        if not members:
+            await query.answer("❌ В клане нет участников!", show_alert=True)
+            return
+        
+        # ⭐ Выполняем покупку в зависимости от товара ⭐
+        result_text = ""
+        
+        if item_id == "epic":
+            # 🎴 Рандомный Epic
+            # Собираем все Epic-карты
+            epic_cards = [
+                c for c in data["cards"]
+                if c.get("available", True) and c.get("rarity") == "Epic"
+            ]
+            
+            if not epic_cards:
+                await query.answer("❌ Нет доступных Epic-карт!", show_alert=True)
+                return
+            
+            # Выбираем случайную карту и случайного участника
+            chosen_card = random.choice(epic_cards)
+            chosen_member_id = random.choice(members)
+            
+            # Выдаём карту
+            member_data = data["users"].get(chosen_member_id, {})
+            member_data.setdefault("cards", []).append(chosen_card["id"])
+            
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+            
+            result_text = (
+                f"🎴 <b>Случайный Epic выдан!</b>\n\n"
+                f"🃏 Карта: <b>{html.escape(chosen_card['title'])}</b>\n"
+                f"🌟 Редкость: Epic\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
+            )
+            
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                caption = generate_card_caption(
+                    chosen_card, member_data, count=1, show_bonus=False
+                )
+                caption += "\n\n🏰 <i>Награда из магазина клана</i>"
+                
+                await context.bot.send_message(
+                    chat_id=int(chosen_member_id),
+                    text=(
+                        f"🎁 <b>Вам выдана карта из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🃏 Карта: <b>{html.escape(chosen_card['title'])}</b>\n"
+                        f"🌟 Редкость: Epic"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить получателя {chosen_member_id}: {notify_error}")
+        
+        elif item_id == "rolls":
+            # 🎲 2 бесплатные попытки каждому
+            for member_id in members:
+                member_data = data["users"].get(member_id, {})
+                member_data["free_rolls"] = member_data.get("free_rolls", 0) + 2
+            
+            result_text = (
+                f"🎲 <b>Бесплатные попытки выданы!</b>\n\n"
+                f"👥 Получателей: {len(members)}\n"
+                f"🎯 Каждый получил: +2 попытки\n"
+            )
+            
+            # ⭐ Уведомляем всех участников ⭐
+            for member_id in members:
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(member_id),
+                        text=(
+                            f"🎁 <b>Бонус из магазина клана!</b>\n\n"
+                            f"🏰 Клан: {html.escape(clan_name)}\n"
+                            f"🎲 Вам выдано: <b>+2 бесплатные попытки</b>\n\n"
+                            f"💡 Используйте их для получения досье."
+                        ),
+                        parse_mode="HTML"
+                    )
+                except Exception as notify_error:
+                    logger.warning(f"Не удалось уведомить {member_id}: {notify_error}")
+        
+        elif item_id == "cents":
+            # 💰 5000 бэт-коинов рандомному
+            chosen_member_id = random.choice(members)
+            
+            member_data = data["users"].get(chosen_member_id, {})
+            member_data["cents"] = member_data.get("cents", 0) + 5000
+            
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+            
+            result_text = (
+                f"💰 <b>Бэт-коины выданы!</b>\n\n"
+                f"💵 Сумма: <b>5000</b> бэт-коинов\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
+            )
+            
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                await context.bot.send_message(
+                    chat_id=int(chosen_member_id),
+                    text=(
+                        f"🎁 <b>Бонус из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"💰 Вам выдано: <b>+5000 бэт-коинов</b>"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
+
+        # ⭐ НОВОЕ: Эксклюзивный Epic Team-Up ⭐
+        elif item_id == "exclusive_epic_tu":
+            # Проверяем, что карта существует
+            exclusive_card = find_card_by_id(EXCLUSIVE_EPIC_TU_CARD_ID, data["cards"])
+            if not exclusive_card:
+                await query.answer("❌ Эксклюзивная карта не найдена!", show_alert=True)
+                return
+    
+            # Выбираем случайного участника
+            chosen_member_id = random.choice(members)
+            member_data = data["users"].get(chosen_member_id, {})
+    
+            # Выдаём карту
+            member_data.setdefault("cards", []).append(EXCLUSIVE_EPIC_TU_CARD_ID)
+    
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+    
+            result_text = (
+                f"✨ <b>Эксклюзивный Epic Team-Up выдан!</b>\n\n"
+                f"🃏 Карта: <b>{html.escape(exclusive_card['title'])}</b>\n"
+                f"🌟 Редкость: Epic Team-Up\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
+            )
+    
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                caption = generate_card_caption(exclusive_card, member_data, count=1, show_bonus=False)
+                caption += "\n\n🏰 <i>Награда из магазина клана</i>"
+        
+                await context.bot.send_message(
+                    chat_id=int(chosen_member_id),
+                    text=(
+                        f"🎁 <b>Вам выдана карта из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🃏 Карта: <b>{html.escape(exclusive_card['title'])}</b>\n"
+                        f"🌟 Редкость: Epic Team-Up\n\n"
+                        f"✨ <i>Эксклюзивная награда!</i>"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
+
+        # ⭐ НОВОЕ: Эксклюзивные аватарки Friends ⭐
+        elif item_id == "friends_avatar":
+            # ⭐ Собираем участников, которым можно выдать аватарку ⭐
+            eligible_members = []
+            for member_id in members:
+                member_data = data["users"].get(member_id, {})
+                member_avatars = member_data.get("avatars", [])
+        
+                # Проверяем, есть ли у игрока хотя бы одна из двух аватарок
+                has_avatar_1 = FRIENDS_AVATAR_1_URL in member_avatars
+                has_avatar_2 = FRIENDS_AVATAR_2_URL in member_avatars
+        
+                # Если у игрока нет хотя бы одной аватарки — он подходит
+                if not (has_avatar_1 and has_avatar_2):
+                    eligible_members.append(member_id)
+    
+            # ⭐ Если все участники уже имеют обе аватарки — покупка не проходит ⭐
+            if not eligible_members:
+                await query.answer(
+                    "❌ У всех участников клана уже есть эксклюзивные аватарки Friends!",
+                    show_alert=True
+                )
+                # ⭐ НЕ списываем супер-коины — просто выходим ⭐
+                return
+    
+            # ⭐ Выбираем случайного подходящего участника ⭐
+            chosen_member_id = random.choice(eligible_members)
+            member_data = data["users"].get(chosen_member_id, {})
+    
+            if "avatars" not in member_data:
+                member_data["avatars"] = []
+    
+            # ⭐ Определяем, какую аватарку выдать ⭐
+            has_avatar_1 = FRIENDS_AVATAR_1_URL in member_data["avatars"]
+            has_avatar_2 = FRIENDS_AVATAR_2_URL in member_data["avatars"]
+    
+            if has_avatar_1 and not has_avatar_2:
+                # У игрока есть первая — выдаём вторую
+                chosen_avatar = FRIENDS_AVATAR_2_URL
+                avatar_name = "Friends #2"
+            elif has_avatar_2 and not has_avatar_1:
+                # У игрока есть вторая — выдаём первую
+                chosen_avatar = FRIENDS_AVATAR_1_URL
+                avatar_name = "Friends #1"
+            else:
+                # У игрока нет ни одной — выбираем случайно
+                chosen_avatar = random.choice(FRIENDS_AVATARS)
+                avatar_name = "Friends #1" if chosen_avatar == FRIENDS_AVATAR_1_URL else "Friends #2"
+    
+            # ⭐ Добавляем аватарку в коллекцию (НЕ меняем текущую) ⭐
+            member_data["avatars"].append(chosen_avatar)
+    
+            chosen_member_name = member_data.get("first_name", "Участник")
+            if member_data.get("last_name"):
+                chosen_member_name += f" {member_data['last_name']}"
+    
+            result_text = (
+                f"🎭 <b>Эксклюзивная аватарка выдана!</b>\n\n"
+                f"🖼 Аватарка: <b>{avatar_name}</b>\n"
+                f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n\n"
+                f"💡 <i>Аватарка добавлена в коллекцию. "
+                f"Игрок может выбрать её в настройках профиля.</i>\n"
+            )
+    
+            # ⭐ Уведомляем получателя ⭐
+            try:
+                await context.bot.send_photo(
+                    chat_id=int(chosen_member_id),
+                    photo=chosen_avatar,
+                    caption=(
+                        f"🎁 <b>Награда из магазина клана!</b>\n\n"
+                        f"🏰 Клан: {html.escape(clan_name)}\n"
+                        f"🎭 Вам выдана эксклюзивная аватарка: <b>{avatar_name}</b>\n\n"
+                        f"💡 <i>Аватарка добавлена в вашу коллекцию. "
+                        f"Вы можете выбрать её в настройках профиля.</i>"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
+        
+        # ⭐ Списываем супер-коины ⭐
+        clan["super_coins"] = super_coins - item["price"]
+        save_data(data)
+        
+        # ⭐ Формируем итоговое сообщение ⭐
+        final_text = (
+            f"✅ <b>Покупка успешна!</b>\n\n"
+            f"{result_text}\n"
+            f"💰 Списано: {item['price']} 🪙\n"
+            f"📉 Новый бюджет клана: {clan['super_coins']} 🪙"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("🛒 Вернуться в магазин", callback_data="clan_shop_back_to_menu")]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                final_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_buy: {e}")
+        
+        await query.answer("✅ Покупка совершена!", show_alert=False)
+        logger.info(f"Глава {user_id} купил товар {item_id} за {item['price']} супер-коинов для клана {clan_name}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_buy: {e}")
+        await query.answer("❌ Ошибка при покупке", show_alert=True)
+
+
+async def clan_shop_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Возвращает в меню магазина клана."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден", show_alert=True)
+            return
+        
+        super_coins = clan.get("super_coins", 0)
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        text = (
+            f"🛒 <b>Магазин клана «{clan_name}»</b>\n\n"
+            f"🪙 <b>Бюджет клана:</b> {super_coins} супер-коинов\n\n"
+            f"📦 <b>Доступные товары:</b>\n\n"
+        )
+        
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            status = "✅" if can_afford else "❌"
+            text += (
+                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
+                f"<i>{item['description']}</i>\n\n"
+            )
+        
+        keyboard = []
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            can_afford = super_coins >= item["price"]
+            if can_afford:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
+                        callback_data=f"clan_shop_confirm_{item_id}"
+                    )
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
+                        callback_data="clan_shop_no_coins"
+                    )
+                ])
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка clan_shop_back: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_back: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def clan_shop_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Алиас для возврата в магазин после покупки."""
+    await clan_shop_back(update, context)
+
+
+async def clan_shop_no_coins(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопки 'Недостаточно супер-коинов'."""
+    try:
+        query = update.callback_query
+        await query.answer("❌ Недостаточно супер-коинов в бюджете клана!", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка clan_shop_no_coins: {e}")
+
+
+async def clan_shop_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отмена покупки — возврат в магазин."""
+    await clan_shop_back(update, context)
+
+async def add_supercoins_to_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Начисляет супер-коины в бюджет клана по @username участника."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # ⭐ Проверяем аргументы ⭐
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/add\\_supercoins \\[@никнейм\\] \\[количество\\]\n\n"
+                "**Примеры:**\n"
+                "/add\\_supercoins @username 100 — начислить 100 супер-коинов в клан игрока\n"
+                "/add\\_supercoins @player 50 — начислить 50 супер-коинов в клан игрока",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_input = context.args[0]
+        supercoins_amount = int(context.args[1])
+        
+        # ⭐ Определяем ID игрока ⭐
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        target_user_data = data["users"].get(target_user_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        if target_user_data.get("last_name"):
+            target_name += f" {target_user_data['last_name']}"
+        
+        # ⭐ Находим клан игрока ⭐
+        clan_id = get_user_clan(target_user_id, data)
+        if not clan_id:
+            await update.message.reply_text(
+                f"⚠️ Игрок {html.escape(target_name)} не состоит ни в одном клане!\n\n"
+                f"💡 Супер-коины можно начислять только в бюджет существующего клана."
+            )
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден или повреждён!")
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        
+        # ⭐ Миграция на случай отсутствия поля ⭐
+        if "super_coins" not in clan:
+            clan["super_coins"] = 0
+        
+        # ⭐ Начисляем супер-коины ⭐
+        old_balance = clan["super_coins"]
+        new_balance = old_balance + supercoins_amount
+        
+        # ⭐ Защита от ухода в минус ⭐
+        if new_balance < 0:
+            await update.message.reply_text(
+                f"⚠️ Нельзя списать больше, чем есть в бюджете клана!\n\n"
+                f"🏰 Клан: {html.escape(clan_name)}\n"
+                f"🪙 В бюджете: {old_balance} супер-коинов\n"
+                f"❌ Вы пытаетесь списать: {-supercoins_amount} супер-коинов"
+            )
+            return
+        
+        clan["super_coins"] = new_balance
+        save_data(data)
+        
+        # ⭐ Формируем текст ответа ⭐
+        if supercoins_amount > 0:
+            action_text = f"💎 Начислено: +{supercoins_amount} супер-коинов"
+        elif supercoins_amount < 0:
+            action_text = f"💸 Списано: {supercoins_amount} супер-коинов"
+        else:
+            action_text = "ℹ️ Количество равно 0 — бюджет не изменился"
+        
+        await update.message.reply_text(
+            f"✅ **Бюджет клана изменён!**\n\n"
+            f"🏰 Клан: {html.escape(clan_name)}\n"
+            f"👤 Через игрока: {html.escape(target_name)} (@{target_user_data.get('username', '—')})\n\n"
+            f"{action_text}\n"
+            f"📊 Было: {old_balance} 🪙\n"
+            f"📈 Стало: {new_balance} 🪙",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(
+            f"Админ {update.effective_user.id} изменил бюджет клана {clan_name}: "
+            f"{old_balance} → {new_balance} ({'+' if supercoins_amount >= 0 else ''}{supercoins_amount}) "
+            f"через игрока {target_user_id}"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка добавления супер-коинов: {e}")
+        await update.message.reply_text("❌ Ошибка при изменении бюджета клана")
+
+async def start_new_season(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Сбрасывает сезонные очки репутации, счётчик Rolls-Box и прогресс сезонных квестов у ВСЕХ игроков."""
     try:
         data = load_data()
         user_id = str(update.effective_user.id)
@@ -11689,41 +11768,606 @@ async def reset_event_all(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.message.reply_text(
                 "⚠️ <b>ВНИМАНИЕ! Это действие затронет ВСЕХ игроков!</b>\n\n"
                 "📋 Будет сброшено:\n"
-                "• 🎩 Прохождение ивента (event_completed) → False\n\n"
-                "💡 После сброса все игроки смогут заново пройти ивент "
-                "«Допрос Пугало» и получить награду.\n\n"
+                "• 💥 Сезонные очки репутации (season_points) → 0\n"
+                "• 📦 Счётчик купленных Rolls-Box (rolls_box_price) → 25000\n"
+                "• 📜 Прогресс сезонных квестов (возврат к 1-му квесту)\n\n"
+                "⚠️ <b>НЕ будут затронуты:</b>\n"
+                "• 💎 Общие очки репутации (total_points)\n"
+                "• 💰 Бэт-коины\n"
+                "• 🃏 Карты\n"
+                "• 🪙 Супер-коины кланов\n\n"
                 "Для подтверждения выполните:\n"
-                "<code>/reset_event_all confirm</code>",
+                "<code>/start_new_season confirm</code>",
                 parse_mode="HTML"
             )
             return
         
         # ⭐ Выполняем сброс ⭐
         reset_count = 0
+        total_season_points = 0
         
         for uid, udata in users.items():
-            if udata.get("event_completed", False):
-                udata["event_completed"] = False
-                reset_count += 1
+            # Сбрасываем сезонные очки
+            old_season = udata.get("season_points", 0)
+            total_season_points += old_season
+            udata["season_points"] = 0
+            
+            # Сбрасываем счётчик Rolls-Box к начальной цене
+            udata["rolls_box_price"] = 25000
+            
+            # ⭐ Сбрасываем прогресс сезонных квестов (возвращаем на 1-й квест) ⭐
+            udata["seasonal_quests"] = {"completed": [], "progress": {}}
+            
+            reset_count += 1
         
         save_data(data)
         
         await update.message.reply_text(
-            f"✅ <b>Прохождение ивента сброшено!</b>\n\n"
-            f"👥 Игроков обработано: {len(users)}\n"
-            f"🔄 Сброшено прохождений: {reset_count}\n\n"
-            f"🎩 Теперь все игроки могут заново пройти ивент!",
+            f"✅ <b>Новый сезон начат!</b>\n\n"
+            f"👥 Игроков обработано: {reset_count}\n"
+            f"💥 Суммарно сброшено сезонных очков: {total_season_points}\n"
+            f"📦 Счётчик Rolls-Box сброшен до 25000 у всех\n"
+            f"📜 Прогресс сезонных квестов сброшен у всех\n\n"
+            f"🎉 Удачи в новом сезоне!",
             parse_mode="HTML"
         )
         
         logger.info(
-            f"Админ {user_id} сбросил прохождение ивента у {reset_count} игроков "
-            f"(из {len(users)} всего)"
+            f"Админ {user_id} начал новый сезон: "
+            f"сброшены season_points, rolls_box_price и seasonal_quests у {reset_count} игроков"
         )
         
     except Exception as e:
-        logger.error(f"Ошибка reset_event_all: {e}")
-        await update.message.reply_text("❌ Ошибка при сбросе ивента")
+        logger.error(f"Ошибка start_new_season: {e}")
+        await update.message.reply_text("❌ Ошибка при начале нового сезона")
+
+def add_injustice_points_to_clan(clan_id: str, amount: int, data: Dict) -> None:
+    """Добавляет очки противостояния клану и его команде."""
+    if amount <= 0:
+        return
+    
+    clan = data.get("clans", {}).get(clan_id)
+    if not clan:
+        return
+    
+    side = clan.get("injustice_side")
+    if not side or side not in data.get("injustice", {}):
+        return  # Клан не выбрал сторону
+    
+    # ⭐ Добавляем очки команде ⭐
+    data["injustice"][side]["points"] = data["injustice"][side].get("points", 0) + amount
+    
+    # ⭐ Обновляем очки клана внутри команды ⭐
+    for clan_entry in data["injustice"][side]["clans"]:
+        if clan_entry.get("id") == clan_id:
+            clan_entry["points"] = clan_entry.get("points", 0) + amount
+            break
+
+async def injustice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Команда /injustice для выбора стороны клана (только для глав)."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        clan_id = get_user_clan(user_id, data)
+        if not clan_id:
+            await update.message.reply_text("❌ Вы не состоите в клане!")
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден!")
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await update.message.reply_text("❌ Только глава клана может выбрать сторону!")
+            return
+        
+        # ⭐ Проверяем, выбрал ли клан уже сторону ⭐
+        current_side = clan.get("injustice_side")
+        if current_side:
+            side_info = INJUSTICE_SIDES[current_side]
+            await update.message.reply_text(
+                f"⚔️ <b>Ваш клан уже выбрал сторону!</b>\n\n"
+                f"{side_info['emoji']} <b>{side_info['name']}</b>\n"
+                f"<i>{side_info['description']}</i>\n\n"
+                f"🔒 Решение окончательное и не может быть изменено.",
+                parse_mode="HTML"
+            )
+            return
+        
+        # ⭐ Показываем выбор стороны ⭐
+        text = (
+            "⚔️ <b>ПРОТИВОСТОЯНИЕ</b>\n\n"
+            "Грядёт противостояние, в котором каждому клану необходимо выбрать свою сторону:\n\n"
+            f"👑 <b>Режим</b>\n"
+            f"<i>{INJUSTICE_SIDES['regime']['description']}</i>\n\n"
+            f"✊ <b>Сопротивление</b>\n"
+            f"<i>{INJUSTICE_SIDES['resistance']['description']}</i>\n\n"
+            "Выберите сторону, за которую будет сражаться ваш клан до конца сезона. "
+            "<b>Решение нельзя будет изменить</b>, поэтому выбирайте с умом.\n\n"
+            "💡 В течение сезона каждая сторона будет получать очки, эквивалентные "
+            "набранным супер-коинам, а в конце сезона каждый участник кланов получит "
+            "награды в зависимости от того, победила ли его команда или проиграла."
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("👑 Режим", callback_data="injustice_choose_regime"),
+                InlineKeyboardButton("✊ Сопротивление", callback_data="injustice_choose_resistance"),
+            ]
+        ]
+        
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_command: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии меню Противостояния")
+
+async def injustice_choose_side(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает подтверждение выбора стороны."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Определяем выбранную сторону ⭐
+        side = "regime" if "regime" in query.data else "resistance"
+        side_info = INJUSTICE_SIDES[side]
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане!", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден!", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может выбирать!", show_alert=True)
+            return
+        
+        # ⭐ Повторная проверка ⭐
+        if clan.get("injustice_side"):
+            await query.answer("❌ Клан уже выбрал сторону!", show_alert=True)
+            return
+        
+        clan_name = html.escape(clan.get("name", "Клан"))
+        
+        text = (
+            f"⚠️ <b>Подтверждение выбора</b>\n\n"
+            f"Ваш клан <b>{clan_name}</b> встанет на сторону:\n\n"
+            f"{side_info['emoji']} <b>{side_info['name']}</b>\n"
+            f"<i>{side_info['description']}</i>\n\n"
+            f"⚠️ <b>Это решение окончательное!</b>\n"
+            f"Изменить сторону после подтверждения будет невозможно.\n\n"
+            f"✅ Подтвердить выбор?"
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Подтвердить", callback_data=f"injustice_confirm_{side}"),
+                InlineKeyboardButton("❌ Отмена", callback_data="injustice_cancel")
+            ]
+        ]
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_choose_side: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_choose_side: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def injustice_confirm_side(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Подтверждает выбор стороны клана."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        
+        # ⭐ Определяем выбранную сторону ⭐
+        side = "regime" if "regime" in query.data else "resistance"
+        side_info = INJUSTICE_SIDES[side]
+        
+        data = load_data()
+        clan_id = get_user_clan(user_id, data)
+        
+        if not clan_id:
+            await query.answer("❌ Вы не в клане!", show_alert=True)
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await query.answer("❌ Клан не найден!", show_alert=True)
+            return
+        
+        if not is_clan_leader(user_id, clan_id, data):
+            await query.answer("❌ Только глава может выбирать!", show_alert=True)
+            return
+        
+        # ⭐ Повторная проверка ⭐
+        if clan.get("injustice_side"):
+            await query.answer("❌ Клан уже выбрал сторону!", show_alert=True)
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        
+        # ⭐ Устанавливаем сторону ⭐
+        clan["injustice_side"] = side
+        
+        # ⭐ Добавляем клан в список команды ⭐
+        data["injustice"][side]["clans"].append({
+            "id": clan_id,
+            "name": clan_name,
+            "points": 0,
+            "joined_at": int(time.time())
+        })
+        
+        save_data(data)
+        
+        # ⭐ Обновляем сообщение ⭐
+        success_text = (
+            f"✅ <b>Выбор сделан!</b>\n\n"
+            f"🏰 Клан <b>{html.escape(clan_name)}</b> встал на сторону:\n\n"
+            f"{side_info['emoji']} <b>{side_info['name']}</b>\n"
+            f"<i>{side_info['description']}</i>\n\n"
+            f"🔒 Решение окончательное.\n\n"
+            f"💡 Теперь ваш клан будет получать очки Противостояния "
+            f"вместе с каждым полученным супер-коином."
+        )
+        
+        try:
+            await query.edit_message_text(
+                success_text,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_confirm_side: {e}")
+        
+        # ⭐ Уведомляем всех участников клана ⭐
+        for member_id in clan.get("members", {}).keys():
+            if member_id == user_id:
+                continue  # Не уведомляем главу (он уже видит сообщение)
+            try:
+                await context.bot.send_message(
+                    chat_id=int(member_id),
+                    text=(
+                        f"⚔️ <b>Ваш клан выбрал сторону в Противостоянии!</b>\n\n"
+                        f"🏰 Клан: <b>{html.escape(clan_name)}</b>\n"
+                        f"{side_info['emoji']} Сторона: <b>{side_info['name']}</b>\n\n"
+                        f"<i>{side_info['description']}</i>\n\n"
+                        f"💡 Теперь каждый супер-коин, полученный кланом, "
+                        f"будет приносить очки Противостояния вашей команде!"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить участника {member_id}: {notify_error}")
+        
+        await query.answer("✅ Выбор подтверждён!", show_alert=False)
+        logger.info(f"Клан {clan_name} ({clan_id}) выбрал сторону {side} в Противостоянии")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_confirm_side: {e}")
+        await query.answer("❌ Ошибка", show_alert=True)
+
+
+async def injustice_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отмена выбора стороны."""
+    try:
+        query = update.callback_query
+        await query.answer("❌ Выбор отменён", show_alert=False)
+        
+        try:
+            await query.edit_message_text(
+                "❌ <b>Выбор стороны отменён.</b>\n\n"
+                "Вы можете вернуться к выбору через команду /injustice.",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка injustice_cancel: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка injustice_cancel: {e}")
+
+async def show_injustice_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает статистику Противостояния."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        injustice = data.get("injustice", {
+            "regime": {"clans": [], "points": 0},
+            "resistance": {"clans": [], "points": 0}
+        })
+        
+        regime_points = injustice.get("regime", {}).get("points", 0)
+        resistance_points = injustice.get("resistance", {}).get("points", 0)
+        total_points = regime_points + resistance_points
+        
+        # ⭐ Считаем проценты ⭐
+        if total_points > 0:
+            regime_percent = round(regime_points / total_points * 100)
+            resistance_percent = 100 - regime_percent
+        else:
+            regime_percent = 50
+            resistance_percent = 50
+        
+        # ⭐ Формируем прогресс-бар ⭐
+        bar_length = 20
+        regime_bars = round(regime_percent / 100 * bar_length)
+        resistance_bars = bar_length - regime_bars
+        
+        regime_bar = "█" * regime_bars + "░" * (bar_length - regime_bars)
+        resistance_bar = "█" * resistance_bars + "░" * (bar_length - resistance_bars)
+        
+        # ⭐ Формируем текст ⭐
+        text = (
+            "⚔️ <b>ПРОТИВОСТОЯНИЕ</b>\n\n"
+            f"👑 <b>Режим:</b> {regime_points} очков\n"
+            f"<code>{regime_bar}</code> {regime_percent}%\n\n"
+            f"✊ <b>Сопротивление:</b> {resistance_points} очков\n"
+            f"<code>{resistance_bar}</code> {resistance_percent}%\n\n"
+        )
+        
+        # ⭐ Списки кланов (отсортированы по дате вступления) ⭐
+        regime_clans = sorted(
+            injustice.get("regime", {}).get("clans", []),
+            key=lambda x: x.get("joined_at", 0)
+        )
+        resistance_clans = sorted(
+            injustice.get("resistance", {}).get("clans", []),
+            key=lambda x: x.get("joined_at", 0)
+        )
+        
+        text += "👑 <b>Кланы Режима:</b>\n"
+        if regime_clans:
+            for clan_entry in regime_clans:
+                clan_points = clan_entry.get("points", 0)
+                clan_name = html.escape(clan_entry.get("name", "Клан"))
+                text += f"• {clan_name} — {clan_points} очков\n"
+        else:
+            text += "<i>Пока нет кланов</i>\n"
+        
+        text += "\n✊ <b>Кланы Сопротивления:</b>\n"
+        if resistance_clans:
+            for clan_entry in resistance_clans:
+                clan_points = clan_entry.get("points", 0)
+                clan_name = html.escape(clan_entry.get("name", "Клан"))
+                text += f"• {clan_name} — {clan_points} очков\n"
+        else:
+            text += "<i>Пока нет кланов</i>\n"
+        
+        # ⭐ Информация о клане игрока ⭐
+        user_clan_id = get_user_clan(user_id, data)
+        if user_clan_id:
+            user_clan = get_clan_data(user_clan_id, data)
+            if user_clan:
+                side = user_clan.get("injustice_side")
+                if side:
+                    side_info = INJUSTICE_SIDES[side]
+                    # ⭐ Ищем очки клана ⭐
+                    clan_points = 0
+                    for clan_entry in injustice.get(side, {}).get("clans", []):
+                        if clan_entry.get("id") == user_clan_id:
+                            clan_points = clan_entry.get("points", 0)
+                            break
+                    text += (
+                        f"\n🏰 <b>Ваш клан:</b> {html.escape(user_clan.get('name', 'Клан'))}\n"
+                        f"{side_info['emoji']} Сторона: <b>{side_info['name']}</b>\n"
+                        f"💎 Вклад клана: {clan_points} очков"
+                    )
+                else:
+                    text += (
+                        "\n💡 <i>Ваш клан ещё не выбрал сторону. "
+                        "Попросите главу клана выполнить команду /injustice.</i>"
+                    )
+        else:
+            text += "\n💡 <i>Вступите в клан, чтобы участвовать в Противостоянии.</i>"
+        
+        await update.message.reply_text(
+            text,
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_injustice_stats: {e}")
+        await update.message.reply_text("❌ Ошибка при загрузке статистики Противостояния")
+
+async def add_injustice_points_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет очки противостояния клану и его команде."""
+    try:
+        data = load_data()
+        user_id = str(update.effective_user.id)
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # ⭐ Проверяем аргументы ⭐
+        if not context.args or len(context.args) < 3:
+            await update.message.reply_text(
+                "ℹ️ <b>Формат команды:</b>\n"
+                "/add\\_injustice\\_points \\[@никнейм\\] \\[сторона\\] \\[очки\\]\n\n"
+                "<b>Стороны:</b>\n"
+                "• regime — Режим\n"
+                "• resistance — Сопротивление\n\n"
+                "<b>Примеры:</b>\n"
+                "/add\\_injustice\\_points @username regime 100\n"
+                "/add\\_injustice\\_points @player resistance 50",
+                parse_mode="HTML"
+            )
+            return
+        
+        target_input = context.args[0]
+        side_input = context.args[1].lower()
+        points_amount = int(context.args[2])
+        
+        # ⭐ Проверяем сторону ⭐
+        if side_input not in ["regime", "resistance"]:
+            await update.message.reply_text(
+                "⚠️ Неверная сторона! Доступные: <b>regime</b>, <b>resistance</b>",
+                parse_mode="HTML"
+            )
+            return
+        
+        side_info = INJUSTICE_SIDES[side_input]
+        
+        # ⭐ Определяем ID игрока ⭐
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        target_user_data = data["users"].get(target_user_id, {})
+        target_name = target_user_data.get("first_name", "Игрок")
+        if target_user_data.get("last_name"):
+            target_name += f" {target_user_data['last_name']}"
+        
+        # ⭐ Находим клан игрока ⭐
+        clan_id = get_user_clan(target_user_id, data)
+        if not clan_id:
+            await update.message.reply_text(
+                f"⚠️ Игрок {html.escape(target_name)} не состоит ни в одном клане!"
+            )
+            return
+        
+        clan = get_clan_data(clan_id, data)
+        if not clan:
+            await update.message.reply_text("❌ Клан не найден или повреждён!")
+            return
+        
+        clan_name = clan.get("name", "Клан")
+        
+        # ⭐ Проверяем, что клан состоит в указанной команде ⭐
+        current_side = clan.get("injustice_side")
+        if current_side != side_input:
+            if current_side:
+                current_side_info = INJUSTICE_SIDES[current_side]
+                await update.message.reply_text(
+                    f"⚠️ Клан <b>{html.escape(clan_name)}</b> уже состоит в команде "
+                    f"<b>{current_side_info['name']}</b>!\n\n"
+                    f"Укажите правильную сторону или сначала сбросьте выбор."
+                )
+            else:
+                await update.message.reply_text(
+                    f"⚠️ Клан <b>{html.escape(clan_name)}</b> ещё не выбрал сторону!\n\n"
+                    f"Попросите главу клана выполнить команду /injustice."
+                )
+            return
+        
+        # ⭐ Начисляем очки ⭐
+        old_points = data["injustice"][side_input].get("points", 0)
+        
+        # ⭐ Обновляем общие очки команды ⭐
+        data["injustice"][side_input]["points"] = old_points + points_amount
+        
+        # ⭐ Обновляем очки клана внутри команды ⭐
+        clan_found = False
+        for clan_entry in data["injustice"][side_input]["clans"]:
+            if clan_entry.get("id") == clan_id:
+                clan_entry["points"] = clan_entry.get("points", 0) + points_amount
+                clan_found = True
+                break
+        
+        if not clan_found:
+            # ⭐ Если клан не в списке — добавляем ⭐
+            data["injustice"][side_input]["clans"].append({
+                "id": clan_id,
+                "name": clan_name,
+                "points": points_amount,
+                "joined_at": int(time.time())
+            })
+        
+        save_data(data)
+        
+        new_points = data["injustice"][side_input]["points"]
+        
+        # ⭐ Формируем текст ответа ⭐
+        if points_amount > 0:
+            action_text = f"💎 Начислено: +{points_amount} очков"
+        elif points_amount < 0:
+            action_text = f"💸 Списано: {points_amount} очков"
+        else:
+            action_text = "ℹ️ Количество равно 0 — очки не изменились"
+        
+        await update.message.reply_text(
+            f"✅ <b>Очки Противостояния изменены!</b>\n\n"
+            f"🏰 Клан: {html.escape(clan_name)}\n"
+            f"👤 Через игрока: {html.escape(target_name)} (@{target_user_data.get('username', '—')})\n"
+            f"{side_info['emoji']} Команда: <b>{side_info['name']}</b>\n\n"
+            f"{action_text}\n"
+            f"📊 Было: {old_points} очков\n"
+            f"📈 Стало: {new_points} очков",
+            parse_mode="HTML"
+        )
+        
+        logger.info(
+            f"Админ {user_id} изменил очки Противостояния клана {clan_name}: "
+            f"{old_points} → {new_points} ({'+' if points_amount >= 0 else ''}{points_amount}) "
+            f"в команде {side_info['name']}"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество очков должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка add_injustice_points_command: {e}")
+        await update.message.reply_text("❌ Ошибка при изменении очков Противостояния")
+
+async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Включает/выключает режим техработ (только для админов)."""
+    try:
+        data = load_data()
+        user_id = str(update.effective_user.id)
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # ⭐ Переключаем режим ⭐
+        data["maintenance_mode"] = not data.get("maintenance_mode", False)
+        save_data(data)
+        
+        new_state = data["maintenance_mode"]
+        emoji = "🔧" if new_state else "✅"
+        text = (
+            f"{emoji} <b>Режим техработ {'ВКЛЮЧЁН' if new_state else 'ВЫКЛЮЧЕН'}</b>\n\n"
+            f"{'🚫 Бот теперь отвечает только администраторам.' if new_state else '✅ Бот снова работает для всех игроков.'}"
+        )
+        
+        await update.message.reply_text(text, parse_mode="HTML")
+        logger.info(f"Админ {user_id} {'включил' if new_state else 'выключил'} режим техработ")
+        
+    except Exception as e:
+        logger.error(f"Ошибка maintenance_command: {e}")
+        await update.message.reply_text("❌ Ошибка при переключении режима")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -11792,8 +12436,11 @@ def main() -> None:
             CommandHandler("give_batpass", give_batpass),
             CommandHandler("remove_batpass", remove_batpass),
             CommandHandler("give_card_to_batpass", give_card_to_batpass),
-            CommandHandler("give_superman_box", give_superman_box),
-            CommandHandler("reset_event_all", reset_event_all),
+            CommandHandler("add_supercoins", add_supercoins_to_clan),
+            CommandHandler("start_new_season", start_new_season),
+            CommandHandler("injustice", injustice_command),
+            CommandHandler("add_injustice_points", add_injustice_points_command),
+            CommandHandler("maintenance", maintenance_command),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
@@ -11818,19 +12465,22 @@ def main() -> None:
             CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
             CallbackQueryHandler(archive_search_start, pattern=r"^archive_search_(all|Common|Rare|Epic|Legendary|Highlight|Limited|Rare Team-up|Epic Team-up|Legendary Team-up)$"),
             CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
-            CallbackQueryHandler(open_superman_heroes_box, pattern=r"^shop_open_superman_heroes$"),
-            CallbackQueryHandler(open_superman_villain_box, pattern=r"^shop_open_superman_villain$"),
-            CallbackQueryHandler(injustice_exchange_confirm, pattern=r"^injustice_exchange_start$"),
-            CallbackQueryHandler(injustice_exchange_execute, pattern=r"^injustice_exchange_execute$"),
-            CallbackQueryHandler(injustice_exchange_cancel, pattern=r"^injustice_exchange_cancel$"),
-            CallbackQueryHandler(injustice_exchange_no_cards, pattern=r"^injustice_exchange_no_cards$"),
-            CallbackQueryHandler(injustice_exchange_close, pattern=r"^injustice_exchange_close$"),
+            CallbackQueryHandler(accept_clan_invite_callback, pattern=r"^accept_clan_invite$"),
+            CallbackQueryHandler(decline_clan_invite_callback, pattern=r"^decline_clan_invite$"),
+            CallbackQueryHandler(clan_shop_confirm, pattern=r"^clan_shop_confirm_"),
+            CallbackQueryHandler(clan_shop_buy, pattern=r"^clan_shop_buy_"),
+            CallbackQueryHandler(clan_shop_back, pattern=r"^clan_shop_back$"),
+            CallbackQueryHandler(clan_shop_back_to_menu, pattern=r"^clan_shop_back_to_menu$"),
+            CallbackQueryHandler(clan_shop_no_coins, pattern=r"^clan_shop_no_coins$"),
+            CallbackQueryHandler(clan_shop_cancel, pattern=r"^clan_shop_cancel$"),
+            CallbackQueryHandler(injustice_choose_side, pattern=r"^injustice_choose_"),
+            CallbackQueryHandler(injustice_confirm_side, pattern=r"^injustice_confirm_"),
+            CallbackQueryHandler(injustice_cancel, pattern=r"^injustice_cancel$"),
         ]
 
         for handler in handlers:
             application.add_handler(handler)
             application.add_handler(CallbackQueryHandler(referral_menu, pattern="^referral_menu$"))
-            application.add_handler(ChatMemberHandler(on_bot_added_to_chat, ChatMemberHandler.MY_CHAT_MEMBER))
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
