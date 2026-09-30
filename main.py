@@ -7291,18 +7291,15 @@ async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page
         # ⭐ Отправляем карту ⭐
         if query:
             try:
+                # ⭐ УНИВЕРСАЛЬНАЯ ЛОГИКА: file_id или URL ⭐
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+        
                 if card.get("media_type") == "animation":
-                    media = InputMediaAnimation(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML"
-                    )
+                    media = InputMediaAnimation(media=media_value, caption=caption, parse_mode="HTML")
                 else:
-                    media = InputMediaPhoto(
-                        media=card["image_url"],
-                        caption=caption,
-                        parse_mode="HTML"
-                    )
+                    media = InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML")
+        
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
             except Exception as edit_error:
                 if "Message is not modified" in str(edit_error):
