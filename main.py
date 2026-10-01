@@ -11514,9 +11514,9 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 chosen_member_name += f" {member_data['last_name']}"
     
             result_text = (
-                f"✨ <b>Эксклюзивный Epic Team-Up выдан!</b>\n\n"
+                f"✨ <b>Эксклюзивный Epic выдан!</b>\n\n"
                 f"🃏 Карта: <b>{html.escape(exclusive_card['title'])}</b>\n"
-                f"🌟 Редкость: Epic Team-Up\n"
+                f"🌟 Редкость: Epic\n"
                 f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
             )
     
