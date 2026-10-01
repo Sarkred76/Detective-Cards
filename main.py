@@ -11754,7 +11754,7 @@ async def add_supercoins_to_clan(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(
             f"✅ **Бюджет клана изменён!**\n\n"
             f"🏰 Клан: {html.escape(clan_name)}\n"
-            f"👤 Через игрока: {html.escape(target_name)} (@{target_user_data.get('username', '—')})\n\n"
+            f"👤 Через игрока: {html.escape(target_name)} (@{html.escape(target_user_data.get('username', '—'))})\n"
             f"{action_text}\n"
             f"📊 Было: {old_balance} 🪙\n"
             f"📈 Стало: {new_balance} 🪙",
