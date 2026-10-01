@@ -6904,16 +6904,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         if pending > 0:
             keyboard.append([InlineKeyboardButton(f"🎁 Открыть Season-Box ({pending} шт.)", callback_data="shop_open_season_box")])
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
-    if current_box.get("is_rolls_box"):
-        pending = user_data.get("pending_rolls_box", 0)
-        # ⭐ Кнопка открытия накопленных боксов ⭐
-        if pending > 0:
-            keyboard.append([InlineKeyboardButton(f"🎁 Открыть ({pending} шт.)", callback_data="shop_open_rolls_box")])
-        # ⭐ Кнопка покупки ⭐
-        if user_data.get("cents", 0) >= display_price:
-            keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price}", callback_data=f"shop_buy_box_{page}")])
-        else:
-            keyboard.append([InlineKeyboardButton("❌ Недостаточно бэт-коинов", callback_data="shop_no_cents")])
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
@@ -12622,24 +12612,25 @@ async def give_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="HTML"
         )
         
-        # ⭐ Уведомление игроку ⭐
-        try:
-            keyboard = [
-                [InlineKeyboardButton("📦 Открыть Rolls-Box", callback_data="shop_open_rolls_box")]
-            ]
-            await context.bot.send_message(
-                chat_id=int(target_user_id),
-                text=(
-                    f"🎁 <b>Вам выдан Rolls-Box!</b>\n\n"
-                    f"📦 <b>Получено:</b> {count} {box_word}\n"
-                    f"📊 <b>Всего накоплено:</b> {user_data['pending_rolls_box']}\n\n"
-                    f"💡 Вы можете открыть его в любое время в магазине."
-                ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
-        except Exception as notify_error:
-            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        # ⭐ Уведомление игроку — отдельное сообщение за каждый бокс ⭐
+        for i in range(count):
+            try:
+                keyboard = [
+                    [InlineKeyboardButton("📦 Открыть", callback_data="open_single_rolls_box")]
+                ]
+                await context.bot.send_message(
+                    chat_id=int(target_user_id),
+                    text=(
+                        f"🎁 <b>Вам начислен Rolls-Box!</b>\n\n"
+                        f"🔍 <b>Содержимое:</b> 15 бесплатных попыток\n"
+                        f"📊 <b>Всего накоплено:</b> {user_data['pending_rolls_box']}\n\n"
+                        f"💡 Нажмите кнопку ниже, чтобы открыть."
+                    ),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+            except Exception as notify_error:
+                logger.warning(f"Не удалось уведомить игрока {target_user_id} (бокс {i+1}): {notify_error}")
         
         logger.info(f"Админ выдал {count} Rolls-Box игроку {target_user_id} (всего: {user_data['pending_rolls_box']})")
         
@@ -12648,6 +12639,73 @@ async def give_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as e:
         logger.error(f"Ошибка give_rolls_box: {e}")
         await update.message.reply_text("❌ Ошибка при выдаче Rolls-Box")
+
+async def open_single_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает 1 Rolls-Box по нажатию кнопки из уведомления."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        # ⭐ Миграция ⭐
+        if "pending_rolls_box" not in user_data:
+            user_data["pending_rolls_box"] = 0
+        
+        pending = user_data["pending_rolls_box"]
+        if pending <= 0:
+            await query.answer("❌ У вас нет накопленных Rolls-Box", show_alert=True)
+            try:
+                await query.edit_message_text(
+                    "❌ <b>Этот бокс уже был открыт.</b>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+            return
+        
+        # ⭐ Открываем ОДИН бокс ⭐
+        user_data["pending_rolls_box"] = pending - 1
+        
+        # ⭐ Начисляем 15 попыток ⭐
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 15
+        
+        # ⭐ НЕ меняем rolls_box_price! ⭐
+        save_data(data)
+        
+        new_pending = user_data["pending_rolls_box"]
+        
+        # ⭐ Обновляем сообщение ⭐
+        text = (
+            f"✅ <b>Rolls-Box открыт!</b>\n\n"
+            f"🔍 <b>Получено:</b> 15 бесплатных попыток\n"
+            f"📊 <b>Всего попыток:</b> {user_data['free_rolls']}\n\n"
+        )
+        
+        if new_pending > 0:
+            text += f"📦 <b>Осталось боксов:</b> {new_pending} шт."
+        else:
+            text += "💡 <i>У вас больше нет накопленных боксов.</i>"
+        
+        try:
+            await query.edit_message_text(
+                text,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка open_single_rolls_box: {e}")
+        
+        await query.answer("🎁 +15 попыток!", show_alert=False)
+        logger.info(f"Игрок {user_id} открыл Rolls-Box из уведомления (осталось: {new_pending})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка open_single_rolls_box: {e}")
+        await query.answer("❌ Ошибка при открытии бокса", show_alert=True)
 
 # ===== ЗАПУСК БОТА =====
 
@@ -12759,6 +12817,7 @@ def main() -> None:
             CallbackQueryHandler(injustice_confirm_side, pattern=r"^injustice_confirm_"),
             CallbackQueryHandler(injustice_cancel, pattern=r"^injustice_cancel$"),
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
+            CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
         ]
 
         for handler in handlers:
