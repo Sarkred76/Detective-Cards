@@ -10174,7 +10174,7 @@ async def check_probabilities(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Ошибка при проверке вероятностей")
 
 async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выдаёт Бэт-пасс игроку на определённое количество дней."""
+    """Выдаёт Бэт-пасс игроку на определённое количество дней (суммирует дни, если пасс активен)."""
     try:
         data = load_data()
         if not is_admin(str(update.effective_user.id), data):
@@ -10225,28 +10225,33 @@ async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "reduced_cooldown": True,
             }
         
-        # ⭐ Выдаём Бэт-пасс ⭐
+        # ⭐ НОВАЯ ЛОГИКА: Суммирование дней Бэт-пасса ⭐
         from datetime import datetime, timezone, timedelta
         msk_tz = timezone(timedelta(hours=3))
-        expires_at = int((datetime.now(msk_tz) + timedelta(days=days)).timestamp())
+        now_ts = int(datetime.now(msk_tz).timestamp())
+        
+        current_expires_at = user_data.get("batpass_expires_at", 0)
+        seconds_to_add = days * 24 * 60 * 60
+        
+        if current_expires_at > now_ts:
+            # Бэт-пасс активен: прибавляем дни к существующей дате истечения
+            expires_at = current_expires_at + seconds_to_add
+        else:
+            # Бэт-пасса нет или он истёк: начинаем отсчёт с текущего момента
+            expires_at = now_ts + seconds_to_add
         
         user_data["has_batpass"] = True
         user_data["batpass_expires_at"] = expires_at
-        
         save_data(data)
         
         # ⭐ НОВОЕ: Планируем уведомление, если у игрока есть кулдаун ⭐
         if user_data.get("last_card_time", 0) > 0:
-            from datetime import datetime, timezone, timedelta
-            msk_tz = timezone(timedelta(hours=3))
-            now = int(datetime.now(msk_tz).timestamp())
-    
             last_card_time = user_data.get("last_card_time", 0)
             cooldown = 9000  # 2.5 часа для Бэт-пасса
             notification_time = last_card_time + cooldown
-    
-            if notification_time > now:
-                delay_seconds = notification_time - now
+
+            if notification_time > now_ts:
+                delay_seconds = notification_time - now_ts
                 job_name = f"card_notify_{target_user_id}"
         
                 # Отменяем старый job, если есть
@@ -10268,26 +10273,26 @@ async def give_batpass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(
             f"✅ **Бэт-пасс выдан!**\n"
             f"👤 Игрок: {target_user_id}\n"
-            f"📅 Срок: {days} дней\n"
-            f"⏰ Истекает: {expires_display}",
+            f"📅 Добавлено дней: {days}\n"
+            f"⏰ Новая дата истечения: {expires_display}",
             parse_mode="Markdown"
         )
         
         # ⭐ Уведомление игроку ⭐
         try:
             await context.bot.send_message(
-                chat_id=target_user_id,
+                chat_id=int(target_user_id), # ⭐ Исправлено: chat_id должен быть int для отправки в ЛС
                 text=(
-                    f"🎫 <b>Вам выдан Бэт-пасс!</b>\n\n"
-                    f"📅 <b>Срок действия:</b> {days} дней\n"
-                    f"⏰ <b>Истекает:</b> {expires_display}"
+                    f"🎫 <b>Вам продлён/выдан Бэт-пасс!</b>\n\n"
+                    f"📅 <b>Добавлено дней:</b> {days}\n"
+                    f"⏰ <b>Теперь истекает:</b> {expires_display}"
                 ),
                 parse_mode="HTML"
             )
         except Exception as notify_error:
             logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
         
-        logger.info(f"Админ выдал Бэт-пасс игроку {target_user_id} на {days} дней")
+        logger.info(f"Админ выдал/продлил Бэт-пасс игроку {target_user_id} на {days} дней (новое истечение: {expires_display})")
         
     except ValueError:
         await update.message.reply_text("⚠️ Количество дней должно быть числом!")
