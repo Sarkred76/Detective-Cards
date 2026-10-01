@@ -8468,7 +8468,7 @@ async def top_clans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     continue
                 
                 user_data = users.get(member_id, {})
-                total_rep += user_data.get("total_points", 0)
+                total_rep += user_data.get("season_points", 0)
             
             clan_scores.append({
                 "id": clan_id,
