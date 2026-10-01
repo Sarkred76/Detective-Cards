@@ -1002,7 +1002,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/add_supercoins [@никнейм] [количество] - начислить супер-коины в бюджет клана\n"
             response += "/add_injustice_points [@никнейм] [сторона] [очки]- выдать очки противостояния стороне\n"
             response += "/maintenance - включить режим тех работ\n"
-            response += "/clans\\_list - список всех кланов и их участников с @никнеймами\n"
+            response += "/clans_list - список всех кланов и их участников с @никнеймами\n"
+            response += "/give_rolls_box \\[@никнейм\\] \\[кол-во\\] - выдать накопительный Rolls-Box\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -6871,12 +6872,15 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     
     # Формирование текста в зависимости от типа бокса
     if current_box.get("is_rolls_box"):
+        pending = user_data.get("pending_rolls_box", 0)
         text = (
             f"📦 **{current_box['name']}**\n"
-            f"Цена: {display_price} бэт-коинов\n"
+            f"💰 Цена: {display_price} бэт-коинов\n"
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
-            f"⚠️ Цена растёт на 5000 с каждой покупкой!"
+            f"⚠️ Цена растёт на 5000 с каждой покупкой!\n\n"
         )
+        if pending > 0:
+            text += f"🎁 <b>У вас накоплено: {pending} шт.</b>\nОткройте их кнопкой ниже!"
     elif current_box.get("is_season_box"):
         pending = user_data.get("pending_season_boxes", 0)
         text = (
@@ -6900,6 +6904,16 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         if pending > 0:
             keyboard.append([InlineKeyboardButton(f"🎁 Открыть Season-Box ({pending} шт.)", callback_data="shop_open_season_box")])
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
+    if current_box.get("is_rolls_box"):
+        pending = user_data.get("pending_rolls_box", 0)
+        # ⭐ Кнопка открытия накопленных боксов ⭐
+        if pending > 0:
+            keyboard.append([InlineKeyboardButton(f"🎁 Открыть ({pending} шт.)", callback_data="shop_open_rolls_box")])
+        # ⭐ Кнопка покупки ⭐
+        if user_data.get("cents", 0) >= display_price:
+            keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price}", callback_data=f"shop_buy_box_{page}")])
+        else:
+            keyboard.append([InlineKeyboardButton("❌ Недостаточно бэт-коинов", callback_data="shop_no_cents")])
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
@@ -6945,6 +6959,75 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
+
+async def shop_open_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает 1 накопленный Rolls-Box (без изменения цены в магазине)."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        # ⭐ Миграция ⭐
+        if "pending_rolls_box" not in user_data:
+            user_data["pending_rolls_box"] = 0
+        
+        pending = user_data["pending_rolls_box"]
+        if pending <= 0:
+            await query.answer("❌ У вас нет накопленных Rolls-Box", show_alert=True)
+            return
+        
+        # ⭐ Открываем ОДИН бокс ⭐
+        user_data["pending_rolls_box"] = pending - 1
+        
+        # ⭐ Начисляем 15 попыток ⭐
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 15
+        
+        # ⭐ ВАЖНО: НЕ меняем rolls_box_price! ⭐
+        # Цена в магазине остаётся прежней
+        
+        save_data(data)
+        
+        await query.answer("🎁 Rolls-Box открыт! +15 попыток", show_alert=True)
+        
+        # ⭐ Обновляем сообщение ⭐
+        new_pending = user_data["pending_rolls_box"]
+        
+        text = (
+            f"✅ <b>Rolls-Box открыт!</b>\n\n"
+            f"🔍 <b>Получено:</b> 15 бесплатных попыток\n"
+            f"📊 <b>Всего попыток:</b> {user_data['free_rolls']}\n\n"
+        )
+        
+        if new_pending > 0:
+            text += f"📦 <b>Осталось боксов:</b> {new_pending} шт."
+        else:
+            text += "💡 <i>У вас больше нет накопленных боксов.</i>"
+        
+        keyboard = []
+        if new_pending > 0:
+            keyboard.append([InlineKeyboardButton(f"🎁 Открыть ещё ({new_pending} шт.)", callback_data="shop_open_rolls_box")])
+        keyboard.append([InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")])
+        
+        try:
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "Message is not modified" not in str(e):
+                logger.error(f"Ошибка shop_open_rolls_box: {e}")
+        
+        logger.info(f"Игрок {user_id} открыл Rolls-Box (осталось: {new_pending})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка shop_open_rolls_box: {e}")
+        await query.answer("❌ Ошибка при открытии бокса", show_alert=True)
 
 async def open_season_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Открывает 1 Season-Box: все сезонные карты + аватарка + 10 попыток."""
@@ -12464,6 +12547,108 @@ async def clans_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Ошибка в clans_list_command: {e}")
         await update.message.reply_text("❌ Ошибка при формировании списка кланов.")
 
+async def give_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт Rolls-Box игроку по ID или @никнейму (накопительный, можно открыть позже)."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # ⭐ Проверяем аргументы ⭐
+        if not context.args or len(context.args) < 1:
+            await update.message.reply_text(
+                "ℹ️ <b>Формат команды:</b>\n"
+                "/give\\_rolls\\_box \\[ID\\_или\\_@никнейм\\] \\[количество\\]\n\n"
+                "<b>Примеры:</b>\n"
+                "/give\\_rolls\\_box 881692999\n"
+                "/give\\_rolls\\_box @username 3 — выдать 3 бокса",
+                parse_mode="HTML"
+            )
+            return
+        
+        target_input = context.args[0]
+        count = int(context.args[1]) if len(context.args) > 1 else 1
+        
+        if count <= 0:
+            await update.message.reply_text("⚠️ Количество должно быть положительным!")
+            return
+        
+        # ⭐ Определяем ID игрока ⭐
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # ⭐ Миграция ⭐
+        if "pending_rolls_box" not in user_data:
+            user_data["pending_rolls_box"] = 0
+        
+        # ⭐ Выдаём боксы ⭐
+        user_data["pending_rolls_box"] += count
+        save_data(data)
+        
+        # ⭐ Склонение слова "бокс" ⭐
+        n = count % 100
+        n1 = n % 10
+        if n > 10 and n < 20:
+            box_word = "боксов"
+        elif n1 == 1:
+            box_word = "бокс"
+        elif n1 in [2, 3, 4]:
+            box_word = "бокса"
+        else:
+            box_word = "боксов"
+        
+        # ⭐ Отчёт админу ⭐
+        await update.message.reply_text(
+            f"✅ <b>Rolls-Box выдан!</b>\n\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"📦 Количество: {count} {box_word}\n"
+            f"📊 Всего накоплено: {user_data['pending_rolls_box']}",
+            parse_mode="HTML"
+        )
+        
+        # ⭐ Уведомление игроку ⭐
+        try:
+            keyboard = [
+                [InlineKeyboardButton("📦 Открыть Rolls-Box", callback_data="shop_open_rolls_box")]
+            ]
+            await context.bot.send_message(
+                chat_id=int(target_user_id),
+                text=(
+                    f"🎁 <b>Вам выдан Rolls-Box!</b>\n\n"
+                    f"📦 <b>Получено:</b> {count} {box_word}\n"
+                    f"📊 <b>Всего накоплено:</b> {user_data['pending_rolls_box']}\n\n"
+                    f"💡 Вы можете открыть его в любое время в магазине."
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+        
+        logger.info(f"Админ выдал {count} Rolls-Box игроку {target_user_id} (всего: {user_data['pending_rolls_box']})")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка give_rolls_box: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче Rolls-Box")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -12537,6 +12722,7 @@ def main() -> None:
             CommandHandler("add_injustice_points", add_injustice_points_command),
             CommandHandler("maintenance", maintenance_command),
             CommandHandler("clans_list", clans_list_command),
+            CommandHandler("give_rolls_box", give_rolls_box),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
@@ -12572,6 +12758,7 @@ def main() -> None:
             CallbackQueryHandler(injustice_choose_side, pattern=r"^injustice_choose_"),
             CallbackQueryHandler(injustice_confirm_side, pattern=r"^injustice_confirm_"),
             CallbackQueryHandler(injustice_cancel, pattern=r"^injustice_cancel$"),
+            CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
         ]
 
         for handler in handlers:
