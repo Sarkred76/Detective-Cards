@@ -2953,12 +2953,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # ⭐ СОСТОЯНИЕ ПОИСКА В АРХИВЕ ⭐
         if user_id in context.user_data:
             user_step = context.user_data[user_id].get("step", "")
+            
+            # ⭐ ДОБАВЛЕНО ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
+            logger.info(f"🔍 DEBUG archive_check: user_id={user_id}, step='{user_step}', text='{text}'")
+            
             if user_step == "archive_search":
-                if text.lower() == "/cancel":
+                # ⭐ ИСПРАВЛЕНО: используем strip() и startswith() для ловли пробелов и @имя_бота ⭐
+                if text and text.strip().lower().startswith("/cancel"):
+                    logger.info(f"✅ DEBUG: Успешная отмена поиска для пользователя {user_id}")
                     del context.user_data[user_id]
                     await update.message.reply_text("❌ Поиск отменён.")
                     return
                 else:
+                    logger.info(f"⚙️ DEBUG: Передача в archive_search_execute с текстом: '{text}'")
                     # ⭐ Иначе передаём в функцию выполнения поиска ⭐
                     await archive_search_execute(update, context)
                     return
