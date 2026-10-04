@@ -1144,13 +1144,19 @@ async def show_cards_by_rarity(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
         nav_buttons = []
+        # ⭐ Кнопка "<<" (назад на 5) ⭐
         if start_index > 0:
+            fast_prev_index = max(0, start_index - 5)
+            nav_buttons.append(InlineKeyboardButton("<<", callback_data=f"card_prev_{rarity}_{fast_prev_index}"))
             nav_buttons.append(InlineKeyboardButton("<", callback_data=f"card_prev_{rarity}_{start_index - 1}"))
-        
+
         nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
-        
+
+        # ⭐ Кнопка ">>" (вперёд на 5) ⭐
         if start_index < total_cards - 1:
+            fast_next_index = min(total_cards - 1, start_index + 5)
             nav_buttons.append(InlineKeyboardButton(">", callback_data=f"card_next_{rarity}_{start_index + 1}"))
+            nav_buttons.append(InlineKeyboardButton(">>", callback_data=f"card_next_{rarity}_{fast_next_index}"))
         
         keyboard = [
             nav_buttons,
@@ -1263,17 +1269,23 @@ async def show_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, sta
         
         # ⭐ КЛАВИАТУРА С КНОПКОЙ ПОИСКА ⭐
         nav_buttons = []
+        # ⭐ Кнопка "<<" (назад на 5) 
         if start_index > 0:
+            fast_prev_index = max(0, start_index - 5)
+            nav_buttons.append(InlineKeyboardButton("<<", callback_data=f"card_prev_all_{fast_prev_index}"))
             nav_buttons.append(InlineKeyboardButton("<", callback_data=f"card_prev_all_{start_index - 1}"))
-        
+
         nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
-        
+
+        # ⭐ Кнопка ">>" (вперёд на 5) ⭐
         if start_index < total_cards - 1:
+            fast_next_index = min(total_cards - 1, start_index + 5)
             nav_buttons.append(InlineKeyboardButton(">", callback_data=f"card_next_all_{start_index + 1}"))
-        
+            nav_buttons.append(InlineKeyboardButton(">>", callback_data=f"card_next_all_{fast_next_index}"))
+
         keyboard = [
             nav_buttons,
-            [InlineKeyboardButton("🔍 Поиск", callback_data="archive_search_all")],
+            [InlineKeyboardButton(" Поиск", callback_data="archive_search_all")],
             [InlineKeyboardButton("🔙 Назад", callback_data="archive_menu")]
         ]
         
@@ -1502,19 +1514,27 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
             return
         
         # ⭐ Навигация ⭐
-        if query.data.startswith("archive_search_prev_") or query.data.startswith("archive_search_next_"):
+        if (query.data.startswith("archive_search_prev_") or 
+            query.data.startswith("archive_search_next_") or
+            query.data.startswith("archive_search_fast_prev_") or
+            query.data.startswith("archive_search_fast_next_")):
+    
             action = "prev" if "prev" in query.data else "next"
             current_index = search_info.get("current_index", 0)
             filtered_cards = search_info.get("filtered_cards", [])
-    
             if not filtered_cards:
                 await query.answer("❌ Карты не найдены!", show_alert=True)
                 return
     
-            if action == "prev":
-                new_index = current_index - 1
+            #  НОВОЕ: Для fast-кнопок индекс уже рассчитан ⭐
+            if "fast_" in query.data:
+                new_index = int(query.data.split("_")[-1])
             else:
-                new_index = current_index + 1
+                # Для обычных кнопок корректируем индекс
+                if action == "prev":
+                    new_index = current_index - 1
+                else:
+                    new_index = current_index + 1
     
             # Проверка границ
             if new_index < 0 or new_index >= len(filtered_cards):
@@ -1537,13 +1557,19 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
     
             # ⭐ Клавиатура ⭐
             nav_buttons = []
+            # ⭐ Кнопка "<<" (назад на 5) ⭐
             if new_index > 0:
-                nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index}"))
-    
+                fast_prev_index = max(0, new_index - 5)
+                nav_buttons.append(InlineKeyboardButton("<<", callback_data=f"archive_search_fast_prev_{fast_prev_index}"))
+                nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index - 1}"))
+
             nav_buttons.append(InlineKeyboardButton(f"{new_index + 1}/{len(filtered_cards)}", callback_data="archive_search_info"))
-    
+
+            # ⭐ Кнопка ">>" (вперёд на 5) ⭐
             if new_index < len(filtered_cards) - 1:
-                nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index}"))
+                fast_next_index = min(len(filtered_cards) - 1, new_index + 5)
+                nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index + 1}"))
+                nav_buttons.append(InlineKeyboardButton(">>", callback_data=f"archive_search_fast_next_{fast_next_index}"))
     
             keyboard = [
                 nav_buttons,
@@ -2438,12 +2464,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if query.data and ("card_prev" in query.data or "card_next" in query.data):
             action = "prev" if "prev" in query.data else "next"
+            # ⭐ НОВОЕ: Извлекаем индекс из callback (он уже рассчитан как fast_prev/fast_next) ⭐
             current_index = int(query.data.split("_")[-1])
-            if action == "prev":
-                new_index = current_index - 1
+    
+            # ⭐ Для обычных кнопок < и > корректируем индекс ⭐
+            if "_fast_" not in query.data:
+                if action == "prev":
+                    new_index = current_index - 1
+                else:
+                    new_index = current_index + 1
             else:
-                new_index = current_index + 1
-
+                # ⭐ Для кнопок << и >> индекс уже правильный ⭐
+                new_index = current_index
+    
             # Проверка границ
             if new_index < 0 or new_index >= total_cards:
                 await query.answer("Нельзя пролистнуть дальше", show_alert=True)
