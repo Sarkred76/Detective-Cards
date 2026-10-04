@@ -3238,10 +3238,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
-            # ⭐ ДОБАВЛЕНО: Обновляем прогресс сезонных квестов ⭐
-            completed_quest_id = update_seasonal_on_card_get(user_data, card["rarity"])
-            if completed_quest_id:
-                asyncio.create_task(notify_seasonal_quest_completed(context, user_id, completed_quest_id))
+            await update_seasonal_on_card_get(context, user_id, user_data, card["rarity"])
             save_data(data)
 
             # ⭐ НОВОЕ: Планируем уведомление для следующего получения ⭐
@@ -5366,9 +5363,7 @@ async def craft_execute(
         user_data["total_points"] += bonus["points"]
         user_data["season_points"] += bonus["points"]
         user_data["cents"] += bonus["cents"]
-        completed_quest_id = update_seasonal_on_card_get(user_data, new_card["rarity"])
-        if completed_quest_id:
-            asyncio.create_task(notify_seasonal_quest_completed(context, user_id, completed_quest_id))
+        await update_seasonal_on_card_get(context, user_id, user_data, new_card["rarity"])
         
         save_data(data)
         
@@ -8010,9 +8005,7 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
         
         # ⭐ УДАЛЯЕМ ОДНУ КОПИЮ КАРТЫ (оставляя минимум 1) ⭐
         user_data["cards"].remove(card_id)
-        completed_quest_id = update_seasonal_on_burn(user_data, card["rarity"])
-        if completed_quest_id:
-            asyncio.create_task(notify_seasonal_quest_completed(context, user_id, completed_quest_id))
+        await update_seasonal_on_burn(context, user_id, user_data, card["rarity"])
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         reward = BURN_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
@@ -8216,7 +8209,6 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
         
         # ⭐ УДАЛЯЕМ ДУБЛИКАТЫ КАРТ И ОБНОВЛЯЕМ СЕЗОННЫЕ КВЕСТЫ ⭐
-        completed_quest_ids = set()
         for card_id, duplicates_count in cards_to_burn:
             card = find_card_by_id(card_id, data["cards"])
             if not card:
@@ -8224,13 +8216,7 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             for _ in range(duplicates_count):
                 if card_id in user_data["cards"]:
                     user_data["cards"].remove(card_id)
-                    result = update_seasonal_on_burn(user_data, card["rarity"])
-                    if result:
-                        completed_quest_ids.add(result)
-
-        # ⭐ Отправляем уведомления после цикла ⭐
-        for qid in completed_quest_ids:
-            asyncio.create_task(notify_seasonal_quest_completed(context, user_id, qid))
+                    await update_seasonal_on_burn(context, user_id, user_data, card["rarity"])
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["cents"] = user_data.get("cents", 0) + total_cents
@@ -8884,43 +8870,17 @@ def get_current_seasonal_quest(user_data: Dict) -> Optional[Dict]:
         return None
     return SEASONAL_QUESTS[quest_id]
 
-def format_seasonal_reward(reward: Dict) -> str:
-    """Форматирует награду сезонного квеста в читаемый текст."""
-    parts = []
-    if reward.get("cents", 0) > 0:
-        parts.append(f"{reward['cents']} 💰")
-    if reward.get("free_rolls", 0) > 0:
-        parts.append(f"{reward['free_rolls']} 🔍")
-    if reward.get("rep_points", 0) > 0:
-        parts.append(f"{reward['rep_points']} 💥")
-    if reward.get("super_coins", 0) > 0:
-        amount = reward["super_coins"]
-        n = amount % 100
-        n1 = n % 10
-        if n > 10 and n < 20:
-            word = "супер-коинов"
-        elif n1 == 1:
-            word = "супер-коин"
-        elif n1 in [2, 3, 4]:
-            word = "супер-коина"
-        else:
-            word = "супер-коинов"
-        parts.append(f"{amount} {word} 🪙")
-    return ", ".join(parts) if parts else "Нет награды"
-
-def update_seasonal_progress(user_data: Dict, quest_id: int, amount: int = 1) -> Optional[int]:
-    """Обновляет прогресс сезонного квеста. Возвращает quest_id, если квест выполнен, иначе None."""
+async def update_seasonal_progress(context: ContextTypes.DEFAULT_TYPE, user_id: str, user_data: Dict, quest_id: int, amount: int = 1) -> None:
+    """Обновляет прогресс сезонного квеста. При выполнении отправляет уведомление."""
     init_seasonal_quests(user_data)
     sq = user_data["seasonal_quests"]
     
-    # Если квест уже выполнен (награда забрана) — ничего не делаем
     if quest_id in sq["completed"]:
-        return None
+        return
     
-    # Если это не текущий квест — ничего не делаем
     current_id = get_current_seasonal_quest_id(sq)
     if current_id != quest_id:
-        return None
+        return
     
     quest = SEASONAL_QUESTS[quest_id]
     quest_id_str = str(quest_id)
@@ -8928,32 +8888,25 @@ def update_seasonal_progress(user_data: Dict, quest_id: int, amount: int = 1) ->
     new_progress = min(current_progress + amount, quest["target"])
     sq["progress"][quest_id_str] = new_progress
     
-    # ⭐ НОВОЕ: Проверяем, выполнен ли квест ⭐
+    # ⭐ НОВОЕ: Если квест выполнен — отправляем уведомление ⭐
     if new_progress >= quest["target"]:
-        return quest_id
-    
-    return None
-
-
-def update_seasonal_on_card_get(user_data: Dict, rarity: str) -> Optional[int]:
-    """Обновляет сезонные квесты при получении карты. Возвращает quest_id, если квест выполнен."""
+        await notify_seasonal_quest_completed(context, user_id, quest_id)
+        
+async def update_seasonal_on_card_get(context: ContextTypes.DEFAULT_TYPE, user_id: str, user_data: Dict, rarity: str) -> None:
+    """Обновляет сезонные квесты при получении карты через «Получить досье»."""
     current_quest = get_current_seasonal_quest(user_data)
     if not current_quest:
-        return None
+        return
     if current_quest["type"] == "get_card" and current_quest.get("rarity") == rarity:
-        return update_seasonal_progress(user_data, current_quest["id"], 1)
-    return None
+        await update_seasonal_progress(context, user_id, user_data, current_quest["id"], 1)
 
-
-def update_seasonal_on_burn(user_data: Dict, rarity: str) -> Optional[int]:
-    """Обновляет сезонные квесты при сжигании карты. Возвращает quest_id, если квест выполнен."""
+async def update_seasonal_on_burn(context: ContextTypes.DEFAULT_TYPE, user_id: str, user_data: Dict, rarity: str) -> None:
+    """Обновляет сезонные квесты при сжигании карты."""
     current_quest = get_current_seasonal_quest(user_data)
     if not current_quest:
-        return None
+        return
     if current_quest["type"] == "burn_card" and current_quest.get("rarity") == rarity:
-        return update_seasonal_progress(user_data, current_quest["id"], 1)
-    return None
-
+        await update_seasonal_progress(context, user_id, user_data, current_quest["id"], 1)
 
 def update_seasonal_on_box_buy(user_data: Dict, box_type: str) -> None:
     """Обновляет сезонные квесты при покупке бокса. box_type: 'rolls' или 'classic'."""
@@ -8962,29 +8915,6 @@ def update_seasonal_on_box_buy(user_data: Dict, box_type: str) -> None:
         return
     if current_quest["type"] == "buy_box" and current_quest.get("box") == box_type:
         update_seasonal_progress(user_data, current_quest["id"], 1)
-
-async def notify_seasonal_quest_completed(context: ContextTypes.DEFAULT_TYPE, user_id: str, quest_id: int) -> None:
-    """Отправляет уведомление о выполнении сезонного квеста."""
-    try:
-        quest = SEASONAL_QUESTS.get(quest_id)
-        if not quest:
-            return
-        
-        reward_text = format_seasonal_reward(quest["reward"])
-        
-        await context.bot.send_message(
-            chat_id=int(user_id),
-            text=(
-                f"🏆 <b>Сезонный квест выполнен!</b>\n\n"
-                f"📋 <b>{quest['desc']}</b>\n\n"
-                f"🎁 Награда: {reward_text}\n\n"
-                f"💡 Откройте раздел «📜 Квесты» → «🏆 Сезонные», чтобы забрать награду!"
-            ),
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        logger.warning(f"Не удалось отправить уведомление о сезонном квесте игроку {user_id}: {e}")
-
 
 def claim_seasonal_reward(user_data: Dict, quest_id: int) -> bool:
     """Выдаёт награду за сезонный квест. Возвращает True, если успешно."""
@@ -9086,6 +9016,28 @@ async def quests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
+async def notify_seasonal_quest_completed(context: ContextTypes.DEFAULT_TYPE, user_id: str, quest_id: int) -> None:
+    """Отправляет уведомление о выполнении сезонного квеста."""
+    try:
+        quest = SEASONAL_QUESTS.get(quest_id)
+        if not quest:
+            return
+        
+        reward_text = format_seasonal_reward(quest["reward"])
+        
+        await context.bot.send_message(
+            chat_id=int(user_id),
+            text=(
+                f"🏆 <b>Сезонный квест выполнен!</b>\n\n"
+                f"📋 <b>{quest['desc']}</b>\n\n"
+                f"🎁 Награда: {reward_text}\n\n"
+                f"💡 Откройте раздел «📜 Квесты» → «🏆 Сезонные», чтобы забрать награду!"
+            ),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.warning(f"Не удалось отправить уведомление о сезонном квесте игроку {user_id}: {e}")
 
 async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает текущий сезонный квест."""
