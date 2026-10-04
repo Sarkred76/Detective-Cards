@@ -2953,8 +2953,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if user_id in context.user_data:
             user_step = context.user_data[user_id].get("step", "")
             if user_step == "archive_search":
-                await archive_search_execute(update, context)
-                return
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Поиск отменён.")
+                    return
+                else:
+                    # ⭐ Иначе передаём в функцию выполнения поиска ⭐
+                    await archive_search_execute(update, context)
+                    return
 
         # ⭐ СОСТОЯНИЕ ДОПРОСА ⭐
         if user_id in context.user_data:
