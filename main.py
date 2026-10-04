@@ -1373,7 +1373,8 @@ async def archive_search_execute(update: Update, context: ContextTypes.DEFAULT_T
         
         # ⭐ Обработка отмены ⭐
         if text.lower() == "/cancel":
-            del context.user_data[user_id]
+            if user_id in context.user_data:
+                del context.user_data[user_id]
             await update.message.reply_text("❌ Поиск отменён.")
             return
         
