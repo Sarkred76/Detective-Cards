@@ -8884,6 +8884,29 @@ def get_current_seasonal_quest(user_data: Dict) -> Optional[Dict]:
         return None
     return SEASONAL_QUESTS[quest_id]
 
+def format_seasonal_reward(reward: Dict) -> str:
+    """Форматирует награду сезонного квеста в читаемый текст."""
+    parts = []
+    if reward.get("cents", 0) > 0:
+        parts.append(f"{reward['cents']} 💰")
+    if reward.get("free_rolls", 0) > 0:
+        parts.append(f"{reward['free_rolls']} 🔍")
+    if reward.get("rep_points", 0) > 0:
+        parts.append(f"{reward['rep_points']} 💥")
+    if reward.get("super_coins", 0) > 0:
+        amount = reward["super_coins"]
+        n = amount % 100
+        n1 = n % 10
+        if n > 10 and n < 20:
+            word = "супер-коинов"
+        elif n1 == 1:
+            word = "супер-коин"
+        elif n1 in [2, 3, 4]:
+            word = "супер-коина"
+        else:
+            word = "супер-коинов"
+        parts.append(f"{amount} {word} 🪙")
+    return ", ".join(parts) if parts else "Нет награды"
 
 def update_seasonal_progress(user_data: Dict, quest_id: int, amount: int = 1) -> Optional[int]:
     """Обновляет прогресс сезонного квеста. Возвращает quest_id, если квест выполнен, иначе None."""
