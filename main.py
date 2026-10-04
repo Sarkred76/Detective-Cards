@@ -8888,9 +8888,12 @@ async def update_seasonal_progress(context: ContextTypes.DEFAULT_TYPE, user_id: 
     new_progress = min(current_progress + amount, quest["target"])
     sq["progress"][quest_id_str] = new_progress
     
-    # ⭐ НОВОЕ: Если квест выполнен — отправляем уведомление ⭐
+    # ⭐ ИСПРАВЛЕНИЕ: Если квест выполнен — отправляем уведомление (с защитой от ошибок) ⭐
     if new_progress >= quest["target"]:
-        await notify_seasonal_quest_completed(context, user_id, quest_id)
+        try:
+            await notify_seasonal_quest_completed(context, user_id, quest_id)
+        except Exception as notify_error:
+            logger.warning(f"Не удалось отправить уведомление о квесте {quest_id} игроку {user_id}: {notify_error}")
         
 async def update_seasonal_on_card_get(context: ContextTypes.DEFAULT_TYPE, user_id: str, user_data: Dict, rarity: str) -> None:
     """Обновляет сезонные квесты при получении карты через «Получить досье»."""
