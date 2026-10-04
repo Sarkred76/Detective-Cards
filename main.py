@@ -2954,21 +2954,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if user_id in context.user_data:
             user_step = context.user_data[user_id].get("step", "")
             
-            # ⭐ ДОБАВЛЕНО ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
-            logger.info(f"🔍 DEBUG archive_check: user_id={user_id}, step='{user_step}', text='{text}'")
-            
             if user_step == "archive_search":
-                # ⭐ ИСПРАВЛЕНО: используем strip() и startswith() для ловли пробелов и @имя_бота ⭐
-                if text and text.strip().lower().startswith("/cancel"):
-                    logger.info(f"✅ DEBUG: Успешная отмена поиска для пользователя {user_id}")
-                    del context.user_data[user_id]
-                    await update.message.reply_text("❌ Поиск отменён.")
-                    return
-                else:
-                    logger.info(f"⚙️ DEBUG: Передача в archive_search_execute с текстом: '{text}'")
-                    # ⭐ Иначе передаём в функцию выполнения поиска ⭐
-                    await archive_search_execute(update, context)
-                    return
+                await archive_search_execute(update, context)
+                return
 
         # ⭐ СОСТОЯНИЕ ДОПРОСА ⭐
         if user_id in context.user_data:
@@ -12724,6 +12712,65 @@ async def open_single_rolls_box(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка open_single_rolls_box: {e}")
         await query.answer("❌ Ошибка при открытии бокса", show_alert=True)
 
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Универсальный обработчик команды /cancel — отменяет активные действия."""
+    try:
+        user_id = str(update.effective_user.id)
+        
+        if user_id not in context.user_data:
+            await update.message.reply_text("❌ Нет активных действий для отмены.")
+            return
+        
+        user_state = context.user_data[user_id]
+        step = user_state.get("step", "")
+        
+        logger.info(f"🔔 /cancel получен от {user_id}, текущий шаг: '{step}'")
+        
+        # ⭐ Отменяем поиск в архиве ⭐
+        if step == "archive_search":
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Поиск в архиве отменён.")
+            return
+        
+        # ⭐ Отменяем создание клана ⭐
+        if step in ["clan_enter_name", "clan_create_confirm", "clan_invite_enter_username"]:
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Создание клана отменено.")
+            return
+        
+        # ⭐ Отменяем добавление карты ⭐
+        if step in [ADD_CARD_WAITING_MEDIA, ADD_CARD_WAITING_TITLE, ADD_CARD_WAITING_RARITY, 
+                    ADD_CARD_WAITING_CATCHPHRASE, ADD_CARD_WAITING_UNIVERSE]:
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Добавление карты отменено.")
+            return
+        
+        # ⭐ Отменяем редактирование карты ⭐
+        if step == "edit_card_waiting_media":
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Редактирование карты отменено.")
+            return
+        
+        # ⭐ Отменяем трейд ⭐
+        if step in ["select_partner", "search_mode", "select_cards", "select_return_cards"]:
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Трейд отменён.")
+            return
+        
+        # ⭐ Отменяем допрос ⭐
+        if step == "interrogation":
+            del context.user_data[user_id]
+            await update.message.reply_text("❌ Допрос отменён.")
+            return
+        
+        # ⭐ Если шаг неизвестен — просто очищаем ⭐
+        del context.user_data[user_id]
+        await update.message.reply_text("❌ Действие отменено.")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в cancel_command: {e}")
+        await update.message.reply_text("❌ Ошибка при отмене действия")
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -12798,6 +12845,7 @@ def main() -> None:
             CommandHandler("maintenance", maintenance_command),
             CommandHandler("clans_list", clans_list_command),
             CommandHandler("give_rolls_box", give_rolls_box),
+            CommandHandler("cancel", cancel_command),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
