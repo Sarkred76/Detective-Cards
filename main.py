@@ -5398,6 +5398,10 @@ async def craft_execute(
         user_data["total_points"] += bonus["points"]
         user_data["season_points"] += bonus["points"]
         user_data["cents"] += bonus["cents"]
+        
+        # ⭐ НОВОЕ: Инициализируем переменную для супер-коинов ⭐
+        super_coins_earned = 0
+        
         user_clan_id = get_user_clan(user_id, data)
         if user_clan_id:
             clan_data = data["clans"].get(user_clan_id)
@@ -5406,12 +5410,12 @@ async def craft_execute(
                 super_coins_amount = SUPER_COIN_REWARDS.get(new_card["rarity"], 0)
                 if super_coins_amount > 0:
                     clan_data["super_coins"] = clan_data.get("super_coins", 0) + super_coins_amount
-                    result_text += "f"🪙 +{bonus['super_coins']} супер-коинов""
+                    super_coins_earned = super_coins_amount  # ⭐ Сохраняем для отображения ⭐
                     # Начисляем очки Противостояния
                     add_injustice_points_to_clan(user_clan_id, super_coins_amount, data)
                     logger.info(f"Клан {clan_data.get('name')} получил {super_coins_amount} супер-коинов за крафт карты #{new_card['id']}")
-        update_seasonal_on_card_get(user_data, new_card["rarity"])
         
+        update_seasonal_on_card_get(user_data, new_card["rarity"])
         save_data(data)
         
         # === ОТПРАВЛЯЕМ РЕЗУЛЬТАТ ===
@@ -5423,6 +5427,10 @@ async def craft_execute(
             f"💰 +{bonus['cents']} бэт-коинов\n"
             f"💥 +{bonus['points']} очков репутации"
         )
+        
+        # ⭐ НОВОЕ: Добавляем информацию о супер-коинах, если игрок в клане и получил их ⭐
+        if super_coins_earned > 0:
+            result_text += f"\n🪙 +{super_coins_earned} супер-коинов"
 
         # Еженедельный квест: сделать 3 крафта
         await update_weekly_quest_progress(context, user_id, "weekly_craft_3", 1)
@@ -5430,8 +5438,14 @@ async def craft_execute(
         # ⭐ 1. Сначала редактируем текущее сообщение с результатом ⭐
         await query.edit_message_text(result_text, parse_mode="Markdown")
         
-        # ⭐ 2. Отправляем полученную карту ОТДЕЛЬНЫМ сообщением ⭐
-        caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
+        # ⭐ 2. Отправляем полученную карту ОТДЕЛЬНЫМ сообщением с правильным caption ⭐
+        caption = generate_card_caption(
+            new_card, 
+            user_data, 
+            count=1, 
+            show_bonus=False,
+            super_coins_earned=super_coins_earned  # ⭐ НОВОЕ: передаем супер-коины в caption ⭐
+        )
         await send_card(update, new_card, context, caption=caption)
         
         # ⭐ 3. Отправляем НОВОЕ сообщение с меню выбора карт (не редактируем!) ⭐
@@ -5442,8 +5456,7 @@ async def craft_execute(
     except Exception as e:
         logger.error(f"Ошибка в craft_execute: {e}")
         await query.answer("❌ Произошла ошибка при крафте", show_alert=True)
-
-
+        
 async def _send_craft_select_menu(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
