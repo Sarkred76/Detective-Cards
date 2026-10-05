@@ -5406,6 +5406,7 @@ async def craft_execute(
                 super_coins_amount = SUPER_COIN_REWARDS.get(new_card["rarity"], 0)
                 if super_coins_amount > 0:
                     clan_data["super_coins"] = clan_data.get("super_coins", 0) + super_coins_amount
+                    result_text += "f"🪙 +{bonus['super_coins']} супер-коинов""
                     # Начисляем очки Противостояния
                     add_injustice_points_to_clan(user_clan_id, super_coins_amount, data)
                     logger.info(f"Клан {clan_data.get('name')} получил {super_coins_amount} супер-коинов за крафт карты #{new_card['id']}")
@@ -5420,7 +5421,6 @@ async def craft_execute(
             f"🎁 Получено: **{new_card['title']}**\n"
             f"🌟 Редкость: {new_card['rarity']}\n\n"
             f"💰 +{bonus['cents']} бэт-коинов\n"
-            f"🪙 +{bonus['super_coins']} супер-коинов"
             f"💥 +{bonus['points']} очков репутации"
         )
 
