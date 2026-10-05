@@ -5420,6 +5420,7 @@ async def craft_execute(
             f"🎁 Получено: **{new_card['title']}**\n"
             f"🌟 Редкость: {new_card['rarity']}\n\n"
             f"💰 +{bonus['cents']} бэт-коинов\n"
+            f"🪙 +{bonus['super_coins']} супер-коинов"
             f"💥 +{bonus['points']} очков репутации"
         )
 
