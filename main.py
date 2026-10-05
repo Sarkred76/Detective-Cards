@@ -5398,6 +5398,17 @@ async def craft_execute(
         user_data["total_points"] += bonus["points"]
         user_data["season_points"] += bonus["points"]
         user_data["cents"] += bonus["cents"]
+        user_clan_id = get_user_clan(user_id, data)
+        if user_clan_id:
+            clan_data = data["clans"].get(user_clan_id)
+            if clan_data:
+                # Получаем количество супер-коинов по редкости
+                super_coins_amount = SUPER_COIN_REWARDS.get(new_card["rarity"], 0)
+                if super_coins_amount > 0:
+                    clan_data["super_coins"] = clan_data.get("super_coins", 0) + super_coins_amount
+                    # Начисляем очки Противостояния
+                    add_injustice_points_to_clan(user_clan_id, super_coins_amount, data)
+                    logger.info(f"Клан {clan_data.get('name')} получил {super_coins_amount} супер-коинов за крафт карты #{new_card['id']}")
         update_seasonal_on_card_get(user_data, new_card["rarity"])
         
         save_data(data)
