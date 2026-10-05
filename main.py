@@ -11569,7 +11569,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         f"🎁 <b>Вам выдана карта из магазина клана!</b>\n\n"
                         f"🏰 Клан: {html.escape(clan_name)}\n"
                         f"🃏 Карта: <b>{html.escape(exclusive_card['title'])}</b>\n"
-                        f"🌟 Редкость: Epic Team-Up\n\n"
+                        f"🌟 Редкость: Epic\n\n"
                         f"✨ <i>Эксклюзивная награда!</i>"
                     ),
                     parse_mode="HTML"
