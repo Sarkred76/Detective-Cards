@@ -6987,9 +6987,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             
         # Формирование клавиатуры
         keyboard = []
-        if pending > 0:
-            keyboard.append([InlineKeyboardButton(f"🎁 Открыть Lanterns-Box ({pending} шт.)", callback_data="shop_open_lanterns_box")])
-        keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
         keyboard.append([InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")])
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
@@ -6997,9 +6994,8 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     # Формирование клавиатуры
     keyboard = []
     if current_box.get("is_season_box"):
-        pending = user_data.get("pending_season_boxes", 0)
-        if pending > 0:
-            keyboard.append([InlineKeyboardButton(f"🎁 Открыть Season-Box ({pending} шт.)", callback_data="shop_open_season_box")])
+        keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
+    elif current_box.get("is_lanterns_box"):
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
