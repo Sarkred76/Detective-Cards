@@ -81,6 +81,24 @@ FRIENDS_AVATAR_1_URL = "https://ibb.co/GQN89Nzn"
 FRIENDS_AVATAR_2_URL = "https://ibb.co/bx2cr1h"
 FRIENDS_AVATARS = [FRIENDS_AVATAR_1_URL, FRIENDS_AVATAR_2_URL]
 
+# ===== LANTERNS-BOX =====
+LANTERNS_BOX_IMAGE = "https://files.catbox.moe/w7pdsr.jpg"  # ⭐ ЗАМЕНИ НА СВОЮ
+LANTERNS_EXCLUSIVE_AVATAR = "https://files.catbox.moe/rkn0qn.jpg" # ⭐ ЗАМЕНИ НА СВОЮ
+
+# ⭐ СПИСОК ID КАРТ, КОТОРЫЕ ВЫДАЁТ ЭТОТ БОКС ⭐
+LANTERNS_BOX_CARD_IDS = [
+    162,
+    163,
+    185,
+    193,
+    205,
+    213,
+    225,
+    233,
+    254,
+    256
+]
+
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
@@ -6847,6 +6865,7 @@ ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
     {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
+    {"name": "Lanterns-Box", "price": 0, "image": LANTERNS_BOX_IMAGE, "is_lanterns_box": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -6954,6 +6973,24 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
+    # ⭐ НОВОЕ: Lanterns-Box ⭐
+    elif current_box.get("is_lanterns_box"):
+        pending = user_data.get("pending_lanterns_boxes", 0)
+        text = (
+            f"🏮 **{current_box['name']}**\n"
+            f"💰 Цена: **149₽**\n"
+            f"🎁 Содержимое:\n"
+            f"• Все вышедшие карты по сериалу «Фонари»\n"
+            f"• Эксклюзивная аватарка 🖼\n"
+            f"💳 Для покупки напишите: @Be9onder"
+        )
+            
+        # Формирование клавиатуры
+        keyboard = []
+        if pending > 0:
+            keyboard.append([InlineKeyboardButton(f"🎁 Открыть Lanterns-Box ({pending} шт.)", callback_data="shop_open_lanterns_box")])
+        keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
+        keyboard.append([InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")])
     else:
         text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
@@ -12829,6 +12866,238 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка в cancel_command: {e}")
         await update.message.reply_text("❌ Ошибка при отмене действия")
 
+async def give_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выдаёт Lanterns-Box игроку по ID или @никнейму."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args or len(context.args) < 1:
+            await update.message.reply_text(
+                "ℹ️ <b>Формат команды:</b>\n"
+                "/give_lanterns_box [@никнейм] [количество]\n\n"
+                "<b>Примеры:</b>\n"
+                "/give_lanterns_box @username\n"
+                "/give_lanterns_box @username 2 — выдать 2 бокса",
+                parse_mode="HTML"
+            )
+            return
+        
+        target_input = context.args[0]
+        count = int(context.args[1]) if len(context.args) > 1 else 1
+        
+        if count <= 0:
+            await update.message.reply_text("⚠️ Количество должно быть положительным!")
+            return
+        
+        # Определяем ID игрока
+        target_user_id = None
+        if target_input.startswith("@"):
+            username_to_find = target_input[1:].strip().lower()
+            for uid, udata in data["users"].items():
+                if udata.get("username", "").lower() == username_to_find:
+                    target_user_id = uid
+                    break
+            if not target_user_id:
+                await update.message.reply_text(f"⚠️ Игрок с никнеймом @{username_to_find} не найден!")
+                return
+        else:
+            target_user_id = target_input
+            if target_user_id not in data["users"]:
+                await update.message.reply_text(f"⚠️ Игрок с ID {target_user_id} не найден!")
+                return
+        
+        user_data = data["users"][target_user_id]
+        
+        # Миграция
+        if "pending_lanterns_boxes" not in user_data:
+            user_data["pending_lanterns_boxes"] = 0
+        
+        # Выдаём боксы
+        user_data["pending_lanterns_boxes"] += count
+        save_data(data)
+        
+        # Склонение
+        n = count % 100
+        n1 = n % 10
+        if n > 10 and n < 20:
+            box_word = "боксов"
+        elif n1 == 1:
+            box_word = "бокс"
+        elif n1 in [2, 3, 4]:
+            box_word = "бокса"
+        else:
+            box_word = "боксов"
+        
+        await update.message.reply_text(
+            f"✅ <b>Lanterns-Box выдан!</b>\n\n"
+            f"👤 Игрок: {target_user_id}\n"
+            f"📦 Количество: {count} {box_word}\n"
+            f"📊 Всего накоплено: {user_data['pending_lanterns_boxes']}",
+            parse_mode="HTML"
+        )
+        
+        # Уведомление игроку
+        try:
+            keyboard = [
+                [InlineKeyboardButton("🏮 Открыть Lanterns-Box", callback_data="shop_open_lanterns_box")]
+            ]
+            await context.bot.send_message(
+                chat_id=int(target_user_id),
+                text=(
+                    f"🎁 <b>Вам выдан Lanterns-Box!</b>\n\n"
+                    f"📦 <b>Получено:</b> {count} {box_word}\n"
+                    f"📊 <b>Всего накоплено:</b> {user_data['pending_lanterns_boxes']}\n\n"
+                    f"💡 Содержит все карты по сериалу «Фонари» и эксклюзивную аватарку.\n"
+                    f"Откройте его в любое время в магазине!"
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception as notify_error:
+            logger.warning(f"Не удалось уведомить игрока {target_user_id}: {notify_error}")
+            
+    except ValueError:
+        await update.message.reply_text("⚠️ Количество должно быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка give_lanterns_box: {e}")
+        await update.message.reply_text("❌ Ошибка при выдаче Lanterns-Box")
+
+async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает 1 Lanterns-Box: выдаёт конкретные карты и аватарку."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        # Миграция
+        if "pending_lanterns_boxes" not in user_data:
+            user_data["pending_lanterns_boxes"] = 0
+        if "avatars" not in user_data:
+            user_data["avatars"] = []
+            
+        pending = user_data["pending_lanterns_boxes"]
+        if pending <= 0:
+            await query.answer("❌ У вас нет накопленных Lanterns-Box", show_alert=True)
+            return
+        
+        # ⭐ ДОБАВЛЯЕМ КАРТЫ ИГРОКУ ⭐
+        cards_obtained = []
+        for card_id in LANTERNS_BOX_CARD_IDS:
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                user_data["cards"].append(card["id"])
+                cards_obtained.append(card)
+        
+        # ⭐ ДОБАВЛЯЕМ ЭКСКЛЮЗИВНУЮ АВАТАРКУ ⭐
+        avatar_added = False
+        if LANTERNS_EXCLUSIVE_AVATAR not in user_data["avatars"]:
+            user_data["avatars"].append(LANTERNS_EXCLUSIVE_AVATAR)
+            avatar_added = True
+            
+        # ⭐ Уменьшаем счётчик pending ⭐
+        user_data["pending_lanterns_boxes"] = pending - 1
+        save_data(data)
+        
+        await query.answer("🏮 Lanterns-Box открыт!", show_alert=True)
+        
+        # ⭐ ФОРМИРУЕМ АЛЬБОМ С КАРТАМИ ⭐
+        media_group = []
+        for i, card in enumerate(cards_obtained):
+            caption = None
+            if i == 0:
+                caption = (
+                    f"🏮 <b>Lanterns-Box открыт!</b>\n"
+                    f"🎴 Получено {len(cards_obtained)} карт\n"
+                    f"🖼 {'+Эксклюзивная аватарка' if avatar_added else ''}\n"
+                    f"📦 Осталось открытых боксов: {user_data['pending_lanterns_boxes']}"
+                )
+            
+            media_source = card.get("media_source", "url")
+            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+            
+            is_animation = (
+                card.get("media_type") == "animation" or 
+                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+            )
+            
+            if is_animation:
+                media_group.append(
+                    InputMediaVideo(
+                        media=media_value,
+                        caption=caption,
+                        parse_mode="HTML" if caption else None,
+                        supports_streaming=True
+                    )
+                )
+            else:
+                media_group.append(
+                    InputMediaPhoto(
+                        media=media_value,
+                        caption=caption,
+                        parse_mode="HTML" if caption else None
+                    )
+                )
+        
+        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ ⭐
+        try:
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id,
+                media=media_group
+            )
+        except Exception as media_error:
+            logger.warning(f"Не удалось отправить альбом Lanterns-Box: {media_error}. Отправляю по одному.")
+            for i, card in enumerate(cards_obtained):
+                cap = None
+                if i == 0:
+                    cap = f"🏮 <b>Lanterns-Box открыт!</b>\n🎴 Получено {len(cards_obtained)} карт\n🖼 {'+Эксклюзивная аватарка' if avatar_added else ''}"
+                
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+                is_animation = card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+                
+                try:
+                    if is_animation:
+                        await context.bot.send_video(chat_id=query.message.chat_id, video=media_value, caption=cap, parse_mode="HTML" if cap else None, supports_streaming=True)
+                    else:
+                        await context.bot.send_photo(chat_id=query.message.chat_id, photo=media_value, caption=cap, parse_mode="HTML" if cap else None)
+                except Exception:
+                    await context.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ Ошибка отображения карты #{card.get('id')}. {cap or ''}", parse_mode="HTML")
+                await asyncio.sleep(0.3)
+        
+        # ⭐ Финальное сообщение ⭐
+        kb = []
+        if user_data["pending_lanterns_boxes"] > 0:
+            kb.append([InlineKeyboardButton(f"🎁 Открыть ещё ({user_data['pending_lanterns_boxes']} шт.)", callback_data="shop_open_lanterns_box")])
+        kb.append([InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")])
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="✅ <b>Lanterns-Box успешно открыт!</b>",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"Игрок {user_id} открыл Lanterns-Box (осталось: {user_data['pending_lanterns_boxes']})")
+        
+    except Exception as e:
+        logger.error(f"Ошибка открытия Lanterns-Box: {e}")
+        try:
+            await context.bot.send_message(
+                chat_id=update.callback_query.message.chat_id,
+                text="❌ Произошла ошибка при открытии Lanterns-Box",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_menu")]])
+            )
+        except Exception:
+            pass
+
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
@@ -12904,6 +13173,7 @@ def main() -> None:
             CommandHandler("clans_list", clans_list_command),
             CommandHandler("give_rolls_box", give_rolls_box),
             CommandHandler("cancel", cancel_command),
+            CommandHandler("give_lanterns_box", give_lanterns_box),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
@@ -12941,6 +13211,7 @@ def main() -> None:
             CallbackQueryHandler(injustice_cancel, pattern=r"^injustice_cancel$"),
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
             CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
+            CallbackQueryHandler(open_lanterns_box, pattern=r"^shop_open_lanterns_box$"),
         ]
 
         for handler in handlers:
