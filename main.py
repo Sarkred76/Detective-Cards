@@ -7695,11 +7695,8 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif query.data == "shop_open_season_box":
         await open_season_box(update, context)
 
-    elif query.data == "shop_open_superman_heroes":
-        await open_superman_heroes_box(update, context)
-        
-    elif query.data == "shop_open_superman_villain":
-        await open_superman_villain_box(update, context)
+    elif query.data == "shop_open_lanterns_box":
+        await open_lanterns_box(update, context)
 
     elif query.data == "shop_info":
         await query.answer("📦 Используйте ◀️ и ▶️ для навигации по боксам", show_alert=False)
@@ -12936,18 +12933,20 @@ async def give_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         
         # Уведомление игроку
+        # ⭐ Уведомление игроку (идентично Season-Box) ⭐
         try:
             keyboard = [
-                [InlineKeyboardButton("🏮 Открыть Lanterns-Box", callback_data="shop_open_lanterns_box")]
+                [InlineKeyboardButton("🎁 Открыть сейчас", callback_data="shop_open_lanterns_box")]
             ]
             await context.bot.send_message(
                 chat_id=int(target_user_id),
                 text=(
-                    f"🎁 <b>Вам выдан Lanterns-Box!</b>\n\n"
-                    f"📦 <b>Получено:</b> {count} {box_word}\n"
-                    f"📊 <b>Всего накоплено:</b> {user_data['pending_lanterns_boxes']}\n\n"
-                    f"💡 Содержит все карты по сериалу «Фонари» и эксклюзивную аватарку.\n"
-                    f"Откройте его в любое время в магазине!"
+                    f"🎁 <b>Вам начислен Lanterns-Box!</b>\n"
+                    f"📦 Накоплено боксов: <b>{user_data['pending_lanterns_boxes']}</b>\n"
+                    f"Нажмите кнопку ниже, чтобы открыть его:\n\n"
+                    f"🎁 <b>Содержимое:</b>\n"
+                    f"• Все вышедшие карты по сериалу «Фонари»\n"
+                    f"• Эксклюзивная аватарка 🖼"
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="HTML"
@@ -12962,7 +12961,7 @@ async def give_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text("❌ Ошибка при выдаче Lanterns-Box")
 
 async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Открывает 1 Lanterns-Box: выдаёт конкретные карты и аватарку."""
+    """Открывает 1 Lanterns-Box: выдаёт конкретные карты и аватарку (аналогично Season-Box)."""
     try:
         query = update.callback_query
         user_id = str(query.from_user.id)
@@ -13004,7 +13003,7 @@ async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         await query.answer("🏮 Lanterns-Box открыт!", show_alert=True)
         
-        # ⭐ ФОРМИРУЕМ АЛЬБОМ С КАРТАМИ ⭐
+        # ⭐ ФОРМИРУЕМ АЛЬБОМ (media group) с универсальной поддержкой file_id/url ⭐
         media_group = []
         for i, card in enumerate(cards_obtained):
             caption = None
@@ -13049,6 +13048,7 @@ async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 media=media_group
             )
         except Exception as media_error:
+            # ⭐ FALLBACK: если альбом не получился — шлём по одному ⭐
             logger.warning(f"Не удалось отправить альбом Lanterns-Box: {media_error}. Отправляю по одному.")
             for i, card in enumerate(cards_obtained):
                 cap = None
@@ -13057,15 +13057,33 @@ async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 
                 media_source = card.get("media_source", "url")
                 media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-                is_animation = card.get("media_type") == "animation" or (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+                is_anim = (
+                    card.get("media_type") == "animation" or 
+                    (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+                )
                 
                 try:
-                    if is_animation:
-                        await context.bot.send_video(chat_id=query.message.chat_id, video=media_value, caption=cap, parse_mode="HTML" if cap else None, supports_streaming=True)
+                    if is_anim:
+                        await context.bot.send_video(
+                            chat_id=query.message.chat_id, 
+                            video=media_value, 
+                            caption=cap, 
+                            parse_mode="HTML" if cap else None, 
+                            supports_streaming=True
+                        )
                     else:
-                        await context.bot.send_photo(chat_id=query.message.chat_id, photo=media_value, caption=cap, parse_mode="HTML" if cap else None)
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id, 
+                            photo=media_value, 
+                            caption=cap, 
+                            parse_mode="HTML" if cap else None
+                        )
                 except Exception:
-                    await context.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ Ошибка отображения карты #{card.get('id')}. {cap or ''}", parse_mode="HTML")
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id, 
+                        text=f"⚠️ Ошибка отображения карты #{card.get('id')}. {cap or ''}", 
+                        parse_mode="HTML"
+                    )
                 await asyncio.sleep(0.3)
         
         # ⭐ Финальное сообщение ⭐
@@ -13093,7 +13111,7 @@ async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
         except Exception:
             pass
-
+            
 # ===== ЗАПУСК БОТА =====
 
 def main() -> None:
