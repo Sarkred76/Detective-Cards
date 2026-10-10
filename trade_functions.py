@@ -265,7 +265,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 async def _show_trade_card(update_or_query, context, trade_info, display_card_ids, index):
     """
     ⭐ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КАРТЫ ДЛЯ ТРЕЙДА ⭐
-    Поддерживает дубликаты карт, поиск и file_id.
+    Поддерживает дубликаты карт, поиск и file_id с защитой от пустых ссылок.
     """
     if not display_card_ids:
         if hasattr(update_or_query, 'message'):
@@ -335,8 +335,19 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # ⭐ НОВОЕ: Универсальная логика для file_id и URL ⭐
+    # ⭐ ИСПРАВЛЕНИЕ: Строгая проверка медиа ⭐
     media_value = get_card_media_value(card)
+    
+    if not media_value:
+        logger.error(f"⚠️ У карты #{card.get('id')} ({card.get('title')}) отсутствует медиафайл (нет ни file_id, ни image_url)!")
+        fallback_text = f"⚠️ Ошибка отображения карты #{card.get('id')}\n{caption}\n(У карты отсутствует файл. Сообщите админу)"
+        
+        if hasattr(update_or_query, 'edit_message_text'):
+            await update_or_query.edit_message_text(text=fallback_text, reply_markup=reply_markup)
+        elif hasattr(update_or_query, 'message'):
+            await update_or_query.message.reply_text(text=fallback_text, reply_markup=reply_markup)
+        return
+
     is_animation = is_card_animation(card, media_value)
     
     # Отправка или редактирование сообщения
@@ -349,7 +360,12 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
             await update_or_query.edit_message_media(media=media, reply_markup=reply_markup)
         except Exception as e:
             if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка редактирования в _show_trade_card: {e}")
+                logger.error(f"Ошибка редактирования в _show_trade_card: {e} | media_value: '{media_value}'")
+                # Fallback при ошибке редактирования
+                await update_or_query.edit_message_text(
+                    text=f"⚠️ Не удалось загрузить медиа карты #{card.get('id')}\n{caption}",
+                    reply_markup=reply_markup
+                )
     elif hasattr(update_or_query, 'message'):
         try:
             if is_animation:
@@ -365,8 +381,12 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
                     reply_markup=reply_markup
                 )
         except Exception as e:
-            logger.error(f"Ошибка отправки в _show_trade_card: {e}")
-
+            logger.error(f"Ошибка отправки в _show_trade_card: {e} | media_value: '{media_value}'")
+            await update_or_query.message.reply_text(
+                text=f"⚠️ Не удалось загрузить медиа карты #{card.get('id')}\n{caption}",
+                reply_markup=reply_markup
+            )
+            
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     ⭐ ПОИСК С ПОДДЕРЖКОЙ ДУБЛИКАТОВ ⭐
