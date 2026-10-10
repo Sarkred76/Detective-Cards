@@ -996,8 +996,19 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     ],
                     [InlineKeyboardButton("➡️ Отправить встречное предложение", callback_data="trade_return_finish")],
                 ]
-                # ⭐ НОВОЕ: Универсальная логика ⭐
+                
+                # ⭐ ИСПРАВЛЕНИЕ: Универсальная логика с проверкой на пустоту ⭐
                 media_value = get_card_media_value(card)
+                
+                if not media_value:
+                    logger.error(f"У карты {card.get('id')} ({card.get('title')}) нет ни file_id, ни image_url!")
+                    await query.message.reply_text(
+                        f"⚠️ Ошибка: у карты **#{card.get('id')}** отсутствует медиафайл.\n"
+                        f"Пожалуйста, сообщите администратору.",
+                        parse_mode="Markdown"
+                    )
+                    return
+                
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1011,10 +1022,16 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                         await query.message.reply_photo(
                             photo=media_value,
                             caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard)
+                            reply_markup=InlineKeyboardMarkup(keyboard)
                         )
                 except Exception as e:
-                    logger.error(f"Ошибка отправки первой карты: {e}")
+                    logger.error(f"Ошибка отправки первой карты (ID: {card.get('id')}): {e}")
+                    logger.error(f"media_value: '{media_value}', is_animation: {is_animation}")
+                    await query.message.reply_text(
+                        f"⚠️ Не удалось загрузить изображение карты #{card.get('id')}.\n"
+                        f"Возможно, ссылка устарела или файл удалён.",
+                        parse_mode="Markdown"
+                    )
         
         # Отклонение обмена
         elif query.data == "trade_offer_decline":
@@ -1079,11 +1096,19 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
-                # ⭐ ИСПРАВЛЕНИЕ: Проверяем по индексу в полном списке ⭐
+                
+                # ⭐ ИСПРАВЛЕНИЕ: Проверка медиа ⭐
+                media_value = get_card_media_value(card)
+                if not media_value:
+                    logger.error(f"У карты {card.get('id')} нет медиа!")
+                    await query.answer("⚠️ У этой карты отсутствует файл!", show_alert=True)
+                    return
+                    
                 display_to_full_map = trade_info.get("display_to_full_map", {})
                 full_index = display_to_full_map.get(current_index, current_index)
                 is_selected = full_index in trade_info.get("selected_full_indices", [])
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+                
                 keyboard = [
                     [
                         InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
@@ -1093,8 +1118,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                # ⭐ НОВОЕ: Универсальная логика ⭐
-                media_value = get_card_media_value(card)
+                
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1106,6 +1130,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Ошибка редактирования в trade_return_callback: {e}")
+                        logger.error(f"media_value: '{media_value}'")
         # Выбор карты
         elif query.data.startswith("trade_return_select_"):
             display_index = int(query.data.split("_")[-1])
@@ -1144,8 +1169,19 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{len(selected_full_indices)}/{cards_count} выбрано"
                 )
+                
+                # ⭐ ИСПРАВЛЕНИЕ: Проверка медиа ⭐
+                media_value = get_card_media_value(card)
+                if not media_value:
+                    logger.error(f"У карты {card.get('id')} нет медиа!")
+                    await query.answer("⚠️ У этой карты отсутствует файл!", show_alert=True)
+                    return
+
+                display_to_full_map = trade_info.get("display_to_full_map", {})
+                full_index = display_to_full_map.get(display_index, display_index)
                 is_selected = full_index in selected_full_indices
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+                
                 keyboard = [
                     [
                         InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
@@ -1155,8 +1191,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                # ⭐ НОВОЕ: Универсальная логика ⭐
-                media_value = get_card_media_value(card)
+                
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1168,6 +1203,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Ошибка редактирования при выборе: {e}")
+                        logger.error(f"media_value: '{media_value}'")
         
         elif query.data == "trade_return_search_button":
             # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ПОЛУЧАТЕЛЯ
