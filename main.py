@@ -845,18 +845,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_id = str(update.effective_user.id)
         data = load_data()
 
-        if is_bot_disabled(data) and not is_admin(user_id, data):
-            await update.message.reply_text(
-                "🔧 <b>Ведутся технические работы</b>\n\n"
-                "Бот временно недоступен.\n"
-                "Пожалуйста, попробуйте позже.",
-                parse_mode="HTML"
-            )
-            return
-        
-        # Инициализация пользователя, если его нет
-        if user_id not in data["users"]:
+        # ⭐ 1. СНАЧАЛА проверяем, является ли пользователь НОВЫМ (до любых изменений в data["users"]) ⭐
+        is_new_user = user_id not in data["users"]
 
+        # ⭐ 2. Если пользователь новый — создаем для него профиль ⭐
+        if is_new_user:
             from datetime import datetime, timezone, timedelta
             msk_tz = timezone(timedelta(hours=3))
             today_str = datetime.now(msk_tz).strftime("%Y-%m-%d")
@@ -872,83 +865,85 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "last_card_time": 0,
                 "free_rolls": 0,
                 "last_dice_time": 0,
+                "casino_attempts": 5,
+                "last_casino_reset": 0,
+                "used_promo_codes": [],
                 "referral_invites": [],
                 "referral_rewards_claimed": [],
+                "daily_quests": [],
+                "weekly_quests": [],
                 "avatar_url": DEFAULT_AVATAR_URL,
-                "avatars": [DEFAULT_AVATAR_URL], 
+                "avatars": [DEFAULT_AVATAR_URL],
+                "pending_season_boxes": 0,
                 "last_daily_activity": None,
-                "registered_at": today_str, 
+                "registered_at": today_str,
             }
             save_data(data)
 
-        user_data = data["users"][user_id]
-
-        # ⭐ ОБРАБОТКА РЕФЕРАЛЬНОЙ ССЫЛКИ ⭐
-        referrer_id = None
-        # ⭐ ИСПРАВЛЕНИЕ: Проверяем, является ли пользователь НОВЫМ ⭐
-        is_new_user = user_id not in data["users"]
-
-        # Обработка реферальной ссылки — ТОЛЬКО для новых пользователей
-        if is_new_user and context.args and context.args[0].startswith("ref_"):
+        # ⭐ 3. ОБРАБОТКА РЕФЕРАЛЬНОЙ ССЫЛКИ (используем значение is_new_user, полученное в шаге 1) ⭐
+        if is_new_user and context.args and len(context.args) > 0 and context.args[0].startswith("ref_"):
             referrer_id = context.args[0].replace("ref_", "")
+            
             if referrer_id and referrer_id in data["users"] and referrer_id != user_id:
                 referrer_data = data["users"][referrer_id]
-        
-                # Инициализация полей реферала у приглашающего (на случай старых пользователей)
+                
+                # Инициализация полей реферала (на случай старых пользователей)
                 if "referral_invites" not in referrer_data:
                     referrer_data["referral_invites"] = []
                 if "referral_rewards_claimed" not in referrer_data:
                     referrer_data["referral_rewards_claimed"] = []
-        
+
                 # Если пользователь еще не был приглашен этим реферером
                 if user_id not in referrer_data["referral_invites"]:
                     referrer_data["referral_invites"].append(user_id)
-            
                     new_user_name = update.effective_user.username or update.effective_user.first_name
-            
+                    
                     # 1. Уведомление рефереру о новом игроке
                     try:
                         await context.bot.send_message(
                             chat_id=referrer_id,
-                            text=f"🎉 По вашей реферальной ссылке перешёл новый игрок: **@{new_user_name}**!",
+                            text=f"🎉 По вашей реферальной ссылке перешёл новый игрок: **{new_user_name}**!",
                             parse_mode="Markdown"
                         )
                     except Exception as e:
                         logger.warning(f"Не удалось уведомить реферера {referrer_id}: {e}")
-            
+
                     # 2. Проверка и выдача наград
                     invite_count = len(referrer_data["referral_invites"])
                     claimed = referrer_data["referral_rewards_claimed"]
                     reward_card = None
                     reward_milestone = 0
-            
+
                     if invite_count >= 1 and 1 not in claimed:
                         reward_card = get_random_available_card_by_rarity(data, "Epic")
                         reward_milestone = 1
                     elif invite_count >= 3 and 3 not in claimed:
                         reward_card = get_random_available_card_by_rarity(data, "Epic Team-up")
                         reward_milestone = 3
-            
+
                     if reward_card:
                         claimed.append(reward_milestone)
                         referrer_data["referral_rewards_claimed"] = claimed
                         referrer_data["cards"].append(reward_card["id"])
                         save_data(data)
-                
+                        
                         try:
-                            caption = f"🎁 **Награда за реферала!**\nВы получили случайную карту редкости **{reward_card['rarity']}** за {reward_milestone}-го приглашенного!"
-                            # Создаем фиктивный update для send_card, если нужно, или отправляем напрямую
-                            await context.bot.send_photo(
-                                chat_id=referrer_id,
-                                photo=reward_card["image_url"],
-                                caption=caption,
-                                parse_mode="Markdown"
-                            )
+                            caption = f"🎁 **Награда за реферала!**\n\nВы получили карту: **{reward_card['title']}** ({reward_card['rarity']})!"
+                            await send_card(context, referrer_id, reward_card, caption=caption)
                         except Exception as e:
                             logger.error(f"Ошибка отправки реферальной награды: {e}")
                     else:
                         save_data(data)
 
+        if is_bot_disabled(data) and not is_admin(user_id, data):
+            await update.message.reply_text(
+                "🔧 <b>Ведутся технические работы</b>\n\n"
+                "Бот временно недоступен.\n"
+                "Пожалуйста, попробуйте позже.",
+                parse_mode="HTML"
+            )
+            return
+        
         # Показываем главное меню
         keyboard = [
             [KeyboardButton("🔍 Получить досье")],
