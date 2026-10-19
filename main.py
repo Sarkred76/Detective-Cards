@@ -6198,7 +6198,7 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
         
-        if text == "✅ Да, создать за 30000":
+        if text.startswith("✅ Да, создать"):
             # Переход к вводу названия
             context.user_data[user_id]["step"] = "clan_enter_name"
             keyboard = [[KeyboardButton("❌ Отмена создания")]]
