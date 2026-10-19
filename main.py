@@ -913,23 +913,52 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     claimed = referrer_data["referral_rewards_claimed"]
                     reward_card = None
                     reward_milestone = 0
+                    reward_text = ""
 
-                    if invite_count >= 1 and 1 not in claimed:
-                        reward_card = get_random_available_card_by_rarity(data, "Epic")
-                        reward_milestone = 1
+                    # ⭐ НОВОЕ: Проверяем все уровни наград ⭐
+                    if invite_count >= 10 and 10 not in claimed:
+                        reward_card = get_random_available_card_by_rarity(data, "Legendary")
+                        reward_milestone = 10
+                        reward_text = f"🎴 Случайная карта редкости **Legendary**: **{reward_card['title']}**!"
+                    elif invite_count >= 7 and 7 not in claimed:
+                        referrer_data["free_rolls"] = referrer_data.get("free_rolls", 0) + 10
+                        reward_milestone = 7
+                        reward_text = "🔍 **10 бесплатных попыток**!"
+                    elif invite_count >= 5 and 5 not in claimed:
+                        referrer_data["cents"] = referrer_data.get("cents", 0) + 10000
+                        reward_milestone = 5
+                        reward_text = "💰 **10000 бэт-коинов**!"
                     elif invite_count >= 3 and 3 not in claimed:
                         reward_card = get_random_available_card_by_rarity(data, "Epic Team-up")
                         reward_milestone = 3
+                        reward_text = f" Случайная карта редкости **Epic Team-up**: **{reward_card['title']}**!"
+                    elif invite_count >= 1 and 1 not in claimed:
+                        reward_card = get_random_available_card_by_rarity(data, "Epic")
+                        reward_milestone = 1
+                        reward_text = f"🎴 Случайная карта редкости **Epic**: **{reward_card['title']}**!"
 
-                    if reward_card:
+                    # ⭐ Выдаём награду ⭐
+                    if reward_milestone > 0:
                         claimed.append(reward_milestone)
                         referrer_data["referral_rewards_claimed"] = claimed
-                        referrer_data["cards"].append(reward_card["id"])
+    
+                        # Если награда — карта, добавляем её
+                        if reward_card:
+                            referrer_data["cards"].append(reward_card["id"])
+    
                         save_data(data)
-                        
+    
+                        # ⭐ Отправляем уведомление рефереру 
                         try:
-                            caption = f"🎁 **Награда за реферала!**\n\nВы получили карту: **{reward_card['title']}** ({reward_card['rarity']})!"
-                            await send_card(context, referrer_id, reward_card, caption=caption)
+                            if reward_card:
+                                caption = f"🎁 **Награда за реферала!**\n\nВы получили карту: **{reward_card['title']}** ({reward_card['rarity']})!\n\n{reward_text}"
+                                await send_card(context, referrer_id, reward_card, caption=caption)
+                            else:
+                                await context.bot.send_message(
+                                    chat_id=referrer_id,
+                                    text=f"🎁 **Награда за реферала!**\n\n{reward_text}",
+                                    parse_mode="Markdown"
+                                )
                         except Exception as e:
                             logger.error(f"Ошибка отправки реферальной награды: {e}")
                     else:
@@ -8766,8 +8795,11 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             invite_list_text = "Список пуст\n"
         
         # ⭐ Статусы наград ⭐
-        reward_1 = "✅ Получено" if 1 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 1 else "🔒 За 1 приглашение")
-        reward_3 = "✅ Получено" if 3 in claimed else ("🎁 **ДОСТУПНО!**" if count >= 3 else "🔒 За 3 приглашения")
+        reward_1 = "✅ Получено" if 1 in claimed else ("🔓 Доступно" if count >= 1 else "🔒 За 1 приглашение")
+        reward_3 = "✅ Получено" if 3 in claimed else ("🔓 Доступно" if count >= 3 else "🔒 За 3 приглашения")
+        reward_5 = "✅ Получено" if 5 in claimed else ("🔓 Доступно" if count >= 5 else " За 5 приглашений")
+        reward_7 = "✅ Получено" if 7 in claimed else ("🔓 Доступно" if count >= 7 else "🔒 За 7 приглашений")
+        reward_10 = "✅ Получено" if 10 in claimed else ("🔓 Доступно" if count >= 10 else "🔒 За 10 приглашений")
         
         # ⭐ ИСПРАВЛЕНИЕ: Используем Markdown-ссылку вместо экранирования ⭐
         # Формат [текст](URL) не требует экранирования URL
@@ -8777,17 +8809,22 @@ async def referral_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"🔗 **Реферальная система**\n\n"
             f"Приглашайте друзей и получайте ценные награды!\n\n"
             f"📎 **Ваша уникальная ссылка:**\n"
-            f"{ref_link_markdown}\n"
+            f"{ref_link_markdown}\n\n"
             f"👤 Или вручную: `{ref_link}`\n\n"
             f"👥 **Всего приглашено:** {count}\n\n"
-            f"📋 **Список приглашенных:**\n"
-            f"{invite_list_text}\n"
+            f" **Список приглашенных:**\n"
+            f"{invite_list_text}\n\n"
             f"🎁 **Награды:**\n"
             f"1️⃣ 1 приглашение: Случайная карта редкости **Epic**\n"
             f"   Статус: {reward_1}\n\n"
             f"3️⃣ 3 приглашения: Случайная карта редкости **Epic Team-up**\n"
             f"   Статус: {reward_3}\n\n"
-            f"💡 _Награды выдаются автоматически в момент приглашения нового игрока!_"
+            f"5️⃣ 5 приглашений: **10000 бэт-коинов** 💰\n"
+            f"   Статус: {reward_5}\n\n"
+            f"7️⃣ 7 приглашений: **10 бесплатных попыток** 🔍\n"
+            f"   Статус: {reward_7}\n\n"
+            f" 10 приглашений: Случайная карта редкости **Legendary** \n"
+            f"   Статус: {reward_10}"
         )
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в Личное дело", callback_data="my_profile")]]
