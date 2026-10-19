@@ -5715,11 +5715,17 @@ def can_create_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     if get_user_clan(user_id, data):
         return False, "Вы уже состоите в клане!"
     
-    # Проверка: достаточно ли средств
     user_data = data["users"].get(user_id, {})
-    if user_data.get("cents", 0) < CLAN_CREATION_COST:
-        return False, f"Недостаточно бэт-коинов! Нужно {CLAN_CREATION_COST}"
     
+    # ⭐ НОВОЕ: Проверяем Бэт-пасс — с ним клан создаётся бесплатно 
+    creation_cost = 0 if is_batpass_active(user_data) else CLAN_CREATION_COST
+    
+    # Проверка: достаточно ли средств
+    if user_data.get("cents", 0) < creation_cost:
+        if creation_cost > 0:
+            return False, f"Недостаточно бэт-коинов! Нужно {creation_cost}."
+        else:
+            return False, "Недостаточно бэт-коинов!"
     return True, ""
 
 async def create_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -6154,15 +6160,20 @@ async def create_clan_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         # Запрашиваем подтверждение
         context.user_data[user_id] = {"step": "clan_create_confirm"}
-        
-        keyboard = [
-            [KeyboardButton("✅ Да, создать за 30000")],
-            [KeyboardButton("❌ Отмена")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
         user_data = data["users"].get(user_id, {})
         creation_cost = 0 if is_batpass_active(user_data) else CLAN_CREATION_COST
+
+        # ⭐ НОВОЕ: Динамический текст кнопки в зависимости от Бэт-пасса ⭐
+        if creation_cost == 0:
+            confirm_button_text = "✅ Да, создать бесплатно"
+        else:
+            confirm_button_text = f"✅ Да, создать за {creation_cost}"
+
+        keyboard = [
+            [KeyboardButton(confirm_button_text)],
+            [KeyboardButton(" Отмена")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
         cost_text = "**Бесплатно** (Бэт-пасс)" if creation_cost == 0 else f"**{creation_cost:,}** бэт-коинов"
         
@@ -6209,7 +6220,6 @@ async def confirm_clan_creation(update: Update, context: ContextTypes.DEFAULT_TY
             
     except Exception as e:
         logger.error(f"Ошибка в confirm_clan_creation: {e}")
-
 
 async def process_clan_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает ввод названия клана."""
