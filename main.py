@@ -5820,7 +5820,7 @@ def get_clan_members_list(clan_name: str, data: Dict) -> str:
         
         username_escaped = html.escape(username)
         reputation = user_data.get("season_points", 0)
-        role_emoji = "👑" if member_info.get("role") == "leader"
+        role_emoji = "👑" if member_info.get("role") == "leader" else ""
         
         members_list.append({
             "username": username_escaped,
