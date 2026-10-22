@@ -5811,7 +5811,14 @@ def get_clan_members_list(clan_id: str, data: Dict) -> str:
         return "❌ Клан не найден!"
     
     members_text = f"👥 Участники клана <b>{html.escape(clan['name'])}</b>:\n"
-    for member_id, member_info in clan["members"].items():
+
+    members_sorted = sorted(
+        clan["members"].items(),
+        key=lambda x: data["users"].get(x[0], {}).get("season_points", 0),
+        reverse=True
+    )
+
+    for member_id, member_info in members_sorted:
         user_data = data["users"].get(member_id, {})
         username = user_data.get("first_name", "Неизвестно")
         if user_data.get("last_name"):
