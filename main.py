@@ -5804,34 +5804,42 @@ def leave_clan(user_id: str, data: Dict) -> tuple[bool, str]:
     else:
         return True, f"Вы покинули клан **{clan_name}**."
         
-def get_clan_members_list(clan_id: str, data: Dict) -> str:
-    """Формирует текст со списком участников клана и их очками репутации (HTML)."""
-    clan = get_clan_data(clan_id, data)
+def get_clan_members_list(clan_name: str, data: Dict) -> str:
+    """Формирует отсортированный список участников клана с местами по репутации."""
+    clan = get_clan_data(clan_name, data)
     if not clan:
         return "❌ Клан не найден!"
     
-    members_text = f"👥 Участники клана <b>{html.escape(clan['name'])}</b>:\n"
-
-    members_sorted = sorted(
-        clan["members"].items(),
-        key=lambda x: data["users"].get(x[0], {}).get("season_points", 0),
-        reverse=True
-    )
-
-    for member_id, member_info in members_sorted:
+    # ⭐ НОВОЕ: Собираем участников в список для сортировки 
+    members_list = []
+    for member_id, member_info in clan["members"].items():
         user_data = data["users"].get(member_id, {})
         username = user_data.get("first_name", "Неизвестно")
         if user_data.get("last_name"):
             username += f" {user_data['last_name']}"
         
-        # ⭐ Экранируем имя участника ⭐
         username_escaped = html.escape(username)
-        
         reputation = user_data.get("season_points", 0)
         role_emoji = "👑" if member_info.get("role") == "leader" else "•"
-        members_text += f"{role_emoji} {username_escaped} — {reputation} очков репутации\n"
+        
+        members_list.append({
+            "username": username_escaped,
+            "reputation": reputation,
+            "role_emoji": role_emoji,
+        })
+    
+    # ⭐ НОВОЕ: Сортируем по убыванию сезонных очков репутации ⭐
+    members_list.sort(key=lambda x: x["reputation"], reverse=True)
+    
+    # ⭐ НОВОЕ: Формируем текст с порядковыми номерами 
+    members_text = ""
+    for rank, member in enumerate(members_list, start=1):
+        members_text += (
+            f"{rank}. {member['role_emoji']} {member['username']} — "
+            f"{member['reputation']} очков репутации\n"
+        )
+    
     return members_text
-
 async def invite_player_to_clan(
     inviter_id: str,
     target_username: str,
