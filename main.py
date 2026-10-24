@@ -13207,8 +13207,9 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
     try:
         user_id = str(update.effective_user.id)
         
-        # ⭐ 1. ИСПОЛЬЗУЕМ migrate_data, как вы просили ⭐
-        data = migrate_data()
+        # ⭐ ИСПОЛЬЗУЕМ load_data(). Она УЖЕ вызывает migrate_data(data) внутри себя! ⭐
+        # Прямой вызов migrate_data() без аргументов вызывает ошибку, которую ты видел.
+        data = load_data()
         
         if not is_admin(user_id, data):
             await update.message.reply_text("🚫 Только для администратора!")
@@ -13231,11 +13232,11 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
         
         replaced_count = 0
         
-        # ⭐ 2. Проходим по всем пользователям ⭐
+        # Проходим по всем пользователям
         for uid, udata in data.get("users", {}).items():
             updated = False
             
-            # Проверяем текущую аватарку (ищем частичное совпадение, чтобы не пропустить ссылки с / на конце)
+            # Проверяем текущую аватарку (ищем частичное совпадение, чтобы поймать ссылки с / на конце и без)
             current_avatar = udata.get("avatar_url", "")
             if old_avatar in current_avatar:
                 logger.info(f"✅ Найдена текущая аватарка у пользователя {uid}: {current_avatar}")
@@ -13265,7 +13266,7 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
             )
             return
 
-        # ⭐ 3. Сохраняем изменения ⭐
+        # Сохраняем изменения
         from main import save_data as main_save_data
         main_save_data(data)
         logger.info("💾 Данные успешно сохранены в файл.")
