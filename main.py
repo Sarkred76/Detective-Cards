@@ -1045,7 +1045,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/add_injustice_points [@никнейм] [сторона] [очки]- выдать очки противостояния стороне\n"
             response += "/maintenance - включить режим тех работ\n"
             response += "/clans_list - список всех кланов и их участников с @никнеймами\n"
-            response += "/give_rolls_box \\[@никнейм\\] \\[кол-во\\] - выдать накопительный Rolls-Box\n"
+            response += "/give_rolls_box [@никнейм\\] [кол-во\\] - выдать накопительный Rolls-Box\n"
+            response += "/replace_avatar [ссылка1] [ссылка2] - заменить у всех ава1 на ава2\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
