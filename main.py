@@ -1046,7 +1046,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/maintenance - включить режим тех работ\n"
             response += "/clans_list - список всех кланов и их участников с @никнеймами\n"
             response += "/give_rolls_box [@никнейм\\] [кол-во\\] - выдать накопительный Rolls-Box\n"
-            response += "/replace_avatar [ссылка1] [ссылка2] - заменить у всех ава1 на ава2\n"
             
         response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -13201,86 +13200,6 @@ async def open_lanterns_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
         except Exception:
             pass
-
-async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Админская команда для замены аватарки у всех игроков с детальным логированием."""
-    try:
-        user_id = str(update.effective_user.id)
-        
-        # ⭐ ВАЖНО: Используем load_data(), а НЕ migrate_data()! ⭐
-        # load_data() уже вызывает migrate_data(data) внутри себя.
-        data = load_data()
-        
-        if not is_admin(user_id, data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text(
-                "️ <b>Формат команды:</b>\n"
-                "/replace_avatar [старая_ссылка] [новая_ссылка]\n\n"
-                "<b>Пример:</b>\n"
-                "/replace_avatar https://ibb.co/w9xrjbt https://ibb.co/qX7KMkw",
-                parse_mode="HTML"
-            )
-            return
-        
-        old_avatar = context.args[0].strip()
-        new_avatar = context.args[1].strip()
-        
-        logger.info(f" НАЧАЛО ЗАМЕНЫ: Ищем '{old_avatar}' для замены на '{new_avatar}'")
-        
-        replaced_count = 0
-        
-        # Проходим по всем пользователям
-        for uid, udata in data.get("users", {}).items():
-            updated = False
-            
-            # Проверяем текущую аватарку (ищем частичное совпадение)
-            current_avatar = udata.get("avatar_url", "")
-            if old_avatar in current_avatar:
-                logger.info(f"✅ Найдена текущая аватарка у пользователя {uid}: {current_avatar}")
-                udata["avatar_url"] = new_avatar
-                updated = True
-            
-            # Проверяем список всех аватарок
-            if "avatars" in udata and isinstance(udata["avatars"], list):
-                for i, avatar in enumerate(udata["avatars"]):
-                    if old_avatar in str(avatar):
-                        logger.info(f"✅ Найдена аватарка в списке у пользователя {uid} (индекс {i}): {avatar}")
-                        udata["avatars"][i] = new_avatar
-                        updated = True
-            
-            if updated:
-                replaced_count += 1
-        
-        logger.info(f"📊 ИТОГ ЗАМЕНЫ: Обновлено пользователей: {replaced_count}")
-        
-        if replaced_count == 0:
-            await update.message.reply_text(
-                f"⚠️ <b>Замена не выполнена.</b>\n\n"
-                f"Ни у одного игрока не найдена аватарка, содержащая:\n"
-                f"<code>{old_avatar}</code>\n\n"
-                f"Проверьте, нет ли в базе данных лишнего слэша (/) или другого формата ссылки.",
-                parse_mode="HTML"
-            )
-            return
-
-        # Сохраняем изменения
-        save_data(data)
-        logger.info("💾 Данные успешно сохранены в файл.")
-        
-        await update.message.reply_text(
-            f"✅ <b>Аватарка успешно заменена!</b>\n\n"
-            f" <b>Старая:</b> <code>{old_avatar}</code>\n"
-            f"✅ <b>Новая:</b> <code>{new_avatar}</code>\n\n"
-            f"👥 <b>Обновлено игроков:</b> {replaced_count}",
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА в replace_avatar_all_users: {e}", exc_info=True)
-        await update.message.reply_text("❌ Произошла ошибка при замене аватарки. Проверьте логи.")
         
 # ===== ЗАПУСК БОТА =====
 
@@ -13358,7 +13277,6 @@ def main() -> None:
             CommandHandler("give_rolls_box", give_rolls_box),
             CommandHandler("cancel", cancel_command),
             CommandHandler("give_lanterns_box", give_lanterns_box),
-            CommandHandler("replace_avatar", replace_avatar_all_users),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
