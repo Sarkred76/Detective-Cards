@@ -74,7 +74,7 @@ ADD_CARD_WAITING_CATCHPHRASE = "add_card_waiting_catchphrase"
 ADD_CARD_WAITING_UNIVERSE = "add_card_waiting_universe"
 
 # ===== АВАТАРКИ =====
-DEFAULT_AVATAR_URL = "https://ibb.co/w9xrjbt" 
+DEFAULT_AVATAR_URL = "https://ibb.co/qX7KMkw" 
 SEASONAL_2_AVATAR_URL = "https://ibb.co/TM2P2Cy4"
 SEASON_BOX_AVATAR_URL = "https://ibb.co/R4NpS63v"
 FRIENDS_AVATAR_1_URL = "https://ibb.co/GQN89Nzn"
