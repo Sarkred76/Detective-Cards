@@ -9224,7 +9224,8 @@ async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYP
     
             quest_id_str = str(current_quest_id)
             progress = sq["progress"].get(quest_id_str, 0)
-            target = quest["target"]            reward_text = format_seasonal_reward(quest["reward"])
+            target = quest["target"]            
+            reward_text = format_seasonal_reward(quest["reward"])
             is_completed = progress >= target
             
             # Специальный случай: квест 8 — показываем прогресс по сезонным картам
