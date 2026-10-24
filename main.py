@@ -9007,9 +9007,12 @@ def init_seasonal_quests(user_data: Dict) -> None:
 
 
 def get_current_seasonal_quest_id(sq: Dict) -> Optional[int]:
-    """Возвращает ID текущего активного квеста или None (если все выполнены)."""
-    for quest_id in range(1, 13):
-        if quest_id not in sq.get("completed", []):
+    """Возвращает ID текущего активного сезонного квеста."""
+    # ⭐ НОВОЕ: Очищаем устаревшие completed квесты, которых нет в текущем сезоне ⭐
+    sq["completed"] = [qid for qid in sq["completed"] if qid in SEASONAL_QUESTS]
+    
+    for quest_id in sorted(SEASONAL_QUESTS.keys()):
+        if quest_id not in sq["completed"]:
             return quest_id
     return None
 
@@ -9197,20 +9200,31 @@ async def quests_seasonal_view(update: Update, context: ContextTypes.DEFAULT_TYP
         sq = user_data["seasonal_quests"]
         current_quest_id = get_current_seasonal_quest_id(sq)
         
+        current_quest_id = get_current_seasonal_quest_id(sq)
         if current_quest_id is None:
             # Все квесты выполнены
             text = (
-                "🎉 <b>Поздравляю!</b>\n\n"
+                "🎉 <b>Поздравляю!</b>\n"
                 "Вы выполнили все сезонные квесты!\n"
                 "Ждите следующего сезона!"
             )
-            keyboard = [[InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")]]
+            keyboard = [[InlineKeyboardButton(" Назад к квестам", callback_data="quests_menu")]]
         else:
-            quest = SEASONAL_QUESTS[current_quest_id]
+            # ⭐ НОВОЕ: Дополнительная защита на случай, если квест всё же не найден ⭐
+            quest = SEASONAL_QUESTS.get(current_quest_id)
+            if not quest:
+                # Устаревший квест — сбрасываем и показываем следующий
+                logger.warning(f"Квест #{current_quest_id} не найден в текущем сезоне, пропускаем")
+                if current_quest_id in sq["completed"]:
+                    sq["completed"].remove(current_quest_id)
+                save_data(data)
+                # Рекурсивно вызываем функцию для показа следующего квеста
+                await quests_seasonal_view(update, context)
+                return
+    
             quest_id_str = str(current_quest_id)
             progress = sq["progress"].get(quest_id_str, 0)
-            target = quest["target"]
-            reward_text = format_seasonal_reward(quest["reward"])
+            target = quest["target"]            reward_text = format_seasonal_reward(quest["reward"])
             is_completed = progress >= target
             
             # Специальный случай: квест 8 — показываем прогресс по сезонным картам
@@ -9374,18 +9388,35 @@ async def seasonal_quest_callback(update: Update, context: ContextTypes.DEFAULT_
                     parse_mode="HTML"
                 )
             else:
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text=(
-                        f"🎉 <b>Сезонный квест #{quest_id} выполнен!</b>\n\n"
-                        f"🎁 Награда:\n{reward_text}\n\n"
-                        f"Открыт следующий квест!"
-                    ),
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("🏆 Следующий квест", callback_data="quests_seasonal")
-                    ]]),
-                    parse_mode="HTML"
-                )
+                next_quest = SEASONAL_QUESTS.get(next_quest_id)
+                if not next_quest:
+                    logger.warning(f"Следующий квест #{next_quest_id} не найден, показываем меню")
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=(
+                            f" <b>Сезонный квест #{quest_id} выполнен!</b>\n"
+                            f"🎁 Награда: {reward_text}\n\n"
+                            f"🏆 <b>Поздравляю! Вы выполнили все сезонные квесты!</b>\n"
+                            f"Ждите следующего сезона!"
+                        ),
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🔙 Назад к квестам", callback_data="quests_menu")
+                        ]]),
+                        parse_mode="HTML"
+                    )
+                else:
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=(
+                            f"🎉 <b>Сезонный квест #{quest_id} выполнен!</b>\n"
+                            f"🎁 Награда: {reward_text}\n\n"
+                            f"Открыт следующий квест!"
+                        ),
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("🏆 Следующий квест", callback_data="quests_seasonal")
+                        ]]),
+                        parse_mode="HTML"
+                    )
             return
     except Exception as e:
         logger.error(f"Ошибка в seasonal_quest_callback: {e}")
