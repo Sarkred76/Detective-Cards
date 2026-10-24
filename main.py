@@ -13207,8 +13207,8 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
     try:
         user_id = str(update.effective_user.id)
         
-        # ⭐ ИСПОЛЬЗУЕМ load_data(). Она УЖЕ вызывает migrate_data(data) внутри себя! ⭐
-        # Прямой вызов migrate_data() без аргументов вызывает ошибку, которую ты видел.
+        # ⭐ ВАЖНО: Используем load_data(), а НЕ migrate_data()! ⭐
+        # load_data() уже вызывает migrate_data(data) внутри себя.
         data = load_data()
         
         if not is_admin(user_id, data):
@@ -13217,7 +13217,7 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
         
         if not context.args or len(context.args) < 2:
             await update.message.reply_text(
-                "ℹ️ <b>Формат команды:</b>\n"
+                "️ <b>Формат команды:</b>\n"
                 "/replace_avatar [старая_ссылка] [новая_ссылка]\n\n"
                 "<b>Пример:</b>\n"
                 "/replace_avatar https://ibb.co/w9xrjbt https://ibb.co/qX7KMkw",
@@ -13228,7 +13228,7 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
         old_avatar = context.args[0].strip()
         new_avatar = context.args[1].strip()
         
-        logger.info(f"🔍 НАЧАЛО ЗАМЕНЫ: Ищем '{old_avatar}' для замены на '{new_avatar}'")
+        logger.info(f" НАЧАЛО ЗАМЕНЫ: Ищем '{old_avatar}' для замены на '{new_avatar}'")
         
         replaced_count = 0
         
@@ -13236,7 +13236,7 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
         for uid, udata in data.get("users", {}).items():
             updated = False
             
-            # Проверяем текущую аватарку (ищем частичное совпадение, чтобы поймать ссылки с / на конце и без)
+            # Проверяем текущую аватарку (ищем частичное совпадение)
             current_avatar = udata.get("avatar_url", "")
             if old_avatar in current_avatar:
                 logger.info(f"✅ Найдена текущая аватарка у пользователя {uid}: {current_avatar}")
@@ -13267,13 +13267,12 @@ async def replace_avatar_all_users(update: Update, context: ContextTypes.DEFAULT
             return
 
         # Сохраняем изменения
-        from main import save_data as main_save_data
-        main_save_data(data)
+        save_data(data)
         logger.info("💾 Данные успешно сохранены в файл.")
         
         await update.message.reply_text(
             f"✅ <b>Аватарка успешно заменена!</b>\n\n"
-            f"🔄 <b>Старая:</b> <code>{old_avatar}</code>\n"
+            f" <b>Старая:</b> <code>{old_avatar}</code>\n"
             f"✅ <b>Новая:</b> <code>{new_avatar}</code>\n\n"
             f"👥 <b>Обновлено игроков:</b> {replaced_count}",
             parse_mode="HTML"
