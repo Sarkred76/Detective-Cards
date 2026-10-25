@@ -11616,6 +11616,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             price = expand_info["price"]
         else:
             price = item["price"]
+            
         super_coins = clan.get("super_coins", 0)
         
         if super_coins < price:
@@ -11633,27 +11634,18 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         result_text = ""
         
         if item_id == "clan_expand":
-            clan["super_coins"] -= price
+            # ⭐ УБРАНО списание отсюда, чтобы не было двойного списания! ⭐
             clan["max_members"] = expand_info["next_max"]
             result_text = f"📈 Лимит участников увеличен до <b>{clan['max_members']}</b>!"
             
-        if item_id == "epic":
-            # 🎴 Рандомный Epic
-            # Собираем все Epic-карты
-            epic_cards = [
-                c for c in data["cards"]
-                if c.get("available", True) and c.get("rarity") == "Epic"
-            ]
-            
+        elif item_id == "epic":
+            epic_cards = [c for c in data["cards"] if c.get("available", True) and c.get("rarity") == "Epic"]
             if not epic_cards:
                 await query.answer("❌ Нет доступных Epic-карт!", show_alert=True)
                 return
             
-            # Выбираем случайную карту и случайного участника
             chosen_card = random.choice(epic_cards)
             chosen_member_id = random.choice(members)
-            
-            # Выдаём карту
             member_data = data["users"].get(chosen_member_id, {})
             member_data.setdefault("cards", []).append(chosen_card["id"])
             
@@ -11668,13 +11660,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
             )
             
-            # ⭐ Уведомляем получателя ⭐
             try:
-                caption = generate_card_caption(
-                    chosen_card, member_data, count=1, show_bonus=False
-                )
-                caption += "\n\n🏰 <i>Награда из магазина клана</i>"
-                
                 await context.bot.send_message(
                     chat_id=int(chosen_member_id),
                     text=(
@@ -11689,7 +11675,6 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 logger.warning(f"Не удалось уведомить получателя {chosen_member_id}: {notify_error}")
         
         elif item_id == "rolls":
-            # 🎲 2 бесплатные попытки каждому
             for member_id in members:
                 member_data = data["users"].get(member_id, {})
                 member_data["free_rolls"] = member_data.get("free_rolls", 0) + 2
@@ -11700,7 +11685,6 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 f"🎯 Каждый получил: +2 попытки\n"
             )
             
-            # ⭐ Уведомляем всех участников ⭐
             for member_id in members:
                 try:
                     await context.bot.send_message(
@@ -11717,9 +11701,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     logger.warning(f"Не удалось уведомить {member_id}: {notify_error}")
         
         elif item_id == "cents":
-            # 💰 5000 бэт-коинов рандомному
             chosen_member_id = random.choice(members)
-            
             member_data = data["users"].get(chosen_member_id, {})
             member_data["cents"] = member_data.get("cents", 0) + 5000
             
@@ -11733,7 +11715,6 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
             )
             
-            # ⭐ Уведомляем получателя ⭐
             try:
                 await context.bot.send_message(
                     chat_id=int(chosen_member_id),
@@ -11747,19 +11728,14 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             except Exception as notify_error:
                 logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
 
-        # ⭐ НОВОЕ: Эксклюзивный Epic Team-Up ⭐
         elif item_id == "exclusive_epic_tu":
-            # Проверяем, что карта существует
             exclusive_card = find_card_by_id(EXCLUSIVE_EPIC_TU_CARD_ID, data["cards"])
             if not exclusive_card:
                 await query.answer("❌ Эксклюзивная карта не найдена!", show_alert=True)
                 return
     
-            # Выбираем случайного участника
             chosen_member_id = random.choice(members)
             member_data = data["users"].get(chosen_member_id, {})
-    
-            # Выдаём карту
             member_data.setdefault("cards", []).append(EXCLUSIVE_EPIC_TU_CARD_ID)
     
             chosen_member_name = member_data.get("first_name", "Участник")
@@ -11773,11 +11749,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n"
             )
     
-            # ⭐ Уведомляем получателя ⭐
             try:
-                caption = generate_card_caption(exclusive_card, member_data, count=1, show_bonus=False)
-                caption += "\n\n🏰 <i>Награда из магазина клана</i>"
-        
                 await context.bot.send_message(
                     chat_id=int(chosen_member_id),
                     text=(
@@ -11792,56 +11764,40 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             except Exception as notify_error:
                 logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
 
-        # ⭐ НОВОЕ: Эксклюзивные аватарки Friends ⭐
         elif item_id == "friends_avatar":
-            # ⭐ Собираем участников, которым можно выдать аватарку ⭐
             eligible_members = []
             for member_id in members:
                 member_data = data["users"].get(member_id, {})
                 member_avatars = member_data.get("avatars", [])
-        
-                # Проверяем, есть ли у игрока хотя бы одна из двух аватарок
                 has_avatar_1 = FRIENDS_AVATAR_1_URL in member_avatars
                 has_avatar_2 = FRIENDS_AVATAR_2_URL in member_avatars
         
-                # Если у игрока нет хотя бы одной аватарки — он подходит
                 if not (has_avatar_1 and has_avatar_2):
                     eligible_members.append(member_id)
     
-            # ⭐ Если все участники уже имеют обе аватарки — покупка не проходит ⭐
             if not eligible_members:
-                await query.answer(
-                    "❌ У всех участников клана уже есть эксклюзивные аватарки Friends!",
-                    show_alert=True
-                )
-                # ⭐ НЕ списываем супер-коины — просто выходим ⭐
+                await query.answer("❌ У всех участников клана уже есть эксклюзивные аватарки Friends!", show_alert=True)
                 return
     
-            # ⭐ Выбираем случайного подходящего участника ⭐
             chosen_member_id = random.choice(eligible_members)
             member_data = data["users"].get(chosen_member_id, {})
     
             if "avatars" not in member_data:
                 member_data["avatars"] = []
     
-            # ⭐ Определяем, какую аватарку выдать ⭐
             has_avatar_1 = FRIENDS_AVATAR_1_URL in member_data["avatars"]
             has_avatar_2 = FRIENDS_AVATAR_2_URL in member_data["avatars"]
     
             if has_avatar_1 and not has_avatar_2:
-                # У игрока есть первая — выдаём вторую
                 chosen_avatar = FRIENDS_AVATAR_2_URL
                 avatar_name = "Friends #2"
             elif has_avatar_2 and not has_avatar_1:
-                # У игрока есть вторая — выдаём первую
                 chosen_avatar = FRIENDS_AVATAR_1_URL
                 avatar_name = "Friends #1"
             else:
-                # У игрока нет ни одной — выбираем случайно
                 chosen_avatar = random.choice(FRIENDS_AVATARS)
                 avatar_name = "Friends #1" if chosen_avatar == FRIENDS_AVATAR_1_URL else "Friends #2"
     
-            # ⭐ Добавляем аватарку в коллекцию (НЕ меняем текущую) ⭐
             member_data["avatars"].append(chosen_avatar)
     
             chosen_member_name = member_data.get("first_name", "Участник")
@@ -11852,11 +11808,9 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 f"🎭 <b>Эксклюзивная аватарка выдана!</b>\n\n"
                 f"🖼 Аватарка: <b>{avatar_name}</b>\n"
                 f"👤 Получил: <b>{html.escape(chosen_member_name)}</b>\n\n"
-                f"💡 <i>Аватарка добавлена в коллекцию. "
-                f"Игрок может выбрать её в настройках профиля.</i>\n"
+                f"💡 <i>Аватарка добавлена в коллекцию. Игрок может выбрать её в настройках профиля.</i>\n"
             )
     
-            # ⭐ Уведомляем получателя ⭐
             try:
                 await context.bot.send_photo(
                     chat_id=int(chosen_member_id),
@@ -11865,23 +11819,22 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         f"🎁 <b>Награда из магазина клана!</b>\n\n"
                         f"🏰 Клан: {html.escape(clan_name)}\n"
                         f"🎭 Вам выдана эксклюзивная аватарка: <b>{avatar_name}</b>\n\n"
-                        f"💡 <i>Аватарка добавлена в вашу коллекцию. "
-                        f"Вы можете выбрать её в настройках профиля.</i>"
+                        f"💡 <i>Аватарка добавлена в вашу коллекцию. Вы можете выбрать её в настройках профиля.</i>"
                     ),
                     parse_mode="HTML"
                 )
             except Exception as notify_error:
                 logger.warning(f"Не удалось уведомить {chosen_member_id}: {notify_error}")
         
-        # ⭐ Списываем супер-коины ⭐
-        clan["super_coins"] = super_coins - item["price"]
+        # ⭐ ИСПРАВЛЕНО: Списываем супер-коины ОДИН РАЗ для всех товаров, используя переменную price ⭐
+        clan["super_coins"] -= price
         save_data(data)
         
-        # ⭐ Формируем итоговое сообщение ⭐
+        # ⭐ ИСПРАВЛЕНО: Формируем итоговое сообщение с переменной price, а не item["price"] ⭐
         final_text = (
             f"✅ <b>Покупка успешна!</b>\n\n"
             f"{result_text}\n"
-            f"💰 Списано: {item['price']} 🪙\n"
+            f"💰 Списано: {price} 🪙\n"
             f"📉 Новый бюджет клана: {clan['super_coins']} 🪙"
         )
         
@@ -11900,7 +11853,9 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 logger.error(f"Ошибка clan_shop_buy: {e}")
         
         await query.answer("✅ Покупка совершена!", show_alert=False)
-        logger.info(f"Глава {user_id} купил товар {item_id} за {item['price']} супер-коинов для клана {clan_name}")
+        
+        # ⭐ ИСПРАВЛЕНО: Логирование с переменной price ⭐
+        logger.info(f"Глава {user_id} купил товар {item_id} за {price} супер-коинов для клана {clan_name}")
         
     except Exception as e:
         logger.error(f"Ошибка clan_shop_buy: {e}")
