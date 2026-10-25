@@ -5864,10 +5864,11 @@ async def invite_player_to_clan(
     # Проверяем, что приглашающий — лидер клана
     if clan.get("leader_id") != inviter_id:
         return False, "Только глава клана может приглашать участников!"
-    
-    # Проверяем лимит участников
-    if len(clan["members"]) >= MAX_CLAN_MEMBERS:
-        return False, f"Клан заполнен! Максимум {MAX_CLAN_MEMBERS} участников."
+        
+    # ⭐ ИСПРАВЛЕНИЕ: Используем динамический лимит из данных клана ⭐
+    current_max = clan.get("max_members", MAX_CLAN_MEMBERS)
+    if len(clan["members"]) >= current_max:
+        return False, f"Клан заполнен! Максимум {current_max} участников."
     
     # Ищем целевого пользователя по никнейму
     target_user_id = None
@@ -6733,18 +6734,19 @@ def get_clan_member_count(clan_id: str, data: Dict) -> int:
     return len(clan.get("members", []))
 
 def can_join_clan(clan_id: str, data: Dict) -> tuple[bool, str]:
-    """
-    Проверяет, можно ли присоединиться к клану.
-    Возвращает: (можно_ли_войти, сообщение_о_причине)
-    """
+    """Проверяет, можно ли присоединиться к клану. Возвращает: (можно_ли_войти, сообщение_о_причине)"""
     clan = data.get("clans", {}).get(clan_id)
     if not clan:
         return False, "❌ Клан не найден!"
     
     member_count = len(clan.get("members", []))
-    if member_count >= MAX_CLAN_MEMBERS:
-        return False, f"❌ Клан заполнен! Максимум {MAX_CLAN_MEMBERS} участников."
     
+    # ⭐ ИСПРАВЛЕНИЕ: Используем динамический лимит ⭐
+    current_max = clan.get("max_members", MAX_CLAN_MEMBERS)
+    
+    if member_count >= current_max:
+        return False, f"❌ Клан заполнен! Максимум {current_max} участников."
+        
     return True, ""
 
 def _create_clan_logic(clan_name: str, user_id: str, data: Dict) -> tuple[bool, str]:
