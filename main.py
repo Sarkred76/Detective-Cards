@@ -11618,7 +11618,7 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             price = item["price"]
         super_coins = clan.get("super_coins", 0)
         
-        if super_coins < item["price"]:
+        if super_coins < price:
             await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
             return
         
