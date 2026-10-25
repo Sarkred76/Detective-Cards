@@ -8556,15 +8556,14 @@ async def burn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню и правила игры Дартс."""
     try:
-        # ⭐ НОВОЕ: Получаем данные игрока ⭐
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id, {})
         current_balance = user_data.get("cents", 0)
         plays_today = user_data.get("darts_plays", 0)
 
-        if is_batpass_active(user_data):
-            MAX_DARTS_DAILY_PLAYS = 7
+        # ⭐ НОВОЕ: Определяем лимит игр в зависимости от бэт-пасса ⭐
+        max_daily_plays = 7 if is_batpass_active(user_data) else MAX_DARTS_DAILY_PLAYS
         
         # ⭐ НОВОЕ: Индикаторы баланса ⭐
         if current_balance >= DARTS_GAME_COST:
@@ -8580,7 +8579,7 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"• Бот бросает 3 дротика 🎯\n"
             f"• Мишень имеет 5 зон: от 1 до 5 очков\n"
             f"• Наберите {DARTS_WIN_THRESHOLD}+ очков за 3 броска, чтобы получить 5 бесплатных попыток 🎲\n"
-            f"• Лимит: {MAX_DARTS_DAILY_PLAYS} игр в день (сброс в 00:00 МСК)\n\n"
+            f"• Лимит: {max_daily_plays} игр в день (сброс в 00:00 МСК)\n\n"
             f"{balance_text}\n"
         )
         
@@ -8603,7 +8602,8 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             )
     except Exception as e:
         logger.error(f"Ошибка в darts_menu: {e}")
-        await update.message.reply_text("❌ Ошибка при открытии меню Дартс")
+        await update.message.reply_text(" Ошибка при открытии меню Дартс")
+
 
 async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Логика игры в Дартс."""
@@ -8624,21 +8624,22 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["darts_plays"] = 0
             user_data["darts_last_reset"] = int(now_msk.timestamp())
 
-        if is_batpass_active(user_data):
-            MAX_DARTS_DAILY_PLAYS = 7
+        # ⭐ НОВОЕ: Определяем лимит игр в зависимости от бэт-пасса ⭐
+        max_daily_plays = 7 if is_batpass_active(user_data) else MAX_DARTS_DAILY_PLAYS
 
         is_admin_user = is_admin(user_id, data)
-        if user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
+        if not is_admin_user and user_data.get("darts_plays", 0) >= max_daily_plays:
             await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
             return
 
-        if user_data.get("cents", 0) < DARTS_GAME_COST:
+        if not is_admin_user and user_data.get("cents", 0) < DARTS_GAME_COST:
             await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {DARTS_GAME_COST}. У вас: {user_data.get('cents', 0)}")
             return
 
-        user_data["cents"] -= DARTS_GAME_COST
-        user_data["darts_plays"] += 1
-        save_data(data)
+        if not is_admin_user:
+            user_data["cents"] -= DARTS_GAME_COST
+            user_data["darts_plays"] += 1
+            save_data(data)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
         total_points = 0
@@ -8647,7 +8648,6 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         for _ in range(3):
             await asyncio.sleep(1.5)
             dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🎯")
-            # Telegram 🎯 выдаёт 1-6. Адаптируем под 5 зон мишени (6 -> 5)
             points = min(dice_msg.dice.value, 6)
             points -= 1
             total_points += points
@@ -8660,13 +8660,12 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update_quest_progress(context, user_id, "darts_win_2", 1)
 
         await query.message.reply_text(
-            f"🎯 **Результаты бросков:** {', '.join(map(str, results))}\n"
+            f" **Результаты бросков:** {', '.join(map(str, results))}\n"
             f"📊 **Итого очков:** {total_points}/10\n"
             f"{'✅ Победа! Получено 5 бесплатных попыток 🎲' if win else '😔 Не хватило очков. Попробуйте ещё раз.'}",
             parse_mode="Markdown"
         )
 
-        # Возвращаем меню
         keyboard = [[InlineKeyboardButton("🎯 Сыграть ещё", callback_data="darts_play")]]
         await query.message.reply_text(
             "🎯 **Дартс**\nХотите сыграть ещё раз?",
