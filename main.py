@@ -178,6 +178,11 @@ CLAN_SHOP_ITEMS = {
         "price": 180,
         "emoji": "🎭",
     },
+    "clan_expand": {
+        "name": "Расширение клана (+1 место)",
+        "emoji": "📈",
+        "description": "Увеличивает максимальное количество участников в клане на 1."
+    },
 }
 
 def get_card_media_value(card: Dict) -> str:
@@ -6107,6 +6112,23 @@ async def join_clan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("❌ Ошибка при вступлении в клан")
 
 # ===== МЕНЮ КЛАНОВ =====
+def get_clan_expand_info(clan: dict) -> dict:
+    """Возвращает информацию о стоимости и статусе расширения клана."""
+    # Базовый лимит 7. Если поля нет, считаем что лимит 7.
+    current_max = clan.get("max_members", 7)
+    expansions_bought = current_max - 7
+    
+    if expansions_bought >= 3:
+        return {"price": 0, "can_buy": False, "next_max": current_max, "status": "Куплено"}
+    elif expansions_bought == 0:
+        return {"price": 150, "can_buy": True, "next_max": 8, "status": "Доступно"}
+    elif expansions_bought == 1:
+        return {"price": 300, "can_buy": True, "next_max": 9, "status": "Доступно"}
+    elif expansions_bought == 2:
+        return {"price": 500, "can_buy": True, "next_max": 10, "status": "Доступно"}
+    
+    return {"price": 0, "can_buy": False, "next_max": current_max, "status": "Куплено"}
+    
 async def clan_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает главное меню кланов."""
     try:
@@ -11416,32 +11438,64 @@ async def clan_shop_open(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             f"📦 <b>Доступные товары:</b>\n\n"
         )
         
-        for item_id, item in CLAN_SHOP_ITEMS.items():
-            can_afford = super_coins >= item["price"]
-            status = "✅" if can_afford else "❌"
-            text += (
-                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
-                f"<i>{item['description']}</i>\n\n"
-            )
-        
-        # ⭐ Формируем клавиатуру ⭐
         keyboard = []
+        
         for item_id, item in CLAN_SHOP_ITEMS.items():
-            can_afford = super_coins >= item["price"]
-            if can_afford:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
-                        callback_data=f"clan_shop_confirm_{item_id}"
-                    )
-                ])
+            # ⭐ СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ РАСШИРЕНИЯ КЛАНА ⭐
+            if item_id == "clan_expand":
+                expand_info = get_clan_expand_info(clan)
+                price = expand_info["price"]
+                
+                if not expand_info["can_buy"]:
+                    # Уже куплено 3 раза
+                    text += f"🔒 <b>{item['name']}</b> — {expand_info['status']}\n<i>{item['description']}</i>\n\n"
+                    keyboard.append([
+                        InlineKeyboardButton(f"🔒 {item['name']} ({expand_info['status']})", callback_data="clan_shop_max_expanded")
+                    ])
+                else:
+                    can_afford = super_coins >= price
+                    status = "✅" if can_afford else "❌"
+                    text += f"{status} <b>{item['name']}</b> — {price} 🪙\n<i>{item['description']}</i>\n\n"
+                    
+                    if can_afford:
+                        keyboard.append([
+                            InlineKeyboardButton(
+                                f"{item['emoji']} Купить за {price} 🪙",
+                                callback_data=f"clan_shop_confirm_{item_id}"
+                            )
+                        ])
+                    else:
+                        keyboard.append([
+                            InlineKeyboardButton(
+                                f"❌ Недостаточно супер-коинов ({price} 🪙)",
+                                callback_data="clan_shop_no_coins"
+                            )
+                        ])
+            
+            # ⭐ СТАНДАРТНАЯ ЛОГИКА ДЛЯ ОСТАЛЬНЫХ ТОВАРОВ ⭐
             else:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
-                        callback_data="clan_shop_no_coins"
-                    )
-                ])
+                price = item["price"]
+                can_afford = super_coins >= price
+                status = "✅" if can_afford else "❌"
+                text += (
+                    f"{status} <b>{item['name']}</b> — {price} 🪙\n"
+                    f"<i>{item['description']}</i>\n\n"
+                )
+                
+                if can_afford:
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{item['emoji']} Купить {item['name']} — {price} 🪙",
+                            callback_data=f"clan_shop_confirm_{item_id}"
+                        )
+                    ])
+                else:
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"❌ Недостаточно супер-коинов ({price} 🪙)",
+                            callback_data="clan_shop_no_coins"
+                        )
+                    ])
         
         await update.message.reply_text(
             text,
@@ -11481,38 +11535,43 @@ async def clan_shop_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
         
         item = CLAN_SHOP_ITEMS[item_id]
-        super_coins = clan.get("super_coins", 0)
         
-        if super_coins < item["price"]:
+        # ⭐ Динамическая цена для расширения ⭐
+        if item_id == "clan_expand":
+            expand_info = get_clan_expand_info(clan)
+            price = expand_info["price"]
+            if not expand_info["can_buy"]:
+                await query.answer("❌ Максимальное расширение клана уже достигнуто!", show_alert=True)
+                return
+        else:
+            price = item["price"]
+
+        super_coins = clan.get("super_coins", 0)
+        if super_coins < price:
             await query.answer("❌ Недостаточно супер-коинов!", show_alert=True)
             return
-        
+
         clan_name = html.escape(clan.get("name", "Клан"))
-        
         text = (
             f"⚠️ <b>Подтверждение покупки</b>\n\n"
             f"🛒 Товар: <b>{item['name']}</b>\n"
-            f"💰 Цена: {item['price']} 🪙\n"
-            f"🏰 Клан: {clan_name}\n\n"
+            f"💰 Цена: {price} 🪙\n"
+            f"🏰 Клан: {clan_name}\n"
             f"📦 <b>Текущий бюджет:</b> {super_coins} 🪙\n"
-            f"📉 <b>После покупки:</b> {super_coins - item['price']} 🪙\n\n"
+            f"📉 <b>После покупки:</b> {super_coins - price} 🪙\n"
             f"<i>{item['description']}</i>\n\n"
             f"✅ Подтвердить покупку?"
         )
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("✅ Да, купить", callback_data=f"clan_shop_buy_{item_id}"),
                 InlineKeyboardButton("❌ Отмена", callback_data="clan_shop_cancel")
             ]
         ]
-        
+
         try:
-            await query.edit_message_text(
-                text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         except Exception as e:
             if "Message is not modified" not in str(e):
                 logger.error(f"Ошибка clan_shop_confirm: {e}")
@@ -11550,6 +11609,13 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             return
         
         item = CLAN_SHOP_ITEMS[item_id]
+         
+        # ⭐ Динамическая цена для расширения ⭐
+        if item_id == "clan_expand":
+            expand_info = get_clan_expand_info(clan)
+            price = expand_info["price"]
+        else:
+            price = item["price"]
         super_coins = clan.get("super_coins", 0)
         
         if super_coins < item["price"]:
@@ -11566,6 +11632,11 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # ⭐ Выполняем покупку в зависимости от товара ⭐
         result_text = ""
         
+        if item_id == "clan_expand":
+            clan["super_coins"] -= price
+            clan["max_members"] = expand_info["next_max"]
+            result_text = f"📈 Лимит участников увеличен до <b>{clan['max_members']}</b>!"
+            
         if item_id == "epic":
             # 🎴 Рандомный Epic
             # Собираем все Epic-карты
@@ -11835,6 +11906,9 @@ async def clan_shop_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error(f"Ошибка clan_shop_buy: {e}")
         await query.answer("❌ Ошибка при покупке", show_alert=True)
 
+async def clan_shop_max_expanded(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик нажатия на кнопку, когда расширение уже куплено."""
+    await update.callback_query.answer("❌ Максимальный размер клана (10 участников) уже достигнут!", show_alert=True)
 
 async def clan_shop_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Возвращает в меню магазина клана."""
@@ -11855,39 +11929,71 @@ async def clan_shop_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         super_coins = clan.get("super_coins", 0)
         clan_name = html.escape(clan.get("name", "Клан"))
-        
+        current_max = clan.get("max_members", 7)
         text = (
             f"🛒 <b>Магазин клана «{clan_name}»</b>\n\n"
             f"🪙 <b>Бюджет клана:</b> {super_coins} супер-коинов\n\n"
             f"📦 <b>Доступные товары:</b>\n\n"
         )
         
-        for item_id, item in CLAN_SHOP_ITEMS.items():
-            can_afford = super_coins >= item["price"]
-            status = "✅" if can_afford else "❌"
-            text += (
-                f"{status} <b>{item['name']}</b> — {item['price']} 🪙\n"
-                f"<i>{item['description']}</i>\n\n"
-            )
-        
         keyboard = []
-        for item_id, item in CLAN_SHOP_ITEMS.items():
-            can_afford = super_coins >= item["price"]
-            if can_afford:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"{item['emoji']} Купить {item['name']} — {item['price']} 🪙",
-                        callback_data=f"clan_shop_confirm_{item_id}"
-                    )
-                ])
-            else:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"❌ Недостаточно супер-коинов ({item['price']} 🪙)",
-                        callback_data="clan_shop_no_coins"
-                    )
-                ])
         
+        for item_id, item in CLAN_SHOP_ITEMS.items():
+            # ⭐ СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ РАСШИРЕНИЯ КЛАНА ⭐
+            if item_id == "clan_expand":
+                expand_info = get_clan_expand_info(clan)
+                price = expand_info["price"]
+                
+                if not expand_info["can_buy"]:
+                    # Уже куплено 3 раза
+                    text += f"🔒 <b>{item['name']}</b> — {expand_info['status']}\n<i>{item['description']}</i>\n\n"
+                    keyboard.append([
+                        InlineKeyboardButton(f"🔒 {item['name']} ({expand_info['status']})", callback_data="clan_shop_max_expanded")
+                    ])
+                else:
+                    can_afford = super_coins >= price
+                    status = "✅" if can_afford else "❌"
+                    text += f"{status} <b>{item['name']}</b> — {price} 🪙\n<i>{item['description']}</i>\n\n"
+                    
+                    if can_afford:
+                        keyboard.append([
+                            InlineKeyboardButton(
+                                f"{item['emoji']} Купить за {price} 🪙",
+                                callback_data=f"clan_shop_confirm_{item_id}"
+                            )
+                        ])
+                    else:
+                        keyboard.append([
+                            InlineKeyboardButton(
+                                f"❌ Недостаточно супер-коинов ({price} 🪙)",
+                                callback_data="clan_shop_no_coins"
+                            )
+                        ])
+            
+            # ⭐ СТАНДАРТНАЯ ЛОГИКА ДЛЯ ОСТАЛЬНЫХ ТОВАРОВ ⭐
+            else:
+                price = item["price"]
+                can_afford = super_coins >= price
+                status = "✅" if can_afford else "❌"
+                text += (
+                    f"{status} <b>{item['name']}</b> — {price} 🪙\n"
+                    f"<i>{item['description']}</i>\n\n"
+                )
+                
+                if can_afford:
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{item['emoji']} Купить {item['name']} — {price} 🪙",
+                            callback_data=f"clan_shop_confirm_{item_id}"
+                        )
+                    ])
+                else:
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"❌ Недостаточно супер-коинов ({price} 🪙)",
+                            callback_data="clan_shop_no_coins"
+                        )
+                    ])
         try:
             await query.edit_message_text(
                 text,
@@ -13315,6 +13421,7 @@ def main() -> None:
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
             CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
             CallbackQueryHandler(open_lanterns_box, pattern=r"^shop_open_lanterns_box$"),
+            CallbackQueryHandler(clan_shop_max_expanded, pattern=r"^clan_shop_max_expanded$"),
         ]
 
         for handler in handlers:
