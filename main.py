@@ -5178,7 +5178,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         keyboard = [[InlineKeyboardButton("🎰 Сыграть)", callback_data="casino_play")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        max_casino_attempts = 7 if is_batpass_active(user_data) else 5
+        max_casino_attempts = 5
         
         await update.message.reply_text(
             f"🎰 **Казино**\n"
@@ -5194,6 +5194,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
     except Exception as e:
         logger.error(f"Ошибка в open_casino_from_button: {e}")
         await update.message.reply_text("❌ Ошибка при открытии казино")
+        
 async def craft_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню выбора рецепта крафта."""
     try:
@@ -8561,6 +8562,9 @@ async def darts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_data = data["users"].get(user_id, {})
         current_balance = user_data.get("cents", 0)
         plays_today = user_data.get("darts_plays", 0)
+
+        if is_batpass_active(user_data):
+            MAX_DARTS_DAILY_PLAYS = 7
         
         # ⭐ НОВОЕ: Индикаторы баланса ⭐
         if current_balance >= DARTS_GAME_COST:
@@ -8620,19 +8624,20 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             user_data["darts_plays"] = 0
             user_data["darts_last_reset"] = int(now_msk.timestamp())
 
+        if is_batpass_active(user_data):
+            MAX_DARTS_DAILY_PLAYS = 7
+
         is_admin_user = is_admin(user_id, data)
-        if not is_admin_user and user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
+        if user_data.get("darts_plays", 0) >= MAX_DARTS_DAILY_PLAYS:
             await query.edit_message_text("❌ Лимит игр на сегодня исчерпан! Приходите завтра после 00:00 МСК.")
             return
 
-        if not is_admin_user and user_data.get("cents", 0) < DARTS_GAME_COST:
+        if user_data.get("cents", 0) < DARTS_GAME_COST:
             await query.edit_message_text(f"❌ Недостаточно бэт-коинов! Нужно {DARTS_GAME_COST}. У вас: {user_data.get('cents', 0)}")
             return
 
-        # Списание средств и учёт игры
-        if not is_admin_user:
-            user_data["cents"] -= DARTS_GAME_COST
-            user_data["darts_plays"] += 1
+        user_data["cents"] -= DARTS_GAME_COST
+        user_data["darts_plays"] += 1
         save_data(data)
 
         await query.edit_message_text("🎯 Бросаем дротики...")
