@@ -3553,29 +3553,15 @@ async def toggle_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.error(f"Ошибка переключения карточки: {e}")
         await update.message.reply_text("❌ Ошибка при изменении")
 
+import re
+from telegram import MessageEntity
+
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Рассылка сообщения всем пользователям с сохранением форматирования."""
+    """Рассылка сообщения всем пользователям: текст, премиум-эмодзи, фото и видео."""
     try:
         data = load_data()
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        # ⭐ ИСПРАВЛЕНИЕ: Берём весь текст сообщения, а не context.args ⭐
-        # Это сохраняет переносы строк, пробелы и форматирование
-        full_text = update.message.text
-        
-        # ⭐ Убираем команду "/broadcast " из начала ⭐
-        # Ищем первый пробел после команды
-        if " " in full_text:
-            # Берём всё после первого пробела
-            message_text = full_text.split(" ", 1)[1]
-        else:
-            await update.message.reply_text("ℹ️ Используйте: /broadcast [текст]")
-            return
-        
-        if not message_text.strip():
-            await update.message.reply_text("ℹ️ Сообщение пустое!")
             return
         
         users = data.get("users", {})
@@ -3583,32 +3569,165 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("ℹ️ Нет пользователей для рассылки!")
             return
         
-        status = await update.message.reply_text(f"📢 Рассылка для {len(users)} пользователей...")
-        success, failed = 0, 0
+        #  БЕРЁМ ПОДПИСЬ ИЗ ТЕКСТА СООБЩЕНИЯ 
+        full_text = update.message.text or ""
+        caption = ""
+        if " " in full_text:
+            caption = full_text.split(" ", 1)[1]
         
-        for i, user_id in enumerate(users.keys(), 1):
-            try:
-                await context.bot.send_message(chat_id=user_id, text=message_text)
-                success += 1
-            except Exception as e:
-                failed += 1
+        # ⭐ ПАРСИНГ ПРЕМИУМ-ЭМОДЗИ ⭐
+        emoji_pattern = re.compile(r'<emoji\s+id="(\d+)">(.*?)</emoji>', re.DOTALL)
+        entities = []
+        
+        if caption:
+            # Сначала создаём clean_text
+            clean_caption = emoji_pattern.sub(lambda m: m.group(2), caption)
             
-            if i % 5 == 0 or i == len(users):
-                await status.edit_text(
-                    f"📢 Отправлено {i}/{len(users)}\n"
-                    f"✅ Успешно: {success} | ❌ Ошибок: {failed}"
+            # Вычисляем entities с правильными offset
+            for match in emoji_pattern.finditer(caption):
+                emoji_id = match.group(1)
+                emoji_symbol = match.group(2)
+                prefix = caption[:match.start()]
+                clean_prefix = emoji_pattern.sub(lambda m: m.group(2), prefix)
+                offset = len(clean_prefix)
+                length = len(emoji_symbol)
+                entities.append(
+                    MessageEntity(
+                        type=MessageEntity.CUSTOM_EMOJI,
+                        offset=offset,
+                        length=length,
+                        custom_emoji_id=emoji_id
+                    )
                 )
+            caption = clean_caption
+        else:
+            caption = ""
         
-        await status.edit_text(
-            f"✅ Рассылка завершена!\n"
-            f"Всего: {len(users)}\n"
-            f"Успешно: {success}\n"
-            f"Ошибок: {failed}"
-        )
+        # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ МЕДИА В REPLY ⭐
+        reply_to = update.message.reply_to_message
+        
+        if reply_to and (reply_to.photo or reply_to.video or reply_to.animation):
+            # ===== РАССЫЛКА МЕДИА (ФОТО/ВИДЕО) =====
+            status = await update.message.reply_text(f"📢 Рассылка медиа для {len(users)} пользователей...")
+            success, failed = 0, 0
+            
+            for i, user_id in enumerate(users.keys(), 1):
+                try:
+                    if reply_to.photo:
+                        # Отправляем фото
+                        file_id = reply_to.photo[-1].file_id
+                        if entities:
+                            await context.bot.send_photo(
+                                chat_id=user_id,
+                                photo=file_id,
+                                caption=caption,
+                                entities=entities if entities else None
+                            )
+                        else:
+                            await context.bot.send_photo(
+                                chat_id=user_id,
+                                photo=file_id,
+                                caption=caption if caption else None,
+                                parse_mode="HTML" if caption and "<b>" in caption else None
+                            )
+                    elif reply_to.video:
+                        # Отправляем видео
+                        file_id = reply_to.video.file_id
+                        if entities:
+                            await context.bot.send_video(
+                                chat_id=user_id,
+                                video=file_id,
+                                caption=caption,
+                                entities=entities if entities else None,
+                                supports_streaming=True
+                            )
+                        else:
+                            await context.bot.send_video(
+                                chat_id=user_id,
+                                video=file_id,
+                                caption=caption if caption else None,
+                                parse_mode="HTML" if caption and "<b>" in caption else None,
+                                supports_streaming=True
+                            )
+                    elif reply_to.animation:
+                        # Отправляем анимацию (GIF)
+                        file_id = reply_to.animation.file_id
+                        if entities:
+                            await context.bot.send_animation(
+                                chat_id=user_id,
+                                animation=file_id,
+                                caption=caption,
+                                entities=entities if entities else None
+                            )
+                        else:
+                            await context.bot.send_animation(
+                                chat_id=user_id,
+                                animation=file_id,
+                                caption=caption if caption else None,
+                                parse_mode="HTML" if caption and "<b>" in caption else None
+                            )
+                    
+                    success += 1
+                except Exception as e:
+                    failed += 1
+                    logger.warning(f"Не удалось отправить медиа пользователю {user_id}: {e}")
+                
+                if i % 5 == 0 or i == len(users):
+                    await status.edit_text(
+                        f"📢 Отправлено {i}/{len(users)}\n"
+                        f"✅ Успешно: {success} | ❌ Ошибок: {failed}"
+                    )
+            
+            await status.edit_text(
+                f"✅ Рассылка медиа завершена!\n"
+                f"Всего: {len(users)}\n"
+                f"Успешно: {success}\n"
+                f"Ошибок: {failed}"
+            )
+        
+        else:
+            # ===== ТЕКСТОВАЯ РАССЫЛКА (как раньше) =====
+            if not caption.strip():
+                await update.message.reply_text("ℹ️ Сообщение пустое! Используй: /broadcast [текст] или ответь на фото/видео с /broadcast [подпись]")
+                return
+            
+            status = await update.message.reply_text(f"📢 Рассылка для {len(users)} пользователей...")
+            success, failed = 0, 0
+            
+            for i, user_id in enumerate(users.keys(), 1):
+                try:
+                    if entities:
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=caption,
+                            entities=entities
+                        )
+                    else:
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=caption
+                        )
+                    success += 1
+                except Exception as e:
+                    failed += 1
+                    logger.warning(f"Не удалось отправить пользователю {user_id}: {e}")
+                
+                if i % 5 == 0 or i == len(users):
+                    await status.edit_text(
+                        f"📢 Отправлено {i}/{len(users)}\n"
+                        f"✅ Успешно: {success} | ❌ Ошибок: {failed}"
+                    )
+            
+            await status.edit_text(
+                f"✅ Рассылка завершена!\n"
+                f"Всего: {len(users)}\n"
+                f"Успешно: {success}\n"
+                f"Ошибок: {failed}"
+            )
         
     except Exception as e:
-        logger.error(f"Ошибка рассылки: {e}")
-        await update.message.reply_text("❌ Ошибка при рассылке")
+        logger.error(f"Ошибка рассылки: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Ошибка при рассылке: {e}")
 
 async def reset_all_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Сброс всех карточек у всех пользователей."""
