@@ -551,8 +551,7 @@ def check_casino_reset(user_data: Dict) -> None:
     current_day_start_ts = int(current_day_start.timestamp())
     
     if current_day_start_ts > last_reset:
-        # ⭐ НОВОЕ: Проверяем Бэт-пасс ⭐
-        max_attempts = 7 if is_batpass_active(user_data) else 5
+        max_attempts = 5
         
         user_data["casino_attempts"] = max_attempts
         user_data["last_casino_reset"] = current_day_start_ts
@@ -4453,8 +4452,6 @@ async def bar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
     except Exception as e:
         logger.error(f"Ошибка в bar_menu: {e}")
-        
-
 
 async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Игра в казино."""
