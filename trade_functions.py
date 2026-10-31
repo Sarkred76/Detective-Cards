@@ -12,7 +12,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaPhoto,
-    InputMediaAnimation,
 )
 from telegram.ext import ContextTypes
 
@@ -265,7 +264,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
 async def _show_trade_card(update_or_query, context, trade_info, display_card_ids, index):
     """
     ⭐ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КАРТЫ ДЛЯ ТРЕЙДА ⭐
-    Поддерживает дубликаты карт, поиск и file_id с защитой от пустых ссылок.
+    Поддерживает дубликаты карт, поиск и file_id.
     """
     if not display_card_ids:
         if hasattr(update_or_query, 'message'):
@@ -335,19 +334,8 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # ⭐ ИСПРАВЛЕНИЕ: Строгая проверка медиа ⭐
+    # ⭐ НОВОЕ: Универсальная логика для file_id и URL ⭐
     media_value = get_card_media_value(card)
-    
-    if not media_value:
-        logger.error(f"⚠️ У карты #{card.get('id')} ({card.get('title')}) отсутствует медиафайл (нет ни file_id, ни image_url)!")
-        fallback_text = f"⚠️ Ошибка отображения карты #{card.get('id')}\n{caption}\n(У карты отсутствует файл. Сообщите админу)"
-        
-        if hasattr(update_or_query, 'edit_message_text'):
-            await update_or_query.edit_message_text(text=fallback_text, reply_markup=reply_markup)
-        elif hasattr(update_or_query, 'message'):
-            await update_or_query.message.reply_text(text=fallback_text, reply_markup=reply_markup)
-        return
-
     is_animation = is_card_animation(card, media_value)
     
     # Отправка или редактирование сообщения
@@ -360,12 +348,7 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
             await update_or_query.edit_message_media(media=media, reply_markup=reply_markup)
         except Exception as e:
             if "Message is not modified" not in str(e):
-                logger.error(f"Ошибка редактирования в _show_trade_card: {e} | media_value: '{media_value}'")
-                # Fallback при ошибке редактирования
-                await update_or_query.edit_message_text(
-                    text=f"⚠️ Не удалось загрузить медиа карты #{card.get('id')}\n{caption}",
-                    reply_markup=reply_markup
-                )
+                logger.error(f"Ошибка редактирования в _show_trade_card: {e}")
     elif hasattr(update_or_query, 'message'):
         try:
             if is_animation:
@@ -381,12 +364,8 @@ async def _show_trade_card(update_or_query, context, trade_info, display_card_id
                     reply_markup=reply_markup
                 )
         except Exception as e:
-            logger.error(f"Ошибка отправки в _show_trade_card: {e} | media_value: '{media_value}'")
-            await update_or_query.message.reply_text(
-                text=f"⚠️ Не удалось загрузить медиа карты #{card.get('id')}\n{caption}",
-                reply_markup=reply_markup
-            )
-            
+            logger.error(f"Ошибка отправки в _show_trade_card: {e}")
+
 async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     ⭐ ПОИСК С ПОДДЕРЖКОЙ ДУБЛИКАТОВ ⭐
@@ -862,7 +841,36 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         # Отклонение трейда
         elif query.data.startswith("trade_decline_btn_"):
             del data["active_trades"][user_id]
-            save_data(data)
+            
+            # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (с отладкой) ⭐
+            from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
+            event_reward_claimed = False
+            
+            logger.info(f"--- DEBUG КВЕСТ 6 (trade_decline_btn) для игрока {user_id} ---")
+            logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
+            
+            if DARKEST_NIGHT_ACTIVE:
+                user_data = data["users"].get(user_id)
+                logger.info(f"user_data существует: {bool(user_data)}")
+                if user_data:
+                    dn = user_data.get("darkest_night", {})
+                    logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
+                    
+                    if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
+                        dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
+                        logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
+                        
+                        if dn["quest_progress"]["declined_trades"] >= 5:
+                            logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
+                            await claim_darkest_night_reward(context, user_id, 6)
+                            event_reward_claimed = True
+                    else:
+                        logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
+            logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
+            
+            # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
+            if not event_reward_claimed:
+                save_data(data)
             
             await query.edit_message_text("❌ Трейд отклонён")
             
@@ -1016,19 +1024,8 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     ],
                     [InlineKeyboardButton("➡️ Отправить встречное предложение", callback_data="trade_return_finish")],
                 ]
-                
-                # ⭐ ИСПРАВЛЕНИЕ: Универсальная логика с проверкой на пустоту ⭐
+                # ⭐ НОВОЕ: Универсальная логика ⭐
                 media_value = get_card_media_value(card)
-                
-                if not media_value:
-                    logger.error(f"У карты {card.get('id')} ({card.get('title')}) нет ни file_id, ни image_url!")
-                    await query.message.reply_text(
-                        f"⚠️ Ошибка: у карты **#{card.get('id')}** отсутствует медиафайл.\n"
-                        f"Пожалуйста, сообщите администратору.",
-                        parse_mode="Markdown"
-                    )
-                    return
-                
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1042,16 +1039,10 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                         await query.message.reply_photo(
                             photo=media_value,
                             caption=caption,
-                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        reply_markup=InlineKeyboardMarkup(keyboard)
                         )
                 except Exception as e:
-                    logger.error(f"Ошибка отправки первой карты (ID: {card.get('id')}): {e}")
-                    logger.error(f"media_value: '{media_value}', is_animation: {is_animation}")
-                    await query.message.reply_text(
-                        f"⚠️ Не удалось загрузить изображение карты #{card.get('id')}.\n"
-                        f"Возможно, ссылка устарела или файл удалён.",
-                        parse_mode="Markdown"
-                    )
+                    logger.error(f"Ошибка отправки первой карты: {e}")
         
         # Отклонение обмена
         elif query.data == "trade_offer_decline":
@@ -1060,6 +1051,36 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 from_user = trade_info["from_user"]
                 
                 del context.user_data[user_id]["incoming_trade"]
+                
+                # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (с отладкой) ⭐
+                from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
+                event_reward_claimed = False
+                
+                logger.info(f"--- DEBUG КВЕСТ 6 (trade_offer_decline) для игрока {user_id} ---")
+                logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
+                
+                if DARKEST_NIGHT_ACTIVE:
+                    user_data = data["users"].get(user_id)
+                    logger.info(f"user_data существует: {bool(user_data)}")
+                    if user_data:
+                        dn = user_data.get("darkest_night", {})
+                        logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
+                        
+                        if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
+                            dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
+                            logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
+                            
+                            if dn["quest_progress"]["declined_trades"] >= 5:
+                                logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
+                                await claim_darkest_night_reward(context, user_id, 6)
+                                event_reward_claimed = True
+                        else:
+                            logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
+                logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
+                
+                # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
+                if not event_reward_claimed:
+                    save_data(data)
                 
                 await query.edit_message_text("❌ Трейд отклонён")
                 
@@ -1116,19 +1137,11 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
-                
-                # ⭐ ИСПРАВЛЕНИЕ: Проверка медиа ⭐
-                media_value = get_card_media_value(card)
-                if not media_value:
-                    logger.error(f"У карты {card.get('id')} нет медиа!")
-                    await query.answer("⚠️ У этой карты отсутствует файл!", show_alert=True)
-                    return
-                    
+                # ⭐ ИСПРАВЛЕНИЕ: Проверяем по индексу в полном списке ⭐
                 display_to_full_map = trade_info.get("display_to_full_map", {})
                 full_index = display_to_full_map.get(current_index, current_index)
                 is_selected = full_index in trade_info.get("selected_full_indices", [])
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
-                
                 keyboard = [
                     [
                         InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
@@ -1138,7 +1151,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1150,7 +1164,6 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Ошибка редактирования в trade_return_callback: {e}")
-                        logger.error(f"media_value: '{media_value}'")
         # Выбор карты
         elif query.data.startswith("trade_return_select_"):
             display_index = int(query.data.split("_")[-1])
@@ -1189,19 +1202,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🛡 В архиве: {card_in_collection} шт.\n"
                     f"{len(selected_full_indices)}/{cards_count} выбрано"
                 )
-                
-                # ⭐ ИСПРАВЛЕНИЕ: Проверка медиа ⭐
-                media_value = get_card_media_value(card)
-                if not media_value:
-                    logger.error(f"У карты {card.get('id')} нет медиа!")
-                    await query.answer("⚠️ У этой карты отсутствует файл!", show_alert=True)
-                    return
-
-                display_to_full_map = trade_info.get("display_to_full_map", {})
-                full_index = display_to_full_map.get(display_index, display_index)
                 is_selected = full_index in selected_full_indices
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
-                
                 keyboard = [
                     [
                         InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
@@ -1211,7 +1213,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
                     [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
-                
+                # ⭐ НОВОЕ: Универсальная логика ⭐
+                media_value = get_card_media_value(card)
                 is_animation = is_card_animation(card, media_value)
 
                 try:
@@ -1223,7 +1226,6 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Ошибка редактирования при выборе: {e}")
-                        logger.error(f"media_value: '{media_value}'")
         
         elif query.data == "trade_return_search_button":
             # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ПОЛУЧАТЕЛЯ
@@ -1399,17 +1401,50 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
             except:
                 pass
+        
         # Отмена обмена
         elif query.data.startswith("trade_final_decline_"):
             # Очищаем трейд
             del data["active_trades"][user_id]
-            save_data(data)
-            # ⭐ ИСПРАВЛЕНИЕ: Очищаем context.user_data для ОБОИХ пользователей ⭐
+            
+            # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (Отмена отправителем) ⭐
+            from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
+            event_reward_claimed = False
+            
+            logger.info(f"--- DEBUG КВЕСТ 6 (trade_final_decline) для игрока {user_id} ---")
+            logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
+            
+            if DARKEST_NIGHT_ACTIVE:
+                user_data = data["users"].get(user_id)
+                logger.info(f"user_data существует: {bool(user_data)}")
+                if user_data:
+                    dn = user_data.get("darkest_night", {})
+                    logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
+                    
+                    if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
+                        dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
+                        logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
+                        
+                        if dn["quest_progress"]["declined_trades"] >= 5:
+                            logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
+                            await claim_darkest_night_reward(context, user_id, 6)
+                            event_reward_claimed = True
+                    else:
+                        logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
+            logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
+            
+            # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
+            if not event_reward_claimed:
+                save_data(data)
+            
+            # ⭐ Очищаем context.user_data для ОБОИХ пользователей ⭐
             if user_id in context.user_data:
                 del context.user_data[user_id]
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
+                
             await query.edit_message_text("❌ Обмен отменён")
+            
             # Уведомляем получателя
             try:
                 await context.bot.send_message(
