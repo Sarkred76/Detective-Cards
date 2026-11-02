@@ -13838,6 +13838,85 @@ async def darkest_night_secret_callback(update: Update, context: ContextTypes.DE
         
     except Exception as e:
         logger.error(f"Ошибка в darkest_night_secret_callback: {e}", exc_info=True)
+
+async def check_darkest_night_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Админская команда: показывает игроков, выполнивших все квесты до текущего дня без пропусков."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not DARKEST_NIGHT_ACTIVE:
+            await update.message.reply_text("⚠️ Ивент 'Темнейшая ночь' не активен!")
+            return
+        
+        # 1. Определяем текущий глобальный день ивента (максимальный день среди всех участников)
+        global_day = 1
+        for uid, udata in data["users"].items():
+            dn = udata.get("darkest_night", {})
+            if dn.get("active"):
+                day = dn.get("current_day", 1)
+                if day > global_day:
+                    global_day = day
+        
+        # 2. Ищем игроков, выполнивших все квесты с 1 по global_day без пропусков
+        top_players = []
+        required_days = set(range(1, global_day + 1))
+        
+        for uid, udata in data["users"].items():
+            dn = udata.get("darkest_night", {})
+            if dn.get("active"):
+                completed = set(dn.get("completed_days", []))
+                # Проверяем, что все нужные дни есть в выполненных (без пропусков)
+                if required_days.issubset(completed):
+                    username = udata.get("username")
+                    if username:
+                        top_players.append(f"@{username}")
+                    else:
+                        # Если нет username, берем first_name или ID
+                        name = udata.get("first_name", "Игрок")
+                        top_players.append(f"{name} (ID: {uid})")
+        
+        # 3. Формируем ответ
+        if not top_players:
+            await update.message.reply_text(
+                f"📊 **Статистика ивента (День {global_day})**\n\n"
+                f"Пока нет игроков, выполнивших все квесты с 1 по {global_day} день."
+            )
+            return
+        
+        # Сортируем список по алфавиту
+        top_players.sort()
+        
+        header = f"📊 **Статистика ивента (День {global_day})**\n\n"
+        header += f"🏆 Выполнили все квесты ({len(top_players)} чел.):\n"
+        
+        # ⭐ Разбиваем на части, если список длинный (лимит Telegram 4096 символов) ⭐
+        message_parts = []
+        current_part = header
+        
+        for player in top_players:
+            if len(current_part) + len(player) + 2 > 4000: # Оставляем запас
+                message_parts.append(current_part)
+                current_part = ""
+            current_part += f"• {player}\n"
+        
+        if current_part:
+            message_parts.append(current_part)
+        
+        # Отправляем частями
+        for part in message_parts:
+            await update.message.reply_text(part, parse_mode="Markdown")
+        
+        logger.info(f"Админ {user_id} запросил статистику ивента. День {global_day}, топ игроков: {len(top_players)}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в check_darkest_night_progress: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ошибка при получении статистики")
+        
         
 # ===== ЗАПУСК БОТА =====
 
@@ -13919,7 +13998,8 @@ def main() -> None:
             CommandHandler("cancel", cancel_command),
             CommandHandler("start_darkest_night", start_darkest_night),
             CommandHandler("next_darkest_day", next_darkest_day),
-            CommandHandler("reset_darkest_night", reset_darkest_night), 
+            CommandHandler("reset_darkest_night", reset_darkest_night),
+            CommandHandler("check_dn", check_darkest_night_progress),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
