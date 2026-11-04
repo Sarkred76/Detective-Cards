@@ -13354,9 +13354,10 @@ async def darkest_night_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
         
-        # ⭐ НОВОЕ: Если выполнено ровно 6 квестов — предлагаем обмен ⭐
+        # ⭐ НОВОЕ: Если выполнено ровно 6 квестов И 7-й квест выполнен (один из предыдущих пропущен) — предлагаем обмен ⭐
         completed_count = len(completed_days)
-        if completed_count == 6 and not dn.get("final_reward_claimed", False):
+        
+        if completed_count == 6 and 7 in completed_days and not dn.get("final_reward_claimed", False):
             # ⭐ Собираем ID наградных карт ТОЛЬКО за реально выполненные дни ⭐
             event_reward_ids = []
             for day in completed_days:
@@ -13709,10 +13710,15 @@ async def darkest_night_exchange_cards(update: Update, context: ContextTypes.DEF
             await query.answer("❌ Ивент не активен", show_alert=True)
             return
         
-        # ⭐ Проверяем, что выполнено ровно 6 квестов ⭐
+        # ⭐ Проверяем, что выполнено ровно 6 квестов И 7-й квест выполнен ⭐
         completed_days = dn.get("completed_days", [])
+        
         if len(completed_days) != 6:
             await query.answer("❌ Для обмена нужно ровно 6 выполненных квестов!", show_alert=True)
+            return
+        
+        if 7 not in completed_days:
+            await query.answer("❌ Обмен доступен только после выполнения 7-го квеста!", show_alert=True)
             return
         
         # Проверяем, не получена ли уже награда
