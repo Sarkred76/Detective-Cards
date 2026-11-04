@@ -13332,24 +13332,21 @@ async def darkest_night_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # Проверяем, все ли квесты выполнены
         all_completed = len(completed_days) >= 7
-        
         if all_completed:
             # Показываем финальный экран
             text = (
                 f"💀 <b>Темнейшая ночь</b>\n\n"
                 f"🏆 <b>Восстань!</b>\n\n"
-                f"Вы выполнили все 7 квестов!\n"
+                f"Вы выполнили все 7 квестов!\n\n"
                 f"✅ Прогресс: {len(completed_days)}/7\n\n"
                 f"Заберите вашу награду — эксклюзивную карту редкости Limited!"
             )
-            
             keyboard = []
             if not dn.get("final_reward_claimed", False):
                 keyboard.append([InlineKeyboardButton("🎁 Забрать темнейшую карту", callback_data="darkest_night_claim_final")])
             else:
                 text += "\n\n✅ Награда уже получена!"
-            
-            keyboard.append([InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")])
+                keyboard.append([InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")])
             
             if query:
                 await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -13357,6 +13354,59 @@ async def darkest_night_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
         
+        # ⭐ НОВОЕ: Если выполнено ровно 6 квестов — предлагаем обмен ⭐
+        completed_count = len(completed_days)
+        if completed_count == 6 and not dn.get("final_reward_claimed", False):
+            # ⭐ Собираем ID наградных карт ТОЛЬКО за реально выполненные дни ⭐
+            event_reward_ids = []
+            for day in completed_days:
+                card_id = DARKEST_NIGHT_REWARDS.get(day)
+                if card_id:
+                    event_reward_ids.append(card_id)
+            
+            # Проверяем, что все эти карты есть в инвентаре игрока
+            user_card_ids = user_data.get("cards", [])
+            has_all_event_cards = all(card_id in user_card_ids for card_id in event_reward_ids)
+            
+            if has_all_event_cards and len(event_reward_ids) == 6:
+                text = (
+                    f"💀 <b>Темнейшая ночь</b>\n\n"
+                    f"🏆 <b>Восстань!</b>\n\n"
+                    f"Вы выполнили {completed_count} из 7 квестов.\n\n"
+                    f"📊 Прогресс: {completed_count}/7\n\n"
+                    f"⚠️ <b>Альтернативный путь:</b>\n"
+                    f"Вы можете обменять все {completed_count} полученных карт ивента на эксклюзивную карту редкости <b>Limited</b>!\n\n"
+                    f"🔹 Карты, которые будут потрачены:\n"
+                )
+                
+                # Показываем список карт, которые будут потрачены (с названиями)
+                for card_id in event_reward_ids:
+                    card = find_card_by_id(card_id, data["cards"])
+                    if card:
+                        text += f"  • {card['title']} ({card['rarity']})\n"
+                
+                # Показываем, какой квест пропущен
+                all_days = set(range(1, 8))
+                completed_set = set(completed_days)
+                missing_days = sorted(all_days - completed_set)
+                if missing_days:
+                    text += f"\n⚠️ <i>Пропущен квест за день {missing_days[0]}.</i>\n"
+                
+                text += (
+                    f"\n⚠️ <i>Это действие необратимо! Карты будут удалены из вашей коллекции.</i>\n\n"
+                    f"💡 Или дождитесь выполнения 7-го квеста, чтобы сохранить все карты и получить Limited дополнительно."
+                )
+                
+                keyboard = [
+                    [InlineKeyboardButton("🔥 Обменять 6 карт на Limited", callback_data="darkest_night_exchange_cards")],
+                    [InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]
+                ]
+                
+                if query:
+                    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                else:
+                    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                return
         # Показываем текущий квест
         quest_text = DARKEST_NIGHT_QUESTS.get(current_day, "Квест недоступен")
         
@@ -13641,6 +13691,136 @@ async def darkest_night_claim_final(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"Ошибка в darkest_night_claim_final: {e}", exc_info=True)
         await query.answer("❌ Ошибка при получении награды", show_alert=True)
+
+async def darkest_night_exchange_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обмен 6 карт ивента на финальную Limited карту."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        dn = user_data.get("darkest_night", {})
+        if not dn.get("active", False):
+            await query.answer("❌ Ивент не активен", show_alert=True)
+            return
+        
+        # ⭐ Проверяем, что выполнено ровно 6 квестов ⭐
+        completed_days = dn.get("completed_days", [])
+        if len(completed_days) != 6:
+            await query.answer("❌ Для обмена нужно ровно 6 выполненных квестов!", show_alert=True)
+            return
+        
+        # Проверяем, не получена ли уже награда
+        if dn.get("final_reward_claimed", False):
+            await query.answer("❌ Награда уже получена!", show_alert=True)
+            return
+        
+        # ⭐ Собираем ID наград ТОЛЬКО за реально выполненные дни ⭐
+        event_reward_ids = []
+        for day in completed_days:
+            card_id = DARKEST_NIGHT_REWARDS.get(day)
+            if card_id:
+                event_reward_ids.append(card_id)
+        
+        if len(event_reward_ids) != 6:
+            await query.answer("❌ Не удалось определить карты для обмена!", show_alert=True)
+            return
+        
+        user_card_ids = user_data.get("cards", [])
+        
+        # ⭐ Проверяем, что ВСЕ карты наград есть в инвентаре ⭐
+        missing_cards = [cid for cid in event_reward_ids if cid not in user_card_ids]
+        if missing_cards:
+            missing_names = []
+            for cid in missing_cards:
+                card = find_card_by_id(cid, data["cards"])
+                if card:
+                    missing_names.append(card["title"])
+            await query.answer(
+                f"❌ Не хватает карт: {', '.join(missing_names[:3])}",
+                show_alert=True
+            )
+            return
+        
+        # Получаем финальную карту
+        final_card_id = DARKEST_NIGHT_FINAL_CARD_ID
+        final_card = find_card_by_id(final_card_id, data["cards"])
+        if not final_card:
+            await query.answer("❌ Финальная Limited карта не найдена!", show_alert=True)
+            return
+        
+        # ⭐ ВЫПОЛНЯЕМ ОБМЕН ⭐
+        # Удаляем карты наград ивента из инвентаря (по одной копии каждой)
+        for card_id in event_reward_ids:
+            if card_id in user_data["cards"]:
+                user_data["cards"].remove(card_id)
+        
+        # Добавляем Limited карту
+        user_data["cards"].append(final_card_id)
+        
+        # Отмечаем, что награда получена
+        dn["final_reward_claimed"] = True
+        save_data(data)
+        
+        # ⭐ Отправляем Limited карту игроку ⭐
+        try:
+            media_source = final_card.get("media_source", "url")
+            media_value = final_card.get("file_id") if media_source == "file_id" else final_card.get("image_url", "")
+            is_animation = (
+                final_card.get("media_type") == "animation" or 
+                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+            )
+            
+            caption = generate_card_caption(final_card, user_data, count=1, show_bonus=False)
+            caption += (
+                f"\n\n💀🔥 <i>Вы обменяли 6 карт ивента «Темнейшая ночь» "
+                f"на эту эксклюзивную карту редкости Limited!</i>"
+            )
+            
+            if is_animation:
+                await context.bot.send_animation(
+                    chat_id=int(user_id),
+                    animation=media_value,
+                    caption=caption,
+                    parse_mode="HTML",
+                    supports_streaming=True
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=int(user_id),
+                    photo=media_value,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+            
+            logger.info(f"Игрок {user_id} обменял 6 карт ивента на Limited (#{final_card_id}). Выполненные дни: {completed_days}")
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки Limited карты после обмена: {e}", exc_info=True)
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"💀🔥 <b>Обмен совершён!</b>\n\nВы получили Limited карту: **{final_card['title']}**",
+                parse_mode="Markdown"
+            )
+        
+        # Обновляем сообщение в чате
+        await query.edit_message_text(
+            f"🔥 <b>Обмен совершён!</b>\n\n"
+            f"Вы потеряли 6 карт ивента, но получили эксклюзивную карту редкости <b>Limited</b>!\n\n"
+            f"🃏 <b>{final_card['title']}</b> ({final_card['rarity']})\n\n"
+            f"💀 Ивент «Темнейшая ночь» завершён для вас.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]]),
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в darkest_night_exchange_cards: {e}", exc_info=True)
+        await query.answer("❌ Ошибка при обмене", show_alert=True)
 
 async def next_darkest_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Админская команда для ручного переключения на следующий день ивента 'Темнейшая ночь'."""
@@ -14064,6 +14244,7 @@ def main() -> None:
             CallbackQueryHandler(darkest_night_menu, pattern=r"^darkest_night_menu$"),
             CallbackQueryHandler(darkest_night_claim_final, pattern=r"^darkest_night_claim_final$"),
             CallbackQueryHandler(darkest_night_secret_callback, pattern=r"^darkest_night_secret_btn$"),
+            CallbackQueryHandler(darkest_night_exchange_cards, pattern=r"^darkest_night_exchange_cards$"), 
         ]
 
         for handler in handlers:
