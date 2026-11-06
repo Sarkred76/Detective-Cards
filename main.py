@@ -13810,15 +13810,15 @@ async def darkest_night_exchange_cards(update: Update, context: ContextTypes.DEF
             logger.error(f"Ошибка отправки Limited карты после обмена: {e}", exc_info=True)
             await context.bot.send_message(
                 chat_id=int(user_id),
-                text=f"💀🔥 <b>Обмен совершён!</b>\n\nВы получили Limited карту: **{final_card['title']}**",
+                text=f"💀🔥 Обмен совершён!\n\nВы получили Limited карту: **{final_card['title']}**",
                 parse_mode="Markdown"
             )
         
         # Обновляем сообщение в чате
         await query.edit_message_text(
-            f"🔥 <b>Обмен совершён!</b>\n\n"
-            f"Вы потеряли 6 карт ивента, но получили эксклюзивную карту редкости <b>Limited</b>!\n\n"
-            f"🃏 <b>{final_card['title']}</b> ({final_card['rarity']})\n\n"
+            f"🔥 Обмен совершён!\n\n"
+            f"Вы потеряли 6 карт ивента, но получили эксклюзивную карту редкости Limited!\n\n"
+            f"🃏 {final_card['title']} ({final_card['rarity']})\n\n"
             f"💀 Ивент «Темнейшая ночь» завершён для вас.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]]),
             parse_mode="HTML"
