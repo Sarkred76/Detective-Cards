@@ -841,37 +841,6 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         # Отклонение трейда
         elif query.data.startswith("trade_decline_btn_"):
             del data["active_trades"][user_id]
-            
-            # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (с отладкой) ⭐
-            from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
-            event_reward_claimed = False
-            
-            logger.info(f"--- DEBUG КВЕСТ 6 (trade_decline_btn) для игрока {user_id} ---")
-            logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
-            
-            if DARKEST_NIGHT_ACTIVE:
-                user_data = data["users"].get(user_id)
-                logger.info(f"user_data существует: {bool(user_data)}")
-                if user_data:
-                    dn = user_data.get("darkest_night", {})
-                    logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
-                    
-                    if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
-                        dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
-                        logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
-                        
-                        if dn["quest_progress"]["declined_trades"] >= 5:
-                            logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
-                            await claim_darkest_night_reward(context, user_id, 6)
-                            event_reward_claimed = True
-                    else:
-                        logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
-            logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
-            
-            # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
-            if not event_reward_claimed:
-                save_data(data)
-            
             await query.edit_message_text("❌ Трейд отклонён")
             
             # Уведомляем отправителя
@@ -1051,36 +1020,6 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 from_user = trade_info["from_user"]
                 
                 del context.user_data[user_id]["incoming_trade"]
-                
-                # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (с отладкой) ⭐
-                from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
-                event_reward_claimed = False
-                
-                logger.info(f"--- DEBUG КВЕСТ 6 (trade_offer_decline) для игрока {user_id} ---")
-                logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
-                
-                if DARKEST_NIGHT_ACTIVE:
-                    user_data = data["users"].get(user_id)
-                    logger.info(f"user_data существует: {bool(user_data)}")
-                    if user_data:
-                        dn = user_data.get("darkest_night", {})
-                        logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
-                        
-                        if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
-                            dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
-                            logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
-                            
-                            if dn["quest_progress"]["declined_trades"] >= 5:
-                                logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
-                                await claim_darkest_night_reward(context, user_id, 6)
-                                event_reward_claimed = True
-                        else:
-                            logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
-                logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
-                
-                # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
-                if not event_reward_claimed:
-                    save_data(data)
                 
                 await query.edit_message_text("❌ Трейд отклонён")
                 
@@ -1406,36 +1345,6 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         elif query.data.startswith("trade_final_decline_"):
             # Очищаем трейд
             del data["active_trades"][user_id]
-            
-            # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 6 (Отмена отправителем) ⭐
-            from main import DARKEST_NIGHT_ACTIVE, claim_darkest_night_reward
-            event_reward_claimed = False
-            
-            logger.info(f"--- DEBUG КВЕСТ 6 (trade_final_decline) для игрока {user_id} ---")
-            logger.info(f"DARKEST_NIGHT_ACTIVE: {DARKEST_NIGHT_ACTIVE}")
-            
-            if DARKEST_NIGHT_ACTIVE:
-                user_data = data["users"].get(user_id)
-                logger.info(f"user_data существует: {bool(user_data)}")
-                if user_data:
-                    dn = user_data.get("darkest_night", {})
-                    logger.info(f"darkest_night данные: active={dn.get('active')}, day={dn.get('current_day')}, completed={dn.get('completed_days', [])}")
-                    
-                    if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
-                        dn["quest_progress"]["declined_trades"] = dn["quest_progress"].get("declined_trades", 0) + 1
-                        logger.info(f"✅ Прогресс обновлен! declined_trades: {dn['quest_progress']['declined_trades']}")
-                        
-                        if dn["quest_progress"]["declined_trades"] >= 5:
-                            logger.info("🏆 Достигнуто 5 отказов! Вызываем claim_darkest_night_reward")
-                            await claim_darkest_night_reward(context, user_id, 6)
-                            event_reward_claimed = True
-                    else:
-                        logger.info("❌ Условия квеста НЕ выполнены (не 6-й день или уже завершен)")
-            logger.info(f"--- КОНЕЦ DEBUG КВЕСТА 6 ---")
-            
-            # ⭐ ТЕПЕРЬ сохраняем данные (если награда ещё не была выдана функцией ивента) ⭐
-            if not event_reward_claimed:
-                save_data(data)
             
             # ⭐ Очищаем context.user_data для ОБОИХ пользователей ⭐
             if user_id in context.user_data:
