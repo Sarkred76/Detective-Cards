@@ -84,40 +84,6 @@ FRIENDS_AVATARS = [FRIENDS_AVATAR_1_URL, FRIENDS_AVATAR_2_URL]
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
-# ===== ИВЕНТ "ТЕМНЕЙШАЯ НОЧЬ" =====
-DARKEST_NIGHT_ACTIVE = False  # Статус ивента (True = активен)
-DARKEST_NIGHT_START_DATE = None  # Дата начала (заполняется при запуске)
-DARKEST_NIGHT_DURATION = 7  # Длительность в днях
-DARKEST_NIGHT_3_QUESTS_AVATAR_URL = "https://ibb.co/N21QRpJ7" 
-
-# ID карт-наград за каждый день (заполни сам)
-DARKEST_NIGHT_REWARDS = {
-    1: 293,   # ID карты за квест 1 (Сжечь 10 карт с Фонарями)
-    2: 294,   # ID карты за квест 2 (Не получать карточку весь день)
-    3: 295,   # ID карты за квест 3 (Проиграть в казино 5 раз)
-    4: 296,   # ID карты за квест 4 (Не играть в игры весь день)
-    5: 297,   # ID карты за квест 5 (Сжечь карту с темной меткой)
-    6: 298,   # ID карты за квест 6 (Отменить 5 трейдов)
-    7: 299,   # ID карты за квест 7 (Облизать череп Бэтмена - промокод)
-}
-
-DARKEST_NIGHT_FINAL_CARD_ID = 300  # ID Limited карты за все 7 квестов
-
-# Списки карт для квестов (заполни сам)
-LANTERNS_CARDS_IDS = [21, 23, 26, 61, 67, 74, 75, 78, 82, 84, 90, 133, 154, 155, 162, 163, 185, 193, 205, 210, 213, 255, 256, 263, 265, 268, 271, 289, 290]  # ID карт с Фонарями для квеста 1
-DARK_MARK_CARD_ID = 109   # ID карты с темной меткой для квеста 5
-
-# Тексты квестов
-DARKEST_NIGHT_QUESTS = {
-    1: "Сожги 10 карт с Фонарями 🔥\n",
-    2: "Не получай карточку весь день 🚫\n",
-    3: "Проиграй в казино 5 раз 🎰\n",
-    4: "Не играй в игры весь день 🎮\n",
-    5: "Сожги карту с тёмной меткой 🗡️\n",
-    6: "Нажми правильную кнопку 👁️\n",
-    7: "Оближи череп Бэтмена 💀\n",
-}
-
 # ===== ПРОТИВОСТОЯНИЕ (INJUSTICE) =====
 INJUSTICE_SIDES = {
     "regime": {
@@ -3218,10 +3184,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await shop_menu(update, context)
             return
 
-        elif text == "Темнейшая ночь💀":
-            await darkest_night_menu(update, context)
-            return
-
         if text == "🔍 Получить досье":
 
             user_data = data["users"].get(user_id)
@@ -3317,12 +3279,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data["cents"] += bonus["cents"]
             user_data["cards"].append(card["id"])
             super_coins_earned = 0
-            
-            # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 2 ⭐
-            if DARKEST_NIGHT_ACTIVE:
-                dn = user_data.get("darkest_night", {})
-                if dn.get("active") and dn.get("current_day") == 2 and 2 not in dn.get("completed_days", []):
-                    dn["quest_progress"]["no_dossier"] = False
             
             # ⭐ НОВОЕ: Начисление супер-коинов в клан ⭐
             user_clan_id = get_user_clan(user_id, data)
@@ -4503,12 +4459,6 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
 
-        # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 4 ⭐
-        if DARKEST_NIGHT_ACTIVE:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 4 and 4 not in dn.get("completed_days", []):
-                dn["quest_progress"]["no_games"] = False
-
         # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
         is_super_admin = (user_id == SUPER_ADMIN_ID)
 
@@ -4554,22 +4504,6 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ⭐ ПРОВЕРЯЕМ ПОБЕДУ (только 1, 22, 43, 64) ⭐
         is_win = slot_value in [1, 22, 43, 64]
-
-        # ⭐ ФЛАГ: была ли выдана награда за ивент ⭐
-        event_reward_claimed = False
-
-        # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 3 ⭐
-        if DARKEST_NIGHT_ACTIVE and not is_win:  # not is_win означает проигрыш
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 3 and 3 not in dn.get("completed_days", []):
-                dn["quest_progress"]["casino_losses"] = dn["quest_progress"].get("casino_losses", 0) + 1
-                
-                # ⭐ ИСПРАВЛЕНИЕ: Сохраняем прогресс сразу ⭐
-                save_data(data)
-                
-                if dn["quest_progress"]["casino_losses"] >= 5:
-                    await claim_darkest_night_reward(context, user_id, 3)
-                    event_reward_claimed = True
         
         # ⭐ КНОПКА "СЫГРАТЬ ЕЩЁ" ⭐
         keyboard = [[InlineKeyboardButton("🎰 Сыграть ещё", callback_data="casino_play")]]
@@ -5153,14 +5087,6 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         promo_code = context.args[0].upper()  # Приводим к верхнему регистру
         
-        # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 7 ⭐
-        user_data = data["users"].get(user_id, {})
-        if DARKEST_NIGHT_ACTIVE and promo_code == "👅💀🦇":
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 7 and 7 not in dn.get("completed_days", []):
-                dn["quest_progress"]["promo_used"] = True
-                await claim_darkest_night_reward(context, user_id, 7)
-        
         # Проверяем существование промокода
         if promo_code not in data["promo_codes"]:
             await update.message.reply_text(
@@ -5257,6 +5183,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Ошибка activate_promo_code: {e}", exc_info=True)
         await update.message.reply_text("❌ Ошибка при активации промокода")
+        
 async def delete_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Удаление промокода."""
     try:
@@ -7041,12 +6968,6 @@ async def basket_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
 
-        #  НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 4 ⭐
-        if DARKEST_NIGHT_ACTIVE:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 4 and 4 not in dn.get("completed_days", []):
-                dn["quest_progress"]["no_games"] = False
-
         # Сброс дневного лимита в 00:00 МСК
         msk_tz = datetime.timezone(datetime.timedelta(hours=3))
         now_msk = datetime.datetime.now(msk_tz)
@@ -7160,7 +7081,7 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def shop_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Раздел Донат."""
     keyboard = [
-        [InlineKeyboardButton("💬 Написать @Be9onder", callback_data="darkest_night_secret_btn")],
+        [InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")],
         [InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")]
     ]
     
@@ -8364,31 +8285,6 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
             reward_parts.append(f"🔍 +{reward['free_rolls']} бесплатных попыток")
         
         remaining_count = card_count - 1
-
-        # ⭐ ФЛАГ: была ли выдана награда за ивент (чтобы не перезаписать данные) ⭐
-        event_reward_claimed = False
-
-        # ⭐ НОВОЕ: Проверка квеста ивента 'Темнейшая ночь' - квест 1 
-        if DARKEST_NIGHT_ACTIVE and card_id in LANTERNS_CARDS_IDS:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 1 and 1 not in dn.get("completed_days", []):
-                dn["quest_progress"]["burn_lanterns"] = dn["quest_progress"].get("burn_lanterns", 0) + 1
-                if dn["quest_progress"]["burn_lanterns"] >= 10:
-                    await claim_darkest_night_reward(context, user_id, 1)
-                    event_reward_claimed = True
-
-        # ⭐ НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 5 ⭐
-        if DARKEST_NIGHT_ACTIVE and card_id == DARK_MARK_CARD_ID:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 5 and 5 not in dn.get("completed_days", []):
-                dn["quest_progress"]["burn_dark_mark"] = True
-                await claim_darkest_night_reward(context, user_id, 5)
-                event_reward_claimed = True
-        
-        # ⭐ ИСПРАВЛЕНИЕ: Сохраняем данные ТОЛЬКО если награда за ивент НЕ была выдана ⭐
-        # (Если награда выдана, функция claim_darkest_night_reward уже сохранила актуальные данные)
-        if not event_reward_claimed:
-            save_data(data)
         
         text = (
             f"✅ **Сжигание успешно!** 🔥\n\n"
@@ -8577,31 +8473,6 @@ async def burn_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 if card_id in user_data["cards"]:
                     user_data["cards"].remove(card_id)
                     update_seasonal_on_burn(user_data, card["rarity"])
-                    
-                    # ⭐ НОВОЕ: Проверка квеста ивента 'Темнейшая ночь' - квест 1 (для массового сжигания) ⭐
-                    if DARKEST_NIGHT_ACTIVE and card_id in LANTERNS_CARDS_IDS:
-                        dn = user_data.get("darkest_night", {})
-                        if dn.get("active") and dn.get("current_day") == 1 and 1 not in dn.get("completed_days", []):
-                            dn["quest_progress"]["burn_lanterns"] = dn["quest_progress"].get("burn_lanterns", 0) + 1
-            
-            # ⭐ НОВОЕ: Проверка квеста 5 (тёмная метка) при массовом сжигании ⭐
-            if DARKEST_NIGHT_ACTIVE and card_id == DARK_MARK_CARD_ID:
-                dn = user_data.get("darkest_night", {})
-                if dn.get("active") and dn.get("current_day") == 5 and 5 not in dn.get("completed_days", []):
-                    dn["quest_progress"]["burn_dark_mark"] = True
-        
-        # ⭐ НОВОЕ: Проверяем выполнение квестов ПОСЛЕ цикла массового сжигания ⭐
-        dn = user_data.get("darkest_night", {})
-        if dn.get("active"):
-            # Квест 1: Сжечь 10 карт с Фонарями
-            if dn.get("current_day") == 1 and 1 not in dn.get("completed_days", []):
-                if dn["quest_progress"].get("burn_lanterns", 0) >= 10:
-                    await claim_darkest_night_reward(context, user_id, 1)
-            
-            # Квест 5: Сжечь карту с тёмной меткой
-            if dn.get("current_day") == 5 and 5 not in dn.get("completed_days", []):
-                if dn["quest_progress"].get("burn_dark_mark", False):
-                    await claim_darkest_night_reward(context, user_id, 5)
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["cents"] = user_data.get("cents", 0) + total_cents
@@ -8831,12 +8702,6 @@ async def darts_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
 
-        #  НОВОЕ: Квест ивента 'Темнейшая ночь' - квест 4 ⭐
-        if DARKEST_NIGHT_ACTIVE:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 4 and 4 not in dn.get("completed_days", []):
-                dn["quest_progress"]["no_games"] = False
-
         # Сброс дневного лимита в 00:00 МСК
         msk_tz = datetime.timezone(datetime.timedelta(hours=3))
         now_msk = datetime.datetime.now(msk_tz)
@@ -9003,7 +8868,7 @@ async def submenu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("👤 Личное дело")],
             [KeyboardButton("📜 Квесты"), KeyboardButton("🏰 Кланы")],
             [KeyboardButton("🛍️ Магазин"), KeyboardButton("🍺 Бар")],
-            [KeyboardButton("⚔️ Противостояние"), KeyboardButton("Темнейшая ночь💀")],
+            [KeyboardButton("⚔️ Противостояние")],
             [KeyboardButton("🔙 Назад в главное меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -13229,903 +13094,6 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as e:
         logger.error(f"Ошибка в cancel_command: {e}")
         await update.message.reply_text("❌ Ошибка при отмене действия")
-
-async def start_darkest_night(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Админская команда запуска ивента 'Темнейшая ночь'."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        
-        if not is_admin(user_id, data):
-            await update.message.reply_text(" Только для администратора!")
-            return
-        
-        global DARKEST_NIGHT_ACTIVE, DARKEST_NIGHT_START_DATE
-        
-        if DARKEST_NIGHT_ACTIVE:
-            await update.message.reply_text("⚠️ Ивент 'Темнейшая ночь' уже активен!")
-            return
-        
-        # Инициализация ивента
-        from datetime import datetime, timezone, timedelta
-        msk_tz = timezone(timedelta(hours=3))
-        DARKEST_NIGHT_START_DATE = datetime.now(msk_tz).strftime("%Y-%m-%d")
-        DARKEST_NIGHT_ACTIVE = True
-        
-        # Добавляем поле darkest_night всем игрокам
-        for uid, udata in data["users"].items():
-            if "darkest_night" not in udata:
-                udata["darkest_night"] = {
-                    "active": True,
-                    "current_day": 1,
-                    "completed_days": [],
-                    "quest_progress": {
-                        "burn_lanterns": 0,           # Квест 1
-                        "no_dossier": True,            # Квест 2 (по умолчанию True)
-                        "casino_losses": 0,            # Квест 3
-                        "no_games": True,              # Квест 4 (по умолчанию True)
-                        "burn_dark_mark": False,       # Квест 5
-                        "declined_trades": 0,          # Квест 6
-                        "promo_used": False,           # Квест 7
-                    },
-                    "last_activity_date": DARKEST_NIGHT_START_DATE,
-                    "final_reward_claimed": False,
-                    "quest_2_start_time": 0,
-                    "quest_4_start_time": 0,
-                    "avatar_3_claimed": False,
-                }
-        
-        save_darkest_night_state(data)
-        save_data(data)
-        
-        await update.message.reply_text(
-            f"💀 <b>Ивент 'Темнейшая ночь' запущен!</b>\n\n"
-            f"📅 Дата начала: {DARKEST_NIGHT_START_DATE}\n"
-            f"⏳ Длительность: {DARKEST_NIGHT_DURATION} дней\n"
-            f" Игроков зарегистрировано: {len(data['users'])}",
-            parse_mode="HTML"
-        )
-        
-        logger.info(f"Админ {user_id} запустил ивент 'Темнейшая ночь'")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в start_darkest_night: {e}")
-        await update.message.reply_text("❌ Ошибка при запуске ивента")
-
-async def darkest_night_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню ивента 'Темнейшая ночь'."""
-    try:
-        query = update.callback_query if hasattr(update, 'callback_query') else None
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            text = " Вы ещё не начали игру!"
-            if query:
-                await query.edit_message_text(text)
-            else:
-                await update.message.reply_text(text)
-            return
-        
-        # Проверяем, активен ли ивент
-        if not DARKEST_NIGHT_ACTIVE:
-            text = " <b>Темнейшая ночь</b>\n\nИвент ещё не начался или уже завершён."
-            if query:
-                await query.edit_message_text(text, parse_mode="HTML")
-            else:
-                await update.message.reply_text(text, parse_mode="HTML")
-            return
-        
-        dn = user_data.get("darkest_night", {})
-        if not dn.get("active", False):
-            text = "💀 <b>Темнейшая ночь</b>\n\nВы не участвуете в ивенте."
-            if query:
-                await query.edit_message_text(text, parse_mode="HTML")
-            else:
-                await update.message.reply_text(text, parse_mode="HTML")
-            return
-        
-        current_day = dn.get("current_day", 1)
-        completed_days = dn.get("completed_days", [])
-        quest_progress = dn.get("quest_progress", {})
-        
-        # Проверяем, все ли квесты выполнены
-        all_completed = len(completed_days) >= 7
-        if all_completed:
-            # Показываем финальный экран
-            text = (
-                f"💀 <b>Темнейшая ночь</b>\n\n"
-                f"🏆 <b>Восстань!</b>\n\n"
-                f"Вы выполнили все 7 квестов!\n\n"
-                f"✅ Прогресс: {len(completed_days)}/7\n\n"
-                f"Заберите вашу награду — эксклюзивную карту редкости Limited!"
-            )
-            keyboard = []
-            if not dn.get("final_reward_claimed", False):
-                keyboard.append([InlineKeyboardButton("🎁 Забрать темнейшую карту", callback_data="darkest_night_claim_final")])
-            else:
-                text += "\n\n✅ Награда уже получена!"
-                keyboard.append([InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")])
-            
-            if query:
-                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-            else:
-                await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-            return
-        
-        # ⭐ НОВОЕ: Если выполнено ровно 6 квестов И 7-й квест выполнен (один из предыдущих пропущен) — предлагаем обмен ⭐
-        completed_count = len(completed_days)
-        
-        if completed_count == 6 and 7 in completed_days and not dn.get("final_reward_claimed", False):
-            # ⭐ Собираем ID наградных карт ТОЛЬКО за реально выполненные дни ⭐
-            event_reward_ids = []
-            for day in completed_days:
-                card_id = DARKEST_NIGHT_REWARDS.get(day)
-                if card_id:
-                    event_reward_ids.append(card_id)
-            
-            # Проверяем, что все эти карты есть в инвентаре игрока
-            user_card_ids = user_data.get("cards", [])
-            has_all_event_cards = all(card_id in user_card_ids for card_id in event_reward_ids)
-            
-            if has_all_event_cards and len(event_reward_ids) == 6:
-                text = (
-                    f"💀 <b>Темнейшая ночь</b>\n\n"
-                    f"🏆 <b>Восстань!</b>\n\n"
-                    f"Вы выполнили {completed_count} из 7 квестов.\n\n"
-                    f"📊 Прогресс: {completed_count}/7\n\n"
-                    f"⚠️ <b>Альтернативный путь:</b>\n"
-                    f"Вы можете обменять все {completed_count} полученных карт ивента на эксклюзивную карту редкости <b>Limited</b>!\n\n"
-                    f"🔹 Карты, которые будут потрачены:\n"
-                )
-                
-                # Показываем список карт, которые будут потрачены (с названиями)
-                for card_id in event_reward_ids:
-                    card = find_card_by_id(card_id, data["cards"])
-                    if card:
-                        text += f"  • {card['title']} ({card['rarity']})\n"
-                
-                # Показываем, какой квест пропущен
-                all_days = set(range(1, 8))
-                completed_set = set(completed_days)
-                missing_days = sorted(all_days - completed_set)
-                if missing_days:
-                    text += f"\n⚠️ <i>Пропущен квест за день {missing_days[0]}.</i>\n"
-                
-                text += (
-                    f"\n⚠️ <i>Это действие необратимо! Карты будут удалены из вашей коллекции.</i>\n\n"
-                    f"💡 Или дождитесь выполнения 7-го квеста, чтобы сохранить все карты и получить Limited дополнительно."
-                )
-                
-                keyboard = [
-                    [InlineKeyboardButton("🔥 Обменять 6 карт на Limited", callback_data="darkest_night_exchange_cards")],
-                    [InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]
-                ]
-                
-                if query:
-                    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-                else:
-                    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-                return
-        # Показываем текущий квест
-        quest_text = DARKEST_NIGHT_QUESTS.get(current_day, "Квест недоступен")
-        
-        # Форматируем текст квеста 5 с ID карты
-        if current_day == 5:
-            quest_text = quest_text.format(card_id=DARK_MARK_CARD_ID)
-        
-        # Получаем прогресс текущего квеста
-        progress = 0
-        target = 0
-        
-        if current_day == 1:
-            progress = quest_progress.get("burn_lanterns", 0)
-            target = 10
-        elif current_day == 2:
-            progress = 10 if quest_progress.get("no_dossier", True) else 0
-            target = 10
-        elif current_day == 3:
-            progress = quest_progress.get("casino_losses", 0)
-            target = 5
-        elif current_day == 4:
-            progress = 10 if quest_progress.get("no_games", True) else 0
-            target = 10
-        elif current_day == 5:
-            progress = 1 if quest_progress.get("burn_dark_mark", False) else 0
-            target = 1
-        elif current_day == 6:
-            progress = 1 if quest_progress.get("secret_btn_clicked", False) else 0
-            target = 1
-        elif current_day == 7:
-            progress = 1 if quest_progress.get("promo_used", False) else 0
-            target = 1
-        
-        is_completed = progress >= target
-        
-        # ⭐ Формируем основную часть текста ⭐
-        text = (
-            f"💀 <b>Темнейшая ночь</b>\n\n"
-            f"🏆 <b>Восстань!</b>\n\n"
-            f"📅 <b>День {current_day}/7</b>\n\n"
-            f"{quest_text}\n\n"
-        )
-        
-        # ⭐ НОВОЕ: Для пассивных квестов (2 и 4) скрываем прогресс и статус выполнения ⭐
-        if current_day in [2, 4]:
-            text += " "
-        elif current_day == 6:
-            if is_completed:
-                text += "✅ Квест выполнен! Награда получена.\n\n"
-        else:
-            # Для активных квестов (1, 3, 5, 6, 7) показываем прогресс как обычно
-            text += (
-                f"📊 Прогресс: {min(progress, target)}/{target}\n"
-                f"{'✅ Квест выполнен! Награда начислена.' if is_completed else '⏳ Продолжайте выполнение...'}\n\n"
-            )
-        
-        # Общая статистика для всех дней
-        text += f"🏆 Выполнено квестов: {len(completed_days)}/7"
-        
-        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]]
-        
-        if query:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        else:
-            await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в darkest_night_menu: {e}")
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("❌ Ошибка", show_alert=True)
-        else:
-            await update.message.reply_text("❌ Ошибка при открытии ивента")
-
-async def claim_darkest_night_reward(context: ContextTypes.DEFAULT_TYPE, user_id: str, day: int) -> None:
-    """Выдаёт награду за выполненный квест ивента."""
-    try:
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            return
-        
-        dn = user_data.get("darkest_night", {})
-        if not dn.get("active", False):
-            return
-        
-        # Проверяем, не получена ли уже награда за этот день
-        if day in dn.get("completed_days", []):
-            return
-        
-        # Получаем ID карты-награды
-        reward_card_id = DARKEST_NIGHT_REWARDS.get(day)
-        if not reward_card_id:
-            logger.error(f"Не найдена награда за день {day}")
-            return
-        
-        # Находим карту
-        card = find_card_by_id(reward_card_id, data["cards"])
-        if not card:
-            logger.error(f"Карта #{reward_card_id} не найдена")
-            return
-        
-        # 1. Добавляем карту игроку и сохраняем данные СРАЗУ
-        user_data["cards"].append(card["id"])
-        if day not in dn["completed_days"]:
-            dn["completed_days"].append(day)
-        save_data(data)
-
-        # ⭐ НОВОЕ: Проверяем, не пора ли выдать аватарку за 3 квеста ⭐
-        avatar_just_claimed = False
-        if len(dn["completed_days"]) == 3 and not dn.get("avatar_3_claimed", False):
-            avatar_url = DARKEST_NIGHT_3_QUESTS_AVATAR_URL
-            if avatar_url and avatar_url != "СЮДА_ВСТАВЬ_URL_АВАТАРКИ":
-                try:
-                    # Добавляем аватарку в коллекцию игрока
-                    avatars = user_data.setdefault("avatars", [])
-                    if avatar_url not in avatars:
-                        avatars.append(avatar_url)
-                    
-                    # Отмечаем, что аватарка выдана
-                    dn["avatar_3_claimed"] = True
-                    save_data(data)
-                    
-                    # Отправляем игроку изображение аватарки
-                    await context.bot.send_photo(
-                        chat_id=int(user_id),
-                        photo=avatar_url,
-                        caption=(
-                            f"🎭 <b>Новая аватарка разблокирована!</b>\n\n"
-                            f"💀 Вы выполнили 3 квеста ивента <b>«Темнейшая ночь»</b>!\n"
-                            f"🖼 Эта эксклюзивная аватарка теперь в вашей коллекции.\n\n"
-                            f"💡 <i>Выбрать её можно в разделе «Профиль → Мои аватарки».</i>"
-                        ),
-                        parse_mode="HTML"
-                    )
-                    avatar_just_claimed = True
-                    logger.info(f"Игрок {user_id} получил аватарку за 3 квеста ивента")
-                except Exception as avatar_error:
-                    error_str = str(avatar_error).lower()
-                    if "chat not found" not in error_str and "bot was blocked" not in error_str:
-                        logger.error(f"Ошибка отправки аватарки игроку {user_id}: {avatar_error}")
-        
-        
-        # 2. Отправляем карту игроку с полным caption (с обработкой ошибок)
-        try:
-            # Определяем источник медиа и тип
-            media_source = card.get("media_source", "url")
-            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-            is_animation = (
-                card.get("media_type") == "animation" or 
-                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
-            )
-            
-            caption = generate_card_caption(card, user_data, count=1, show_bonus=False)
-            caption += f"\n\n💀 <i>Награда за выполнение квеста дня {day} ивента 'Темнейшая ночь'</i>"
-            
-            if is_animation:
-                await context.bot.send_animation(
-                    chat_id=int(user_id),
-                    animation=media_value,
-                    caption=caption,
-                    parse_mode="HTML",
-                    supports_streaming=True
-                )
-            else:
-                await context.bot.send_photo(
-                    chat_id=int(user_id),
-                    photo=media_value,
-                    caption=caption,
-                    parse_mode="HTML"
-                )
-                
-            logger.info(f"Игрок {user_id} получил награду (карту #{reward_card_id}) за квест дня {day}")
-            
-        except Exception as e:
-            error_str = str(e).lower()
-            
-            # Игнорируем ошибки неактивных пользователей
-            if "chat not found" in error_str or "bot was blocked" in error_str or "bot can't initiate conversation" in error_str:
-                # Пользователь заблокировал бота или не запускал его - просто пропускаем
-                logger.debug(f"Не удалось отправить награду игроку {user_id}: пользователь неактивен")
-            else:
-                # Логируем только реальные ошибки
-                logger.error(f"Ошибка отправки медиа карты за квест {day} игроку {user_id}: {e}", exc_info=True)
-                # Запасной вариант: если медиа не грузится, отправляем хотя бы текст
-                try:
-                    await context.bot.send_message(
-                        chat_id=int(user_id),
-                        text=f"💀 <b>Награда за квест дня {day}!</b>\n\nВы получили карту: **{card['title']}** ({card['rarity']})",
-                        parse_mode="Markdown"
-                    )
-                except Exception:
-                    # Если даже текст не отправляется - пользователь точно неактивен
-                    pass
-        
-    except Exception as e:
-        logger.error(f"Критическая ошибка в claim_darkest_night_reward: {e}", exc_info=True)
-        
-async def darkest_night_claim_final(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выдаёт финальную Limited карту за выполнение всех 7 квестов."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден", show_alert=True)
-            return
-        
-        dn = user_data.get("darkest_night", {})
-        if not dn.get("active", False):
-            await query.answer("❌ Ивент не активен", show_alert=True)
-            return
-        
-        # Проверяем, все ли квесты выполнены
-        if len(dn.get("completed_days", [])) < 7:
-            await query.answer("❌ Не все квесты выполнены!", show_alert=True)
-            return
-        
-        # Проверяем, не получена ли уже награда
-        if dn.get("final_reward_claimed", False):
-            await query.answer("❌ Награда уже получена!", show_alert=True)
-            return
-        
-        # Получаем финальную карту
-        final_card_id = DARKEST_NIGHT_FINAL_CARD_ID
-        card = find_card_by_id(final_card_id, data["cards"])
-        
-        if not card:
-            await query.answer(" Финальная карта не найдена!", show_alert=True)
-            return
-        
-        # Добавляем карту
-        user_data["cards"].append(card["id"])
-        dn["final_reward_claimed"] = True
-        save_data(data)
-        
-        #  ОТПРАВЛЯЕМ КАРТУ С ПОЛНЫМ CAPTION (без уведомления) ⭐
-        try:
-            # Определяем источник медиа и тип
-            media_source = card.get("media_source", "url")
-            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-            is_animation = (
-                card.get("media_type") == "animation" or 
-                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
-            )
-            
-            caption = generate_card_caption(card, user_data, count=1, show_bonus=False)
-            caption += "\n\n💀🏆 Финальная награда ивента Темнейшая ночь — вы прошли все испытания!"
-            
-            if is_animation:
-                await context.bot.send_animation(
-                    chat_id=int(user_id),
-                    animation=media_value,
-                    caption=caption,
-                    parse_mode="HTML",
-                    supports_streaming=True
-                )
-            else:
-                await context.bot.send_photo(
-                    chat_id=int(user_id),
-                    photo=media_value,
-                    caption=caption,
-                    parse_mode="HTML"
-                )
-            
-            logger.info(f"Игрок {user_id} получил финальную награду ивента (карту #{final_card_id})")
-            
-        except Exception as e:
-            logger.error(f"Ошибка отправки финальной карты игроку {user_id}: {e}", exc_info=True)
-            # Запасной вариант: если медиа не грузится, отправляем хотя бы текст
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"💀🏆 Финальная награда ивента Темнейшая ночь!\n\nВы получили карту: **{card['title']}** ({card['rarity']})",
-                parse_mode="Markdown"
-            )
-        
-        # ⭐ УБИРАЕМ уведомление — отвечаем просто OK ⭐
-        await query.answer()
-        
-    except Exception as e:
-        logger.error(f"Ошибка в darkest_night_claim_final: {e}", exc_info=True)
-        await query.answer("❌ Ошибка при получении награды", show_alert=True)
-
-async def darkest_night_exchange_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обмен 6 карт ивента на финальную Limited карту."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            await query.answer("❌ Профиль не найден", show_alert=True)
-            return
-        
-        dn = user_data.get("darkest_night", {})
-        if not dn.get("active", False):
-            await query.answer("❌ Ивент не активен", show_alert=True)
-            return
-        
-        # ⭐ Проверяем, что выполнено ровно 6 квестов И 7-й квест выполнен ⭐
-        completed_days = dn.get("completed_days", [])
-        
-        if len(completed_days) != 6:
-            await query.answer("❌ Для обмена нужно ровно 6 выполненных квестов!", show_alert=True)
-            return
-        
-        if 7 not in completed_days:
-            await query.answer("❌ Обмен доступен только после выполнения 7-го квеста!", show_alert=True)
-            return
-        
-        # Проверяем, не получена ли уже награда
-        if dn.get("final_reward_claimed", False):
-            await query.answer("❌ Награда уже получена!", show_alert=True)
-            return
-        
-        # ⭐ Собираем ID наград ТОЛЬКО за реально выполненные дни ⭐
-        event_reward_ids = []
-        for day in completed_days:
-            card_id = DARKEST_NIGHT_REWARDS.get(day)
-            if card_id:
-                event_reward_ids.append(card_id)
-        
-        if len(event_reward_ids) != 6:
-            await query.answer("❌ Не удалось определить карты для обмена!", show_alert=True)
-            return
-        
-        user_card_ids = user_data.get("cards", [])
-        
-        # ⭐ Проверяем, что ВСЕ карты наград есть в инвентаре ⭐
-        missing_cards = [cid for cid in event_reward_ids if cid not in user_card_ids]
-        if missing_cards:
-            missing_names = []
-            for cid in missing_cards:
-                card = find_card_by_id(cid, data["cards"])
-                if card:
-                    missing_names.append(card["title"])
-            await query.answer(
-                f"❌ Не хватает карт: {', '.join(missing_names[:3])}",
-                show_alert=True
-            )
-            return
-        
-        # Получаем финальную карту
-        final_card_id = DARKEST_NIGHT_FINAL_CARD_ID
-        final_card = find_card_by_id(final_card_id, data["cards"])
-        if not final_card:
-            await query.answer("❌ Финальная Limited карта не найдена!", show_alert=True)
-            return
-        
-        # ⭐ ВЫПОЛНЯЕМ ОБМЕН ⭐
-        # Удаляем карты наград ивента из инвентаря (по одной копии каждой)
-        for card_id in event_reward_ids:
-            if card_id in user_data["cards"]:
-                user_data["cards"].remove(card_id)
-        
-        # Добавляем Limited карту
-        user_data["cards"].append(final_card_id)
-        
-        # Отмечаем, что награда получена
-        dn["final_reward_claimed"] = True
-        save_data(data)
-        
-        # ⭐ Отправляем Limited карту игроку ⭐
-        try:
-            media_source = final_card.get("media_source", "url")
-            media_value = final_card.get("file_id") if media_source == "file_id" else final_card.get("image_url", "")
-            is_animation = (
-                final_card.get("media_type") == "animation" or 
-                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
-            )
-            
-            caption = generate_card_caption(final_card, user_data, count=1, show_bonus=False)
-            caption += (
-                f"\n\n💀🔥 <i>Вы обменяли 6 карт ивента «Темнейшая ночь» "
-                f"на эту эксклюзивную карту редкости Limited!</i>"
-            )
-            
-            if is_animation:
-                await context.bot.send_animation(
-                    chat_id=int(user_id),
-                    animation=media_value,
-                    caption=caption,
-                    parse_mode="HTML",
-                    supports_streaming=True
-                )
-            else:
-                await context.bot.send_photo(
-                    chat_id=int(user_id),
-                    photo=media_value,
-                    caption=caption,
-                    parse_mode="HTML"
-                )
-            
-            logger.info(f"Игрок {user_id} обменял 6 карт ивента на Limited (#{final_card_id}). Выполненные дни: {completed_days}")
-            
-        except Exception as e:
-            logger.error(f"Ошибка отправки Limited карты после обмена: {e}", exc_info=True)
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"💀🔥 Обмен совершён!\n\nВы получили Limited карту: **{final_card['title']}**",
-                parse_mode="Markdown"
-            )
-        
-        # Обновляем сообщение в чате
-        await query.edit_message_text(
-            f"🔥 Обмен совершён!\n\n"
-            f"Вы потеряли 6 карт ивента, но получили эксклюзивную карту редкости Limited!\n\n"
-            f"🃏 {final_card['title']} ({final_card['rarity']})\n\n"
-            f"💀 Ивент «Темнейшая ночь» завершён для вас.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в меню", callback_data="submenu")]]),
-            parse_mode="HTML"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка в darkest_night_exchange_cards: {e}", exc_info=True)
-        await query.answer("❌ Ошибка при обмене", show_alert=True)
-
-async def next_darkest_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Админская команда для ручного переключения на следующий день ивента 'Темнейшая ночь'."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        
-        if not is_admin(user_id, data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not DARKEST_NIGHT_ACTIVE:
-            await update.message.reply_text("⚠️ Ивент 'Темнейшая ночь' не активен!")
-            return
-        
-        advanced_count = 0
-        notified_count = 0
-        rewards_to_claim = []  # ⭐ Список наград для выдачи после цикла ⭐
-        
-        for uid, udata in data["users"].items():
-            dn = udata.get("darkest_night", {})
-            
-            if dn.get("active") and dn.get("current_day", 1) < 7:
-                old_day = dn["current_day"]
-                
-                # ⭐ ПРОВЕРКА ВЫПОЛНЕНИЯ КВЕСТОВ 2 И 4 ПЕРЕД ПЕРЕКЛЮЧЕНИЕМ ⭐
-                # Квест 2: не получать карту
-                if old_day == 2:
-                    quest_start = dn.get("quest_2_start_time", 0)
-                    time_passed = int(time.time()) - quest_start
-                    # ⚠️ ВРЕМЕННО ДЛЯ ТЕСТА: 5 минут (300 сек). 
-                    # ⚠️ В ПРОДАКШЕНЕ заменить на 86400 (24 часа)
-                    if time_passed >= 79200 and dn["quest_progress"].get("no_dossier", False):
-                        rewards_to_claim.append((uid, 2))
-                
-                # Квест 4: не играть в игры
-                if old_day == 4:
-                    quest_start = dn.get("quest_4_start_time", 0)
-                    time_passed = int(time.time()) - quest_start
-                    # ⚠️ ВРЕМЕННО ДЛЯ ТЕСТА: 5 минут (300 сек).
-                    # ⚠️ В ПРОДАКШЕНЕ заменить на 86400 (24 часа)
-                    if time_passed >= 79200 and dn["quest_progress"].get("no_games", False):
-                        rewards_to_claim.append((uid, 4))
-                
-                # ⭐ Переключаем день ⭐
-                dn["current_day"] += 1
-                new_day = dn["current_day"]
-                advanced_count += 1
-                
-                # ⭐ Инициализируем флаги и время старта для новых дней ⭐
-                if new_day == 2:
-                    dn["quest_progress"]["no_dossier"] = True
-                    dn["quest_2_start_time"] = int(time.time())
-                elif new_day == 4:
-                    dn["quest_progress"]["no_games"] = True
-                    dn["quest_4_start_time"] = int(time.time())
-                
-                # ⭐ Уведомляем игрока с защитой от ошибок неактивных чатов ⭐
-                try:
-                    await context.bot.send_message(
-                        chat_id=int(uid),
-                        text=(
-                            f"💀 <b>Темнейшая ночь: День {new_day}</b>\n\n"
-                            f"Тьма сгущается... Наступил новый день!\n"
-                            f"Открой раздел «Темнейшая ночь 💀» в меню, чтобы увидеть свой новый квест."
-                        ),
-                        parse_mode="HTML"
-                    )
-                    notified_count += 1
-                except Exception as e:
-                    error_str = str(e).lower()
-                    # Молча пропускаем заблокированных/удаленных пользователей
-                    if "chat not found" in error_str or "bot was blocked" in error_str or "bot can't initiate conversation" in error_str:
-                        pass
-                    else:
-                        # Логируем только реальные, неожиданные ошибки
-                        logger.warning(f"Не удалось уведомить игрока {uid} о новом дне: {e}")
-        
-        save_data(data)
-        
-        # ⭐ ВЫДАЁМ НАГРАДЫ ЗА КВЕСТЫ 2 И 4 (с защитой от спама в логах) ⭐
-        for uid, day in rewards_to_claim:
-            try:
-                await claim_darkest_night_reward(context, uid, day)
-                logger.info(f"Игрок {uid} автоматически выполнил квест дня {day}")
-            except Exception as e:
-                error_str = str(e).lower()
-                # Игнорируем ошибки неактивных пользователей при выдаче награды
-                if "chat not found" in error_str or "bot was blocked" in error_str or "bot can't initiate conversation" in error_str:
-                    pass
-                else:
-                    logger.error(f"Ошибка выдачи награды за квест {day} игроку {uid}: {e}")
-        
-        # Определяем текущий день для отчёта
-        current_day_display = "N/A"
-        for udata in data["users"].values():
-            dn = udata.get("darkest_night", {})
-            if dn.get("active"):
-                current_day_display = str(dn.get("current_day", 1))
-                break
-        
-        await update.message.reply_text(
-            f"✅ <b>День ивента переключён!</b>\n\n"
-            f"📊 Всего активных участников: {advanced_count}\n"
-            f"📩 Уведомлений отправлено: {notified_count}\n"
-            f"🎁 Автоматических наград выдано: {len(rewards_to_claim)}\n\n"
-            f"Теперь игроки видят квест для Дня {current_day_display}."
-        )
-        
-        logger.info(f"Админ {user_id} вручную переключил ивент 'Темнейшая ночь' на следующий день")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в next_darkest_day: {e}", exc_info=True)
-        await update.message.reply_text("❌ Ошибка при переключении дня ивента")
-
-def load_darkest_night_state(data: Dict) -> None:
-    """Загружает состояние ивента 'Темнейшая ночь' из файла данных."""
-    global DARKEST_NIGHT_ACTIVE, DARKEST_NIGHT_START_DATE
-    
-    event_state = data.get("darkest_night_event", {})
-    DARKEST_NIGHT_ACTIVE = event_state.get("active", False)
-    DARKEST_NIGHT_START_DATE = event_state.get("start_date", None)
-    
-    if DARKEST_NIGHT_ACTIVE:
-        logger.info(f"Ивент 'Темнейшая ночь' загружен: активен с {DARKEST_NIGHT_START_DATE}")
-    else:
-        logger.info("Ивент 'Темнейшая ночь' не активен")
-
-
-def save_darkest_night_state(data: Dict) -> None:
-    """Сохраняет состояние ивента 'Темнейшая ночь' в файл данных."""
-    if "darkest_night_event" not in data:
-        data["darkest_night_event"] = {}
-    
-    data["darkest_night_event"]["active"] = DARKEST_NIGHT_ACTIVE
-    data["darkest_night_event"]["start_date"] = DARKEST_NIGHT_START_DATE
-
-async def reset_darkest_night(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Админская команда для сброса прогресса ивента 'Темнейшая ночь' у всех игроков."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        
-        if not is_admin(user_id, data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not DARKEST_NIGHT_ACTIVE:
-            await update.message.reply_text("⚠️ Ивент 'Темнейшая ночь' не активен!")
-            return
-        
-        reset_count = 0
-        
-        for uid, udata in data["users"].items():
-            dn = udata.get("darkest_night", {})
-            if dn.get("active"):
-                # ⭐ Сбрасываем весь прогресс ⭐
-                dn["current_day"] = 1
-                dn["completed_days"] = []
-                dn["quest_progress"] = {
-                    "burn_lanterns": 0,
-                    "no_dossier": True,
-                    "casino_losses": 0,
-                    "no_games": True,
-                    "burn_dark_mark": False,
-                    "declined_trades": 0,
-                    "promo_used": False,
-                }
-                dn["final_reward_claimed"] = False
-                dn["quest_2_start_time"] = 0
-                dn["quest_4_start_time"] = 0
-                dn["avatar_3_claimed"] = False
-                reset_count += 1
-        
-        save_data(data)
-        
-        await update.message.reply_text(
-            f"✅ <b>Прогресс ивета сброшен!</b>\n\n"
-            f"👥 Сброшено у {reset_count} игроков\n"
-            f"📅 Все возвращены на День 1\n\n"
-            f"💡 Сам ивент остаётся активным. Используйте /next_darkest_day для переключения дней."
-        )
-        
-        logger.info(f"Админ {user_id} сбросил прогресс ивента у {reset_count} игроков")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в reset_darkest_night: {e}", exc_info=True)
-        await update.message.reply_text("❌ Ошибка при сбросе прогресса")
-
-async def darkest_night_secret_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик секретной кнопки для 6-го квеста ивента."""
-    try:
-        query = update.callback_query
-        # Отвечаем молча, чтобы не спойлерить, что это кнопка квеста
-        await query.answer() 
-        
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data:
-            return
-        
-        # ⭐ ПРОВЕРКА УСЛОВИЙ 6-го КВЕСТА ⭐
-        if DARKEST_NIGHT_ACTIVE:
-            dn = user_data.get("darkest_night", {})
-            if dn.get("active") and dn.get("current_day") == 6 and 6 not in dn.get("completed_days", []):
-                # Засчитываем квест и выдаем награду
-                await claim_darkest_night_reward(context, user_id, 6)
-                return # Завершаем функцию, чтобы не отправлять лишние сообщения
-        
-        # ⭐ ЕСЛИ ЭТО НЕ 6-й ДЕНЬ ⭐
-        # Чтобы кнопка не казалась сломанной в другие дни, отправим ссылку текстом
-        await query.message.reply_text(
-            "💬 Вы можете написать в поддержку здесь: https://t.me/Be9onder",
-            disable_web_page_preview=True
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка в darkest_night_secret_callback: {e}", exc_info=True)
-
-async def check_darkest_night_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Админская команда: показывает игроков, выполнивших все квесты до текущего дня без пропусков."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        
-        if not is_admin(user_id, data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        if not DARKEST_NIGHT_ACTIVE:
-            await update.message.reply_text("⚠️ Ивент 'Темнейшая ночь' не активен!")
-            return
-        
-        # 1. Определяем текущий глобальный день ивента (максимальный день среди всех участников)
-        global_day = 1
-        for uid, udata in data["users"].items():
-            dn = udata.get("darkest_night", {})
-            if dn.get("active"):
-                day = dn.get("current_day", 1)
-                if day > global_day:
-                    global_day = day
-        
-        # 2. Ищем игроков, выполнивших все квесты с 1 по global_day без пропусков
-        top_players = []
-        required_days = set(range(1, global_day + 1))
-        
-        for uid, udata in data["users"].items():
-            dn = udata.get("darkest_night", {})
-            if dn.get("active"):
-                completed = set(dn.get("completed_days", []))
-                # Проверяем, что все нужные дни есть в выполненных (без пропусков)
-                if required_days.issubset(completed):
-                    username = udata.get("username")
-                    if username:
-                        top_players.append(f"@{username}")
-                    else:
-                        # Если нет username, берем first_name или ID
-                        name = udata.get("first_name", "Игрок")
-                        top_players.append(f"{name} (ID: {uid})")
-        
-        # 3. Формируем ответ
-        if not top_players:
-            await update.message.reply_text(
-                f"📊 **Статистика ивента (День {global_day})**\n\n"
-                f"Пока нет игроков, выполнивших все квесты с 1 по {global_day} день."
-            )
-            return
-        
-        # Сортируем список по алфавиту
-        top_players.sort()
-        
-        header = f"📊 **Статистика ивента (День {global_day})**\n\n"
-        header += f"🏆 Выполнили все квесты ({len(top_players)} чел.):\n"
-        
-        # ⭐ Разбиваем на части, если список длинный (лимит Telegram 4096 символов) ⭐
-        message_parts = []
-        current_part = header
-        
-        for player in top_players:
-            if len(current_part) + len(player) + 2 > 4000: # Оставляем запас
-                message_parts.append(current_part)
-                current_part = ""
-            current_part += f"• {player}\n"
-        
-        if current_part:
-            message_parts.append(current_part)
-        
-        # Отправляем частями
-        for part in message_parts:
-            await update.message.reply_text(part, parse_mode="Markdown")
-        
-        logger.info(f"Админ {user_id} запросил статистику ивента. День {global_day}, топ игроков: {len(top_players)}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в check_darkest_night_progress: {e}", exc_info=True)
-        await update.message.reply_text("❌ Ошибка при получении статистики")
-        
         
 # ===== ЗАПУСК БОТА =====
 
@@ -14152,7 +13120,6 @@ def main() -> None:
         )
 
         data = load_data()
-        load_darkest_night_state(data)
         
         handlers = [
             CommandHandler("start", start),
@@ -14205,10 +13172,6 @@ def main() -> None:
             CommandHandler("clans_list", clans_list_command),
             CommandHandler("give_rolls_box", give_rolls_box),
             CommandHandler("cancel", cancel_command),
-            CommandHandler("start_darkest_night", start_darkest_night),
-            CommandHandler("next_darkest_day", next_darkest_day),
-            CommandHandler("reset_darkest_night", reset_darkest_night),
-            CommandHandler("check_dn", check_darkest_night_progress),
             MessageHandler(filters.PHOTO | filters.VIDEO | filters.ANIMATION, handle_message),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_|card_).*"),
@@ -14247,10 +13210,6 @@ def main() -> None:
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
             CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
             CallbackQueryHandler(clan_shop_max_expanded, pattern=r"^clan_shop_max_expanded$"),
-            CallbackQueryHandler(darkest_night_menu, pattern=r"^darkest_night_menu$"),
-            CallbackQueryHandler(darkest_night_claim_final, pattern=r"^darkest_night_claim_final$"),
-            CallbackQueryHandler(darkest_night_secret_callback, pattern=r"^darkest_night_secret_btn$"),
-            CallbackQueryHandler(darkest_night_exchange_cards, pattern=r"^darkest_night_exchange_cards$"), 
         ]
 
         for handler in handlers:
