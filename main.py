@@ -5072,6 +5072,9 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_id = str(update.effective_user.id)
         data = load_data()
         
+        # ⭐ ИСПРАВЛЕНИЕ 1: Получаем данные пользователя СРАЗУ, до всех проверок ⭐
+        user_data = data["users"].get(user_id, {})
+        
         # Проверяем аргументы
         if not context.args:
             await update.message.reply_text(
@@ -5096,6 +5099,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         promo_info = data["promo_codes"][promo_code]
         
         # Проверяем, не использовал ли игрок этот промокод раньше
+        # ⭐ ТЕПЕРЬ ЭТО РАБОТАЕТ, так как user_data уже определена ⭐
         used_promo_codes = user_data.get("used_promo_codes", [])
         if promo_code in used_promo_codes:
             await update.message.reply_text(
@@ -5140,8 +5144,9 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
                 return
         
         # Проверяем, существует ли пользователь в базе
+        # ⭐ ИСПРАВЛЕНИЕ 2: Если пользователя нет, создаем его и обновляем ссылку user_data ⭐
         if user_id not in data["users"]:
-            user_data = {
+            new_user_data = {
                 "username": update.effective_user.username or "",
                 "first_name": update.effective_user.first_name or "",
                 "last_name": update.effective_user.last_name or "",
@@ -5154,16 +5159,17 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "last_dice_time": 0,
                 "used_promo_codes": []
             }
-            data["users"][user_id] = user_data
+            data["users"][user_id] = new_user_data
+            user_data = new_user_data  # Обновляем локальную ссылку, чтобы работать с актуальным словарем
         
         # Добавляем карту игроку
-        data["users"][user_id]["cards"].append(card_id)
+        user_data["cards"].append(card_id)
         
         # Отмечаем промокод как использованный
-        data["users"][user_id]["used_promo_codes"].append(promo_code)
+        user_data["used_promo_codes"].append(promo_code)
         
         # Увеличиваем счётчик использований
-        data["promo_codes"][promo_code]["current_uses"] += 1
+        promo_info["current_uses"] += 1
         
         save_data(data)
         
