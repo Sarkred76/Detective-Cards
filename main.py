@@ -8291,6 +8291,7 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
             f"🎁 Награда получена:\n"
             f"{'| '.join(reward_parts) if reward_parts else 'Ничего'}"
         )
+        save(data)
         
         keyboard = [
             [InlineKeyboardButton("🔙 Назад к картам", callback_data=f"burn_show_{card['rarity']}")],
