@@ -4512,10 +4512,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             # Добавляем 10 бесплатных попыток
             await asyncio.sleep(2)
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
-            
-            # ⭐ ИСПРАВЛЕНИЕ: Сохраняем только если награда за ивент не была выдана ⭐
-            if not event_reward_claimed:
-                save_data(data)
+            save_data(data)
             
             await query.message.reply_text(
                 f"🎉 **ДЖЕКПОТ!** 🎉\n\n"
