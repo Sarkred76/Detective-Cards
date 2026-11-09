@@ -440,8 +440,6 @@ def migrate_data(data: Dict) -> Dict:
             user_data["avatar_url"] = DEFAULT_AVATAR_URL
         if "avatars" not in user_data:
             user_data["avatars"] = [DEFAULT_AVATAR_URL]
-        if "injustice_exchanged" not in user_data:
-            user_data["injustice_exchanged"] = False
 
     # ⭐ НОВОЕ: Миграция данных для Противостояния ⭐
     if "injustice" not in data:
@@ -8291,7 +8289,7 @@ async def burn_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, card_
             f"🎁 Награда получена:\n"
             f"{'| '.join(reward_parts) if reward_parts else 'Ничего'}"
         )
-        save(data)
+        save_data(data)
         
         keyboard = [
             [InlineKeyboardButton("🔙 Назад к картам", callback_data=f"burn_show_{card['rarity']}")],
