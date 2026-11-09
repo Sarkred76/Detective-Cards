@@ -13194,7 +13194,7 @@ def main() -> None:
             CallbackQueryHandler(avatar_callback, pattern=r"^avatar_.*"),
             CallbackQueryHandler(seasonal_quest_callback, pattern=r"^sq_.*"),
             CallbackQueryHandler(archive_search_start, pattern=r"^archive_search_(all|Common|Rare|Epic|Legendary|Highlight|Limited|Rare Team-up|Epic Team-up|Legendary Team-up)$"),
-            CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_(prev|next|info|cancel).*"),
+            CallbackQueryHandler(archive_search_callback, pattern=r"^archive_search_"),
             CallbackQueryHandler(accept_clan_invite_callback, pattern=r"^accept_clan_invite$"),
             CallbackQueryHandler(decline_clan_invite_callback, pattern=r"^decline_clan_invite$"),
             CallbackQueryHandler(clan_shop_confirm, pattern=r"^clan_shop_confirm_"),
