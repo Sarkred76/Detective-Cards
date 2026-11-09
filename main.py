@@ -1583,20 +1583,23 @@ async def archive_search_callback(update: Update, context: ContextTypes.DEFAULT_
     
             # ⭐ Клавиатура ⭐
             nav_buttons = []
-            # ⭐ Кнопка "<<" (назад на 5) ⭐
+            # ⭐ Кнопки навигации с быстрым пролистыванием ⭐
+            # Кнопка "<<" (назад на 5)
             if new_index > 0:
                 fast_prev_index = max(0, new_index - 5)
                 nav_buttons.append(InlineKeyboardButton("<<", callback_data=f"archive_search_fast_prev_{fast_prev_index}"))
                 nav_buttons.append(InlineKeyboardButton("<", callback_data=f"archive_search_prev_{new_index - 1}"))
 
+            # Индикатор текущей позиции
             nav_buttons.append(InlineKeyboardButton(f"{new_index + 1}/{len(filtered_cards)}", callback_data="archive_search_info"))
 
-            # ⭐ Кнопка ">>" (вперёд на 5) ⭐
+            # Кнопка ">" (вперёд на 1)
             if new_index < len(filtered_cards) - 1:
-                fast_next_index = min(len(filtered_cards) - 1, new_index + 5)
                 nav_buttons.append(InlineKeyboardButton(">", callback_data=f"archive_search_next_{new_index + 1}"))
-                nav_buttons.append(InlineKeyboardButton(">>", callback_data=f"archive_search_fast_next_{fast_next_index}"))
-    
+                # Кнопка ">>" (вперёд на 5)
+                fast_next_index = min(len(filtered_cards) - 1, new_index + 5)
+                if fast_next_index > new_index + 1:  # Показываем >> только если есть куда прыгнуть
+                    nav_buttons.append(InlineKeyboardButton(">>", callback_data=f"archive_search_fast_next_{fast_next_index}"))
             keyboard = [
                 nav_buttons,
                 [InlineKeyboardButton("🔍 Новый поиск", callback_data=f"archive_search_{search_info.get('search_type', 'all')}")],
