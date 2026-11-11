@@ -7141,6 +7141,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         text = (
             f"📦 **{current_box['name']}**\n"
             f"💰 Цена: {display_price} бэт-коинов\n"
+            f"💳 Ваш баланс: {user_data.get('cents', 0)} бэт-коинов\n"
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
             f"⚠️ Цена растёт на 5000 с каждой покупкой!\n\n"
         )
@@ -7613,7 +7614,7 @@ async def shop_seasonal(update: Update, context: ContextTypes.DEFAULT_TYPE, page
         # ⭐ Кнопка покупки: активная или серая ⭐
         if can_afford:
             buy_button = InlineKeyboardButton(
-                f"💰 Купить за {price} бэт-коинов",
+                f"💰 Купить за {price} бэт-коинов (у вас: {user_cents})",
                 callback_data=f"ss_buy_{card_id}"
             )
         else:
