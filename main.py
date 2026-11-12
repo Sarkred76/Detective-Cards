@@ -7,6 +7,7 @@ import re
 import html
 import random
 import time
+import html
 import datetime
 from typing import Optional, Dict, Any, List
 from collections import Counter
@@ -13107,6 +13108,8 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Ошибка в cancel_command: {e}")
         await update.message.reply_text("❌ Ошибка при отмене действия")
 
+import html
+
 async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Покупка Injustice Box за 15000 бэт-коинов."""
     try:
@@ -13122,7 +13125,6 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         price = 15000
         current_cents = user_data.get("cents", 0)
         
-        # Проверяем баланс
         if current_cents < price:
             await query.answer(
                 f"❌ Недостаточно бэт-коинов! Нужно: {price}, у вас: {current_cents}",
@@ -13140,46 +13142,37 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await query.answer("❌ В базе нет доступных карт Injustice!", show_alert=True)
             return
         
-        # Собираем Epic+ карты Injustice (Epic, Epic Team-up, Legendary, Legendary Team-up, Highlight, Limited)
+        # Epic+ пул для гарантии
         epic_rarities = {"Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited"}
         epic_cards = [card for card in injustice_cards if card.get("rarity") in epic_rarities]
         
         if not epic_cards:
-            await query.answer("❌ В базе нет карт Injustice редкости Epic и выше!", show_alert=True)
+            await query.answer("❌ Нет карт Injustice редкости Epic и выше!", show_alert=True)
             return
         
         # Списываем бэт-коины
         user_data["cents"] = current_cents - price
-        save_data(data)
         
-        # ⭐ ФОРМИРУЕМ НАБОР ИЗ 10 КАРТ ⭐
-        # 1 карта гарантированно Epic+, остальные 9 — любые Injustice
-        selected_cards = []
-        
-        # Гарантированная Epic+ карта
-        guaranteed = random.choice(epic_cards)
-        selected_cards.append(guaranteed)
-        
-        # 9 случайных карт Injustice (могут быть дубликаты)
+        # Формируем набор из 10 карт
+        selected_cards = [random.choice(epic_cards)]
         for _ in range(9):
             selected_cards.append(random.choice(injustice_cards))
-        
-        # Перемешиваем, чтобы Epic не всегда была первой
         random.shuffle(selected_cards)
         
-        # Добавляем карты в инвентарь игрока
-        user_data.setdefault("cards", [])
-        for card in selected_cards:
-            user_data["cards"].append(card["id"])
+        # Добавляем в инвентарь
+        user_data.setdefault("cards", []).extend([c["id"] for c in selected_cards])
         save_data(data)
         
-        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ С КАРТАМИ ⭐
-        media_list = []
+        # ⭐ РАЗДЕЛЯЕМ КАРТЫ НА ФОТО И АНИМАЦИИ ⭐
+        photo_cards = []
+        animation_cards = []
+        
         for card in selected_cards:
             media_source = card.get("media_source", "url")
             media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
             
             if not media_value:
+                logger.warning(f"Карта #{card['id']} ({card['title']}) не имеет медиа — пропускаем")
                 continue
             
             is_animation = (
@@ -13187,54 +13180,87 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
             )
             
-            # Telegram MediaGroup поддерживает только фото и документы (не анимации)
-            # Поэтому анимации пропускаем в альбоме и отправим отдельно
-            if not is_animation:
-                caption = f"{card['title']}\n{card['rarity']}"
-                # В альбоме caption работает только у первого медиа (лимит Telegram)
-                if len(media_list) == 0:
-                    caption = (
-                        f"🎉 <b>Injustice Box открыт!</b>\n\n"
-                        f"🃏 <b>{card['title']}</b> ({card['rarity']})\n"
-                        f"💰 Списано: {price} бэт-коинов\n"
-                        f"💳 Остаток: {user_data['cents']} бэт-коинов\n\n"
-                        f"📦 Всего карт: 10"
-                    )
-                
-                media_list.append(InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML"))
+            if is_animation:
+                animation_cards.append((card, media_value))
+            else:
+                photo_cards.append((card, media_value))
         
-        # Отправляем альбом (максимум 10 медиа в одном сообщении)
-        try:
-            if media_list:
-                await context.bot.send_media_group(
-                    chat_id=int(user_id),
-                    media=media_list
-                )
-        except Exception as album_err:
-            logger.warning(f"Не удалось отправить альбом: {album_err}. Отправляю по одной.")
-            # Запасной вариант: отправляем карты по одной
-            for i, card in enumerate(selected_cards):
-                media_source = card.get("media_source", "url")
-                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
-                is_animation = (
-                    card.get("media_type") == "animation" or 
-                    (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
-                )
-                caption = f"🃏 {card['title']} ({card['rarity']})"
+        logger.info(f"Injustice Box: фото={len(photo_cards)}, анимации={len(animation_cards)}")
+        
+        # ⭐ ОТПРАВЛЯЕМ ФОТО АЛЬБОМОМ ⭐
+        first_caption = None
+        if photo_cards:
+            media_list = []
+            for i, (card, media_value) in enumerate(photo_cards):
+                # Экранируем HTML в названии и редкости
+                safe_title = html.escape(card['title'])
+                safe_rarity = html.escape(card.get('rarity', ''))
+                
                 if i == 0:
                     caption = (
                         f"🎉 <b>Injustice Box открыт!</b>\n\n"
-                        f"🃏 <b>{card['title']}</b> ({card['rarity']})\n"
+                        f"🃏 <b>{safe_title}</b> ({safe_rarity})\n"
                         f"💰 Списано: {price} бэт-коинов\n"
                         f"💳 Остаток: {user_data['cents']} бэт-коинов"
                     )
+                    first_caption = caption
+                else:
+                    caption = f"{safe_title}\n{safe_rarity}"
+                
+                media_list.append(InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML"))
+            
+            try:
+                await context.bot.send_media_group(chat_id=int(user_id), media=media_list)
+                logger.info(f"Альбом Injustice Box отправлен ({len(media_list)} фото)")
+            except Exception as album_err:
+                logger.error(f"❌ Альбом не отправился: {album_err}. Отправляю фото по одному.")
+                # Запасной вариант: по одному, с нормальным логированием
+                for i, (card, media_value) in enumerate(photo_cards):
+                    safe_title = html.escape(card['title'])
+                    cap = first_caption if i == 0 else f"{safe_title}\n{card.get('rarity','')}"
+                    try:
+                        await context.bot.send_photo(
+                            chat_id=int(user_id),
+                            photo=media_value,
+                            caption=cap,
+                            parse_mode="HTML"
+                        )
+                    except Exception as one_err:
+                        logger.error(f"Не удалось отправить фото карты #{card['id']}: {one_err}")
+        
+        # ⭐ ОТПРАВЛЯЕМ АНИМАЦИИ ОТДЕЛЬНЫМИ СООБЩЕНИЯМИ ⭐
+        for card, media_value in animation_cards:
+            safe_title = html.escape(card['title'])
+            safe_rarity = html.escape(card.get('rarity', ''))
+            cap = f"🃏 <b>{safe_title}</b> ({safe_rarity})"
+            try:
+                await context.bot.send_animation(
+                    chat_id=int(user_id),
+                    animation=media_value,
+                    caption=cap,
+                    parse_mode="HTML"
+                )
+            except Exception as anim_err:
+                logger.error(f"Не удалось отправить анимацию карты #{card['id']}: {anim_err}")
+                # Пробуем как фото
                 try:
-                    if is_animation:
-                        await context.bot.send_animation(chat_id=int(user_id), animation=media_value, caption=caption, parse_mode="HTML")
-                    else:
-                        await context.bot.send_photo(chat_id=int(user_id), photo=media_value, caption=caption, parse_mode="HTML")
-                except:
-                    pass
+                    await context.bot.send_photo(
+                        chat_id=int(user_id),
+                        photo=media_value,
+                        caption=cap,
+                        parse_mode="HTML"
+                    )
+                except Exception as photo_err:
+                    logger.error(f"И как фото не вышло: {photo_err}")
+        
+        # ⭐ ЕСЛИ ВООБЩЕ НИЧЕГО НЕ ОТПРАВИЛОСЬ — отправляем текстом ⭐
+        if not photo_cards and not animation_cards:
+            titles = "\n".join(f"• {c['title']} ({c['rarity']})" for c in selected_cards)
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"🎉 <b>Injustice Box открыт!</b>\n\n{titles}\n\n⚠️ Не удалось загрузить изображения карт.",
+                parse_mode="HTML"
+            )
         
         # Текстовое уведомление о покупке
         await context.bot.send_message(
@@ -13249,7 +13275,6 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="HTML"
         )
         
-        # Обновляем сообщение в магазине
         await query.edit_message_text(
             f"✅ <b>Injustice Box куплен!</b>\n\n"
             f"📦 10 карт вселенной Injustice отправлены вам.\n"
@@ -13262,7 +13287,10 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
     except Exception as e:
         logger.error(f"Ошибка buy_injustice_box: {e}", exc_info=True)
-        await query.answer("❌ Ошибка при покупке бокса", show_alert=True)
+        try:
+            await query.answer("❌ Ошибка при покупке бокса", show_alert=True)
+        except:
+            pass
         
 # ===== ЗАПУСК БОТА =====
 
