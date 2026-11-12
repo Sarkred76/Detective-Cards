@@ -81,6 +81,8 @@ FRIENDS_AVATAR_1_URL = "https://ibb.co/GQN89Nzn"
 FRIENDS_AVATAR_2_URL = "https://ibb.co/bx2cr1h"
 FRIENDS_AVATARS = [FRIENDS_AVATAR_1_URL, FRIENDS_AVATAR_2_URL]
 
+INJUSTICE_BOX_IMAGE = "https://ibb.co/jkRZDSPn"
+
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
@@ -7052,6 +7054,7 @@ ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
     {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
+    {"name": "Injustice Box", "price": 15000, "image": INJUSTICE_BOX_IMAGE, "is_injustice_box": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -7147,6 +7150,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         )
         if pending > 0:
             text += f"🎁 <b>У вас накоплено: {pending} шт.</b>\nОткройте их кнопкой ниже!"
+            
     elif current_box.get("is_season_box"):
         pending = user_data.get("pending_season_boxes", 0)
         text = (
@@ -7160,19 +7164,27 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
-            
-        # Формирование клавиатуры
-        keyboard = []
-        keyboard.append([InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")])
+        
+    elif current_box.get("is_injustice_box"):
+        text = (
+            f"⚔️ **{current_box['name']}**\n\n"
+            f"💰 Цена: {display_price} бэт-коинов\n"  # Используем display_price для единообразия
+            f"💳 Ваш баланс: {user_data.get('cents', 0)} бэт-коинов\n"
+            f"🎁 Содержимое: **10 случайных карт вселенной Injustice**\n"
+            f"🌟 Минимум 1 карта редкости Epic и выше!\n"
+            f"⚠️ Карты отправляются альбомом."
+        )
     else:
-        text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
+        # Запасной вариант на случай добавления новых типов боксов в будущем
+        text = f"📦 **{current_box['name']}**\n💰 Цена: {display_price} бэт-коинов"
     
     # Формирование клавиатуры
     keyboard = []
     if current_box.get("is_season_box"):
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
     else:
-        keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
+        # Эта ветка сработает и для Rolls-Box, и для Injustice Box
+        keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price}", callback_data=f"shop_buy_box_{page}")])
     
     keyboard.append([InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")])
     
@@ -7183,7 +7195,12 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
     if page < len(SHOP_BOXES) - 1:
         nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
+    
+    # Вставляем навигацию предпоследней строкой (перед "Назад в Магазин")
     keyboard.insert(-1, nav_btns)
+    
+    # ⭐ Безопасное получение изображения ⭐
+    box_image = current_box.get("image", "")
     
     # Отправка
     if query:
@@ -7192,15 +7209,17 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         except:
             pass
         
-        # ⭐ Универсальная отправка: пытаемся отправить фото, если не выйдет (например, file_id битый) - отправим текст ⭐
         try:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=current_box["image"],
-                caption=text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            if box_image:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=box_image,
+                    caption=text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            else:
+                raise ValueError("Нет изображения для этого бокса")
         except Exception as photo_err:
             logger.warning(f"Не удалось отправить фото бокса: {photo_err}. Отправляю текст.")
             await context.bot.send_message(
@@ -7210,12 +7229,24 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
                 parse_mode="Markdown"
             )
     else:
-        await update.message.reply_photo(
-            photo=current_box["image"],
-            caption=text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
+        # ⭐ Добавлена защита и для прямого вызова команды ⭐
+        try:
+            if box_image:
+                await update.message.reply_photo(
+                    photo=box_image,
+                    caption=text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            else:
+                raise ValueError("Нет изображения")
+        except Exception as photo_err:
+            logger.warning(f"Не удалось отправить фото бокса (команда): {photo_err}. Отправляю текст.")
+            await update.message.reply_text(
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
 
 async def shop_open_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Открывает 1 накопленный Rolls-Box (без изменения цены в магазине)."""
@@ -13100,6 +13131,165 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as e:
         logger.error(f"Ошибка в cancel_command: {e}")
         await update.message.reply_text("❌ Ошибка при отмене действия")
+
+async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Покупка Injustice Box за 15000 бэт-коинов."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.answer("❌ Профиль не найден", show_alert=True)
+            return
+        
+        price = 15000
+        current_cents = user_data.get("cents", 0)
+        
+        # Проверяем баланс
+        if current_cents < price:
+            await query.answer(
+                f"❌ Недостаточно бэт-коинов! Нужно: {price}, у вас: {current_cents}",
+                show_alert=True
+            )
+            return
+        
+        # Собираем все доступные карты Injustice
+        injustice_cards = [
+            card for card in data["cards"]
+            if card.get("universe") == "injustice" and card.get("available", True)
+        ]
+        
+        if not injustice_cards:
+            await query.answer("❌ В базе нет доступных карт Injustice!", show_alert=True)
+            return
+        
+        # Собираем Epic+ карты Injustice (Epic, Epic Team-up, Legendary, Legendary Team-up, Highlight, Limited)
+        epic_rarities = {"Epic", "Epic Team-up", "Legendary", "Legendary Team-up", "Highlight", "Limited"}
+        epic_cards = [card for card in injustice_cards if card.get("rarity") in epic_rarities]
+        
+        if not epic_cards:
+            await query.answer("❌ В базе нет карт Injustice редкости Epic и выше!", show_alert=True)
+            return
+        
+        # Списываем бэт-коины
+        user_data["cents"] = current_cents - price
+        save_data(data)
+        
+        # ⭐ ФОРМИРУЕМ НАБОР ИЗ 10 КАРТ ⭐
+        # 1 карта гарантированно Epic+, остальные 9 — любые Injustice
+        selected_cards = []
+        
+        # Гарантированная Epic+ карта
+        guaranteed = random.choice(epic_cards)
+        selected_cards.append(guaranteed)
+        
+        # 9 случайных карт Injustice (могут быть дубликаты)
+        for _ in range(9):
+            selected_cards.append(random.choice(injustice_cards))
+        
+        # Перемешиваем, чтобы Epic не всегда была первой
+        random.shuffle(selected_cards)
+        
+        # Добавляем карты в инвентарь игрока
+        user_data.setdefault("cards", [])
+        for card in selected_cards:
+            user_data["cards"].append(card["id"])
+        save_data(data)
+        
+        # ⭐ ОТПРАВЛЯЕМ АЛЬБОМ С КАРТАМИ ⭐
+        media_list = []
+        for card in selected_cards:
+            media_source = card.get("media_source", "url")
+            media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+            
+            if not media_value:
+                continue
+            
+            is_animation = (
+                card.get("media_type") == "animation" or 
+                (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+            )
+            
+            # Telegram MediaGroup поддерживает только фото и документы (не анимации)
+            # Поэтому анимации пропускаем в альбоме и отправим отдельно
+            if not is_animation:
+                caption = f"{card['title']}\n{card['rarity']}"
+                # В альбоме caption работает только у первого медиа (лимит Telegram)
+                if len(media_list) == 0:
+                    caption = (
+                        f"🎉 <b>Injustice Box открыт!</b>\n\n"
+                        f"🃏 <b>{card['title']}</b> ({card['rarity']})\n"
+                        f"💰 Списано: {price} бэт-коинов\n"
+                        f"💳 Остаток: {user_data['cents']} бэт-коинов\n\n"
+                        f"📦 Всего карт: 10"
+                    )
+                
+                media_list.append(InputMediaPhoto(media=media_value, caption=caption, parse_mode="HTML"))
+        
+        # Отправляем альбом (максимум 10 медиа в одном сообщении)
+        try:
+            if media_list:
+                await context.bot.send_media_group(
+                    chat_id=int(user_id),
+                    media=media_list
+                )
+        except Exception as album_err:
+            logger.warning(f"Не удалось отправить альбом: {album_err}. Отправляю по одной.")
+            # Запасной вариант: отправляем карты по одной
+            for i, card in enumerate(selected_cards):
+                media_source = card.get("media_source", "url")
+                media_value = card.get("file_id") if media_source == "file_id" else card.get("image_url", "")
+                is_animation = (
+                    card.get("media_type") == "animation" or 
+                    (isinstance(media_value, str) and media_value.lower().endswith((".mp4", ".webm", ".gif")))
+                )
+                caption = f"🃏 {card['title']} ({card['rarity']})"
+                if i == 0:
+                    caption = (
+                        f"🎉 <b>Injustice Box открыт!</b>\n\n"
+                        f"🃏 <b>{card['title']}</b> ({card['rarity']})\n"
+                        f"💰 Списано: {price} бэт-коинов\n"
+                        f"💳 Остаток: {user_data['cents']} бэт-коинов"
+                    )
+                try:
+                    if is_animation:
+                        await context.bot.send_animation(chat_id=int(user_id), animation=media_value, caption=caption, parse_mode="HTML")
+                    else:
+                        await context.bot.send_photo(chat_id=int(user_id), photo=media_value, caption=caption, parse_mode="HTML")
+                except:
+                    pass
+        
+        # Текстовое уведомление о покупке
+        await context.bot.send_message(
+            chat_id=int(user_id),
+            text=(
+                f"✅ <b>Покупка успешна!</b>\n\n"
+                f"📦 Вы приобрели: <b>Injustice Box</b>\n"
+                f"💰 Списано: <b>{price}</b> бэт-коинов\n"
+                f"💳 Остаток: <b>{user_data['cents']}</b> бэт-коинов\n"
+                f"🃏 Получено карт: <b>10</b> (включая гарантированную Epic+)"
+            ),
+            parse_mode="HTML"
+        )
+        
+        # Обновляем сообщение в магазине
+        await query.edit_message_text(
+            f"✅ <b>Injustice Box куплен!</b>\n\n"
+            f"📦 10 карт вселенной Injustice отправлены вам.\n"
+            f"💳 Ваш баланс: <b>{user_data['cents']}</b> бэт-коинов",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_boxes")]]),
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"Игрок {user_id} купил Injustice Box за {price} бэт-коинов")
+        
+    except Exception as e:
+        logger.error(f"Ошибка buy_injustice_box: {e}", exc_info=True)
+        await query.answer("❌ Ошибка при покупке бокса", show_alert=True)
+
+
         
 # ===== ЗАПУСК БОТА =====
 
@@ -13216,6 +13406,7 @@ def main() -> None:
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
             CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
             CallbackQueryHandler(clan_shop_max_expanded, pattern=r"^clan_shop_max_expanded$"),
+            CallbackQueryHandler(buy_injustice_box, pattern=r"^shop_buy_injustice_box$"),
         ]
 
         for handler in handlers:
