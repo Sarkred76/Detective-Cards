@@ -13386,6 +13386,7 @@ def main() -> None:
             CallbackQueryHandler(profile_callback, pattern=r"^(profile_back|view_other_start|my_avatars_.*)"),
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),
             CallbackQueryHandler(basket_callback, pattern=r"^basket_.*"),
+            CallbackQueryHandler(buy_injustice_box, pattern=r"^shop_buy_injustice_box$"),
             CallbackQueryHandler(shop_callback, pattern=r"^shop_.*"),
             CallbackQueryHandler(burn_callback, pattern=r"^burn_.*"),
             CallbackQueryHandler(darts_callback, pattern=r"^darts_.*"),
@@ -13409,7 +13410,6 @@ def main() -> None:
             CallbackQueryHandler(shop_open_rolls_box, pattern=r"^shop_open_rolls_box$"),
             CallbackQueryHandler(open_single_rolls_box, pattern=r"^open_single_rolls_box$"),
             CallbackQueryHandler(clan_shop_max_expanded, pattern=r"^clan_shop_max_expanded$"),
-            CallbackQueryHandler(buy_injustice_box, pattern=r"^shop_buy_injustice_box$"),
         ]
 
         for handler in handlers:
