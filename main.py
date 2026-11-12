@@ -13277,13 +13277,35 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="HTML"
         )
         
-        await query.edit_message_text(
-            f"✅ <b>Injustice Box куплен!</b>\n\n"
-            f"📦 10 карт вселенной Injustice отправлены вам.\n"
-            f"💳 Ваш баланс: <b>{user_data['cents']}</b> бэт-коинов",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_boxes")]]),
-            parse_mode="HTML"
-        )
+        # Обновляем сообщение в магазине
+        try:
+            await query.edit_message_text(
+                f"✅ <b>Injustice Box куплен!</b>\n\n"
+                f"📦 10 карт вселенной Injustice отправлены вам.\n"
+                f"💳 Ваш баланс: <b>{user_data['cents']}</b> бэт-коинов",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_boxes")]]),
+                parse_mode="HTML"
+            )
+        except Exception as edit_err:
+            error_str = str(edit_err)
+            if "There is no text" in error_str:
+                # Сообщение содержит фото — удаляем и отправляем новое текстовое
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=(
+                        f"✅ <b>Injustice Box куплен!</b>\n\n"
+                        f"📦 10 карт вселенной Injustice отправлены вам.\n"
+                        f"💳 Ваш баланс: <b>{user_data['cents']}</b> бэт-коинов"
+                    ),
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в магазин", callback_data="shop_boxes")]]),
+                    parse_mode="HTML"
+                )
+            else:
+                logger.error(f"Ошибка редактирования buy_injustice_box: {edit_err}")
         
         logger.info(f"Игрок {user_id} купил Injustice Box за {price} бэт-коинов")
         
