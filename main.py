@@ -7178,6 +7178,8 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     keyboard = []
     if current_box.get("is_season_box"):
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
+    elif current_box.get("is_injustice_box"):
+        keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data="shop_buy_injustice_box")])
     else:
         keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
