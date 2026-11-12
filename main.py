@@ -7167,8 +7167,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"💰 Цена: {current_box['price']} бэт-коинов\n"
             f"💳 Ваш баланс: {user_data.get('cents', 0)} бэт-коинов\n"
             f"🎁 Содержимое: **10 случайных карт вселенной Injustice**\n"
-            f"🌟 Минимум 1 карта редкости Epic и выше!\n"
-            f"⚠️ Карты отправляются альбомом."
+            f"🌟 Минимум 1 карта редкости Epic и выше!"
         )
     
     else:
@@ -13272,7 +13271,7 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 f"📦 Вы приобрели: <b>Injustice Box</b>\n"
                 f"💰 Списано: <b>{price}</b> бэт-коинов\n"
                 f"💳 Остаток: <b>{user_data['cents']}</b> бэт-коинов\n"
-                f"🃏 Получено карт: <b>10</b> (включая гарантированную Epic+)"
+                f"🃏 Получено карт: <b>10</b>"
             ),
             parse_mode="HTML"
         )
