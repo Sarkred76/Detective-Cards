@@ -8007,7 +8007,7 @@ async def show_burn_cards(update: Update, context: ContextTypes.DEFAULT_TYPE, ra
             
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                if rarity is None or card.get("rarity") == rarity:
+                if rarity is None or rarity == "all" or card.get("rarity") == rarity:
                     cards_to_show.append((card, count))
         
         if not cards_to_show:
