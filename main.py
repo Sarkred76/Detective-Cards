@@ -7054,7 +7054,7 @@ INJUSTICE_BOX_IMAGE = "https://ibb.co/jkRZDSPn"
 SHOP_BOXES = [
     {"name": "Rolls-Box", "price": 25000, "image": ROLLS_BOX_IMAGE, "is_rolls_box": True},
     {"name": "Season-Box", "price": 0, "image": SEASON_BOX_IMAGE, "is_season_box": True},
-    {"name": "Injustice Box", "price": 15000, "image": INJUSTICE_BOX_IMAGE, "is_injustice_box": True},
+    {"name": "Injustice Box", "price": 20000, "image": INJUSTICE_BOX_IMAGE, "is_injustice_box": True},
 ]
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -13113,7 +13113,7 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 import html
 
 async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Покупка Injustice Box за 15000 бэт-коинов."""
+    """Покупка Injustice Box за 20000 бэт-коинов."""
     try:
         query = update.callback_query
         user_id = str(query.from_user.id)
@@ -13124,7 +13124,7 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await query.answer("❌ Профиль не найден", show_alert=True)
             return
         
-        price = 15000
+        price = 20000
         current_cents = user_data.get("cents", 0)
         
         if current_cents < price:
