@@ -81,8 +81,6 @@ FRIENDS_AVATAR_1_URL = "https://ibb.co/GQN89Nzn"
 FRIENDS_AVATAR_2_URL = "https://ibb.co/bx2cr1h"
 FRIENDS_AVATARS = [FRIENDS_AVATAR_1_URL, FRIENDS_AVATAR_2_URL]
 
-INJUSTICE_BOX_IMAGE = "https://ibb.co/jkRZDSPn"
-
 # ===== АВАТАРКА КЛАНА =====
 DEFAULT_CLAN_AVATAR = None  # None означает отсутствие аватарки (используется текст)
 
@@ -7049,6 +7047,7 @@ SHOP_MAIN_IMAGE = "https://files.catbox.moe/evkd6c.jpg"  # Главное мен
 SHOP_DONATE_IMAGE = "https://files.catbox.moe/1tcx0h.jpg"    # Донат
 SEASON_BOX_IMAGE = "https://files.catbox.moe/a3lmex.jpg"
 ROLLS_BOX_IMAGE = "https://files.catbox.moe/ubyjxo.jpg"
+INJUSTICE_BOX_IMAGE = "https://ibb.co/jkRZDSPn"
 
 # Список боксов для навигации
 SHOP_BOXES = [
@@ -7148,9 +7147,6 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"🎁 Содержимое: **15 бесплатных попыток**\n"
             f"⚠️ Цена растёт на 5000 с каждой покупкой!\n\n"
         )
-        if pending > 0:
-            text += f"🎁 <b>У вас накоплено: {pending} шт.</b>\nОткройте их кнопкой ниже!"
-            
     elif current_box.get("is_season_box"):
         pending = user_data.get("pending_season_boxes", 0)
         text = (
@@ -7164,27 +7160,25 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
             f"• 10 бесплатных попыток 🔍\n\n"
             f"💳 Для покупки напишите: @Be9onder"
         )
-        
     elif current_box.get("is_injustice_box"):
         text = (
             f"⚔️ **{current_box['name']}**\n\n"
-            f"💰 Цена: {display_price} бэт-коинов\n"  # Используем display_price для единообразия
+            f"💰 Цена: {current_box['price']} бэт-коинов\n"
             f"💳 Ваш баланс: {user_data.get('cents', 0)} бэт-коинов\n"
             f"🎁 Содержимое: **10 случайных карт вселенной Injustice**\n"
             f"🌟 Минимум 1 карта редкости Epic и выше!\n"
             f"⚠️ Карты отправляются альбомом."
         )
+    
     else:
-        # Запасной вариант на случай добавления новых типов боксов в будущем
-        text = f"📦 **{current_box['name']}**\n💰 Цена: {display_price} бэт-коинов"
+        text = f"📦 **{current_box['name']}**\nЦена: {display_price} бэт-коинов"
     
     # Формирование клавиатуры
     keyboard = []
     if current_box.get("is_season_box"):
         keyboard.append([InlineKeyboardButton("💬 Написать @Be9onder", url="https://t.me/Be9onder")])
     else:
-        # Эта ветка сработает и для Rolls-Box, и для Injustice Box
-        keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price}", callback_data=f"shop_buy_box_{page}")])
+        keyboard.append([InlineKeyboardButton(f"💰 Купить за {display_price} бэт-коинов", callback_data=f"shop_buy_box_{page}")])
     
     keyboard.append([InlineKeyboardButton("🔙 Назад в Магазин", callback_data="shop_menu")])
     
@@ -7195,12 +7189,7 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
     nav_btns.append(InlineKeyboardButton(f"{page+1}/{len(SHOP_BOXES)}", callback_data="shop_info"))
     if page < len(SHOP_BOXES) - 1:
         nav_btns.append(InlineKeyboardButton("▶️", callback_data=f"shop_boxes_{page+1}"))
-    
-    # Вставляем навигацию предпоследней строкой (перед "Назад в Магазин")
     keyboard.insert(-1, nav_btns)
-    
-    # ⭐ Безопасное получение изображения ⭐
-    box_image = current_box.get("image", "")
     
     # Отправка
     if query:
@@ -7209,17 +7198,15 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
         except:
             pass
         
+        # ⭐ Универсальная отправка: пытаемся отправить фото, если не выйдет (например, file_id битый) - отправим текст ⭐
         try:
-            if box_image:
-                await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=box_image,
-                    caption=text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
-            else:
-                raise ValueError("Нет изображения для этого бокса")
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=current_box["image"],
+                caption=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         except Exception as photo_err:
             logger.warning(f"Не удалось отправить фото бокса: {photo_err}. Отправляю текст.")
             await context.bot.send_message(
@@ -7229,24 +7216,12 @@ async def shop_boxes(update: Update, context: ContextTypes.DEFAULT_TYPE, page: i
                 parse_mode="Markdown"
             )
     else:
-        # ⭐ Добавлена защита и для прямого вызова команды ⭐
-        try:
-            if box_image:
-                await update.message.reply_photo(
-                    photo=box_image,
-                    caption=text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
-            else:
-                raise ValueError("Нет изображения")
-        except Exception as photo_err:
-            logger.warning(f"Не удалось отправить фото бокса (команда): {photo_err}. Отправляю текст.")
-            await update.message.reply_text(
-                text=text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+        await update.message.reply_photo(
+            photo=current_box["image"],
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
 
 async def shop_open_rolls_box(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Открывает 1 накопленный Rolls-Box (без изменения цены в магазине)."""
@@ -13288,8 +13263,6 @@ async def buy_injustice_box(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     except Exception as e:
         logger.error(f"Ошибка buy_injustice_box: {e}", exc_info=True)
         await query.answer("❌ Ошибка при покупке бокса", show_alert=True)
-
-
         
 # ===== ЗАПУСК БОТА =====
 
